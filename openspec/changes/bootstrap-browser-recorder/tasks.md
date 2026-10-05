@@ -91,12 +91,12 @@ Note: `size:exception` was explicitly accepted by the user, so no decision gate 
 
 ## WP3: Script generation (parallel; depends on WP0)
 
-- [ ] 3.1 `js-literal.ts`: RED with `"`, backtick, `${`, `\n`, `\u2028`, `*/`, `"); process.exit(1); ("`; GREEN `JSON.stringify` plus `\u2028/\u2029` escape; assert `node --check` and exact value round-trip (SG Safe literals: Injection; threat matrix: generated-code injection).
-- [ ] 3.2 `render-target.ts`: locator kinds, `nth`, `frameLocator` chain (SG Event-to-code mapping).
-- [ ] 3.3 `script-prelude.ts`: `createRuntime` (`at`, `mark`, `done`, `fail`, `nextPage`, `expectDialogs`, `expectFiles`, `onAbort`); RED runs the prelude against a fake context: late step runs immediately; `::step i ms`, `::done`, `::error`; stdin `abort` exits 130 (SG Absolute-offset scheduling: Offset wait, Late step; Progress markers: Markers).
-- [ ] 3.4 `render-step.ts`: every event kind -> Playwright call; unknown kind throws naming type and index (SG Event-to-code mapping: Multi-tab, Unknown event type).
-- [ ] 3.5 `generate-script.ts`: golden scripts in `tests/unit/script-generation/goldens/`; byte-identical twice; only `playwright` and `node:` imports; pure function, so no file is written on error (SG Plain Playwright ESM output: Runnable, Deterministic).
-- [ ] 3.6 Integration: generated script runs against the fixture server; step markers in order and a step taking 400 ms does not shift later steps (SG Offset wait). Atomic write is covered in WP4 (SG Atomic generation).
+- [x] 3.1 `js-literal.ts`: RED with `"`, backtick, `${`, `\n`, `\u2028`, `*/`, `"); process.exit(1); ("`; GREEN `JSON.stringify` plus `\u2028/\u2029` escape; assert `node --check` and exact value round-trip (SG Safe literals: Injection; threat matrix: generated-code injection).
+- [x] 3.2 `render-target.ts`: locator kinds, `nth`, `frameLocator` chain (SG Event-to-code mapping).
+- [x] 3.3 `script-prelude.ts`: `createRuntime` (`at`, `mark`, `done`, `fail`, `nextPage`, `expectDialogs`, `expectFiles`, `onAbort`); RED runs the prelude against a fake context: late step runs immediately; `::step i ms`, `::done`, `::error`; stdin `abort` exits 130 (SG Absolute-offset scheduling: Offset wait, Late step; Progress markers: Markers).
+- [x] 3.4 `render-step.ts`: every event kind -> Playwright call; unknown kind throws naming type and index (SG Event-to-code mapping: Multi-tab, Unknown event type).
+- [x] 3.5 `generate-script.ts`: golden scripts in `tests/unit/script-generation/goldens/`; byte-identical twice; only `playwright` and `node:` imports; pure function, so no file is written on error (SG Plain Playwright ESM output: Runnable, Deterministic).
+- [x] 3.6 Integration: generated script runs against the fixture server; step markers in order and a step taking 400 ms does not shift later steps (SG Offset wait). Atomic write is covered in WP4 (SG Atomic generation).
 
 ## WP4: Script library (parallel; depends on WP0)
 
