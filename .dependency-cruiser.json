@@ -1,0 +1,150 @@
+{
+  "forbidden": [
+    {
+      "name": "no-circular",
+      "severity": "error",
+      "from": {},
+      "to": {
+        "circular": true
+      }
+    },
+    {
+      "name": "not-to-unresolvable",
+      "severity": "error",
+      "from": {},
+      "to": {
+        "couldNotResolve": true
+      }
+    },
+    {
+      "name": "no-non-package-json",
+      "severity": "error",
+      "from": {},
+      "to": {
+        "dependencyTypes": ["npm-no-pkg", "npm-unknown"]
+      }
+    },
+    {
+      "name": "no-deprecated-core",
+      "severity": "error",
+      "from": {},
+      "to": {
+        "dependencyTypes": ["core"],
+        "path": "^(?:punycode|domain|constants|sys|_linklist|_stream_wrap)$"
+      }
+    },
+    {
+      "name": "no-cross-feature",
+      "comment": "Features never import each other; they meet in src/composition only.",
+      "severity": "error",
+      "from": {
+        "path": "^src/([^/]+)/",
+        "pathNot": "^src/(composition|shared)/"
+      },
+      "to": {
+        "path": "^src/",
+        "pathNot": "^src/($1|shared)/"
+      }
+    },
+    {
+      "name": "domain-pure",
+      "comment": "Domain code imports only other domain code: no application, adapters, in-page, Node core or npm modules.",
+      "severity": "error",
+      "from": {
+        "path": "/domain/"
+      },
+      "to": {
+        "pathNot": "/domain/"
+      }
+    },
+    {
+      "name": "application-no-io",
+      "comment": "Application code talks to the outside only through ports: no adapters, Node core or npm modules.",
+      "severity": "error",
+      "from": {
+        "path": "/application/"
+      },
+      "to": {
+        "pathNot": "/(application|domain)/"
+      }
+    },
+    {
+      "name": "playwright-in-adapters",
+      "comment": "Playwright is reachable from adapters and the composition root only.",
+      "severity": "error",
+      "from": {
+        "pathNot": "/adapters/|^src/composition/|^src/main\\.ts$"
+      },
+      "to": {
+        "path": "node_modules/playwright(-core)?/"
+      }
+    },
+    {
+      "name": "in-page-sealed",
+      "comment": "The in-page bundle is built by esbuild; nothing imports it.",
+      "severity": "error",
+      "from": {
+        "pathNot": "^src/recording-capture/in-page/"
+      },
+      "to": {
+        "path": "^src/recording-capture/in-page/"
+      }
+    },
+    {
+      "name": "in-page-allow-list",
+      "comment": "In-page code runs in the page: it may import only in-page, capture domain and shared domain code.",
+      "severity": "error",
+      "from": {
+        "path": "^src/recording-capture/in-page/"
+      },
+      "to": {
+        "pathNot": "^src/(recording-capture/(in-page|domain)|shared/domain)/"
+      }
+    },
+    {
+      "name": "render-pure",
+      "comment": "Renderers are pure functions of state: no application or adapters.",
+      "severity": "error",
+      "from": {
+        "path": "^src/tui/render/"
+      },
+      "to": {
+        "path": "/(application|adapters)/"
+      }
+    },
+    {
+      "name": "no-orphans",
+      "comment": "Every module is reachable from an entry point. A port may exist before its first consumer; knip reports it if it stays unused.",
+      "severity": "error",
+      "from": {
+        "orphan": true,
+        "pathNot": [
+          "\\.d\\.ts$",
+          "^src/main\\.ts$",
+          "^src/recording-capture/in-page/capture-script\\.ts$",
+          "^src/[^/]+/application/ports/[^/]+\\.ts$",
+          "^scripts/[^/]+\\.ts$"
+        ]
+      },
+      "to": {}
+    }
+  ],
+  "options": {
+    "doNotFollow": {
+      "path": "node_modules",
+      "dependencyTypes": [
+        "npm",
+        "npm-dev",
+        "npm-optional",
+        "npm-peer",
+        "npm-bundled",
+        "npm-no-pkg"
+      ]
+    },
+    "enhancedResolveOptions": {
+      "conditionNames": ["import", "node", "default"],
+      "exportsFields": ["exports"]
+    },
+    "tsPreCompilationDeps": true
+  }
+}

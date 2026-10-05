@@ -1,0 +1,170 @@
+import { spawnSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
+
+const ROOT = path.resolve(import.meta.dirname, '..', '..', '..');
+const CONFIG = path.join(ROOT, '.dependency-cruiser.json');
+const CRUISE_BIN = path.join(
+  ROOT,
+  'node_modules',
+  'dependency-cruiser',
+  'bin',
+  'dependency-cruiser.mjs',
+);
+
+interface CruiseReport {
+  summary: { violations: { rule: { name: string } }[] };
+}
+
+const workDirs: string[] = [];
+
+/** Write a throwaway source tree (plus a stub `playwright`) and cruise it. */
+function cruise(files: Record<string, string>): string[] {
+  const dir = mkdtempSync(path.join(tmpdir(), 'br-depcruise-'));
+  workDirs.push(dir);
+  const all: Record<string, string> = {
+    'package.json': '{"name":"fixture","dependencies":{"playwright":"1.0.0"}}',
+    'node_modules/playwright/package.json':
+      '{"name":"playwright","version":"1.0.0","main":"index.js"}',
+    'node_modules/playwright/index.js': 'module.exports = {};',
+    ...files,
+  };
+  for (const [relative, content] of Object.entries(all)) {
+    const target = path.join(dir, relative);
+    mkdirSync(path.dirname(target), { recursive: true });
+    writeFileSync(target, content);
+  }
+  const result = spawnSync(
+    process.execPath,
+    [CRUISE_BIN, 'src', '--config', CONFIG, '--output-type', 'json'],
+    { cwd: dir, encoding: 'utf8' },
+  );
+  const report = JSON.parse(result.stdout) as CruiseReport;
+  return report.summary.violations.map((violation) => violation.rule.name);
+}
+
+const MAIN_IMPORTING = (targets: string[]): Record<string, string> => ({
+  'src/main.ts': targets.map((t) => `import '${t}';`).join('\n'),
+});
+
+describe('dependency-cruiser layering rules', () => {
+  afterEach(() => {
+    for (const dir of workDirs.splice(0)) {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('accepts a tree that respects every layer', () => {
+    const violations = cruise({
+      ...MAIN_IMPORTING([
+        './replay/application/runner.ts',
+        './replay/adapters/spawner.ts',
+        './tui/render/screen.ts',
+      ]),
+      'src/shared/domain/kernel.ts': 'export const kernel = 1;\n',
+      'src/replay/domain/parse.ts':
+        "import { kernel } from '../../shared/domain/kernel.ts';\nexport const parse = kernel;\n",
+      'src/replay/application/runner.ts':
+        "import { parse } from '../domain/parse.ts';\nexport const run = parse;\n",
+      'src/replay/adapters/spawner.ts':
+        "import 'playwright';\nimport { run } from '../application/runner.ts';\nexport const spawn = run;\n",
+      'src/recording-capture/domain/pure.ts': 'export const pure = 1;\n',
+      'src/recording-capture/in-page/capture-script.ts':
+        "import { pure } from '../domain/pure.ts';\nexport const entry = pure;\n",
+      'src/tui/render/screen.ts':
+        "import { kernel } from '../../shared/domain/kernel.ts';\nexport const screen = kernel;\n",
+    });
+    expect(violations).toEqual([]);
+  });
+
+  it('rejects a domain module that imports an adapter', () => {
+    const violations = cruise({
+      ...MAIN_IMPORTING(['./replay/domain/bad.ts']),
+      'src/replay/domain/bad.ts':
+        "import { spawn } from '../adapters/spawner.ts';\nexport const bad = spawn;\n",
+      'src/replay/adapters/spawner.ts': 'export const spawn = 1;\n',
+    });
+    expect(violations).toContain('domain-pure');
+  });
+
+  it('rejects a domain module that imports a Node core module', () => {
+    const violations = cruise({
+      ...MAIN_IMPORTING(['./replay/domain/io.ts']),
+      'src/replay/domain/io.ts':
+        "import { readFileSync } from 'node:fs';\nexport const io = readFileSync;\n",
+    });
+    expect(violations).toContain('domain-pure');
+  });
+
+  it('rejects one feature importing another', () => {
+    const violations = cruise({
+      ...MAIN_IMPORTING(['./replay/domain/a.ts']),
+      'src/replay/domain/a.ts':
+        "import { b } from '../../tui/domain/b.ts';\nexport const a = b;\n",
+      'src/tui/domain/b.ts': 'export const b = 1;\n',
+    });
+    expect(violations).toContain('no-cross-feature');
+  });
+
+  it('allows composition to wire features together', () => {
+    const violations = cruise({
+      ...MAIN_IMPORTING(['./composition/wire.ts']),
+      'src/composition/wire.ts':
+        "import { a } from '../replay/domain/a.ts';\nimport { b } from '../tui/domain/b.ts';\nexport const wire = [a, b];\n",
+      'src/replay/domain/a.ts': 'export const a = 1;\n',
+      'src/tui/domain/b.ts': 'export const b = 2;\n',
+    });
+    expect(violations).toEqual([]);
+  });
+
+  it('rejects playwright inside application code', () => {
+    const violations = cruise({
+      ...MAIN_IMPORTING(['./replay/application/runner.ts']),
+      'src/replay/application/runner.ts':
+        "import 'playwright';\nexport const run = 1;\n",
+    });
+    expect(violations).toContain('playwright-in-adapters');
+    expect(violations).toContain('application-no-io');
+  });
+
+  it('rejects an in-page module that imports outside its allow-list', () => {
+    const violations = cruise({
+      ...MAIN_IMPORTING(['./recording-capture/in-page/capture-script.ts']),
+      'src/recording-capture/in-page/capture-script.ts':
+        "import { parse } from '../../replay/domain/parse.ts';\nexport const entry = parse;\n",
+      'src/replay/domain/parse.ts': 'export const parse = 1;\n',
+    });
+    expect(violations).toContain('in-page-allow-list');
+  });
+
+  it('rejects code outside in-page that imports in-page modules', () => {
+    const violations = cruise({
+      ...MAIN_IMPORTING(['./replay/application/runner.ts']),
+      'src/replay/application/runner.ts':
+        "import { entry } from '../../recording-capture/in-page/capture-script.ts';\nexport const run = entry;\n",
+      'src/recording-capture/in-page/capture-script.ts':
+        'export const entry = 1;\n',
+    });
+    expect(violations).toContain('in-page-sealed');
+  });
+
+  it('rejects a render module that imports application code', () => {
+    const violations = cruise({
+      ...MAIN_IMPORTING(['./tui/render/screen.ts']),
+      'src/tui/render/screen.ts':
+        "import { control } from '../application/controller.ts';\nexport const screen = control;\n",
+      'src/tui/application/controller.ts': 'export const control = 1;\n',
+    });
+    expect(violations).toContain('render-pure');
+  });
+
+  it('rejects an orphan module', () => {
+    const violations = cruise({
+      ...MAIN_IMPORTING([]),
+      'src/replay/domain/lonely.ts': 'export const lonely = 1;\n',
+    });
+    expect(violations).toContain('no-orphans');
+  });
+});
