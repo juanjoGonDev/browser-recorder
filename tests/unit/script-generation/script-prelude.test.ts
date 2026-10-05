@@ -50,6 +50,26 @@ describe('src/script-generation/domain/script-prelude.ts', () => {
     expect(elapsed).toBeLessThan(260);
   });
 
+  it('never reports a step before its offset even when timers fire early', async () => {
+    const result = await run(`
+      const realSetTimeout = globalThis.setTimeout;
+      globalThis.setTimeout = (callback, ms, ...rest) =>
+        realSetTimeout(callback, Math.max(0, ms - 2), ...rest);
+      rt.start();
+      for (const offset of [50, 100, 150, 200]) {
+        await rt.at(offset);
+        rt.mark(offset);
+      }
+      rt.done();`);
+    const elapsed = lines(result.stdout)
+      .filter((line) => line.startsWith('::step '))
+      .map((line) => Number(line.split(' ')[2]));
+    expect(elapsed).toHaveLength(4);
+    elapsed.forEach((value, index) => {
+      expect(value).toBeGreaterThanOrEqual([50, 100, 150, 200][index] ?? 0);
+    });
+  });
+
   it('runs a late step immediately without extra delay', async () => {
     const result = await run(`
       rt.start();

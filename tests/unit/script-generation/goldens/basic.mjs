@@ -191,8 +191,13 @@ function createRuntime(context, options = {}) {
       context.on('page', handlePage);
     },
     async at(offsetMs) {
-      const remaining = startedAt + offsetMs - performance.now();
-      if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining));
+      // A timer may fire a little early: sleep again rather than run the step
+      // before its offset.
+      let remaining = startedAt + offsetMs - performance.now();
+      while (remaining > 0) {
+        await new Promise((resolve) => setTimeout(resolve, remaining));
+        remaining = startedAt + offsetMs - performance.now();
+      }
     },
     mark(index) {
       currentStep = index;
