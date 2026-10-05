@@ -39,6 +39,23 @@ describe('src/script-generation/domain/generate-script.ts', () => {
   );
 
   it.each(CASES)(
+    'never runs code in the page main world in %s',
+    (_name, recording) => {
+      const script = generateScript(recording);
+      expect(script).not.toMatch(
+        /\.(?:evaluate|evaluateHandle|evaluateAll|\$eval|\$\$eval|waitForFunction|addInitScript|addScriptTag|exposeFunction|exposeBinding)\(/u,
+      );
+    },
+  );
+
+  it('scrolls through the isolated-world runtime helper only', () => {
+    const script = generateScript(BASIC_RECORDING);
+    expect(script).toContain('await rt.scrollTo(page1, [], [0, 640]);');
+    expect(script).toContain('worldName: SCROLL_WORLD');
+    expect(script).toContain("'Runtime.callFunctionOn'");
+  });
+
+  it.each(CASES)(
     'produces a parseable ES module for %s',
     (_name, recording) => {
       expect(checkModuleSyntax(generateScript(recording))).toStrictEqual({

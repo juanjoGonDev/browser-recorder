@@ -119,15 +119,28 @@ describe('src/script-generation/domain/render-step.ts', () => {
     [
       'page scroll',
       at({ kind: 'scroll', target: null, x: 0, y: 640 }),
-      [
-        'await page1.evaluate(([x, y]) => { window.scrollTo(x, y); }, [0, 640]);',
-      ],
+      ['await rt.scrollTo(page1, [], [0, 640]);'],
     ],
     [
       'element scroll',
       at({ kind: 'scroll', target: SAVE, x: 5, y: 10 }),
+      [`await rt.scrollTo(page1, [${SAVE_EXPR}], [5, 10]);`],
+    ],
+    [
+      'element scroll inside nested iframes lists every frame element first',
+      at({
+        kind: 'scroll',
+        target: {
+          locator: { kind: 'css', selector: '#panel' },
+          nth: null,
+          framePath: ['iframe#outer', 'iframe[name="inner"]'],
+          description: 'Panel',
+        },
+        x: 0,
+        y: 250,
+      }),
       [
-        `await ${SAVE_EXPR}.evaluate((element, [x, y]) => { element.scrollTo(x, y); }, [5, 10]);`,
+        'await rt.scrollTo(page1, [page1.locator("iframe#outer"), page1.frameLocator("iframe#outer").locator("iframe[name=\\"inner\\"]"), page1.frameLocator("iframe#outer").frameLocator("iframe[name=\\"inner\\"]").locator("#panel")], [0, 250]);',
       ],
     ],
     [

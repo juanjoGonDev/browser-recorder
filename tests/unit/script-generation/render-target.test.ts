@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { renderTarget } from '../../../src/script-generation/domain/render-target.ts';
+import {
+  renderTarget,
+  renderTargetChain,
+} from '../../../src/script-generation/domain/render-target.ts';
 import type { Locator, Target } from '../../../src/shared/domain/locator.ts';
 
 function targetOf(locator: Locator, overrides: Partial<Target> = {}): Target {
@@ -79,5 +82,36 @@ describe('src/script-generation/domain/render-target.ts', () => {
   it('rejects a page variable that is not a page identifier', () => {
     const target = targetOf({ kind: 'css', selector: 'a' });
     expect(() => renderTarget('page1; evil()', target)).toThrow(/page/);
+  });
+
+  describe('renderTargetChain', () => {
+    const base: Target = {
+      locator: { kind: 'css', selector: '#x' },
+      nth: null,
+      framePath: [],
+      description: 'x',
+    };
+
+    it('is just the target for the main frame, keeping nth', () => {
+      expect(renderTargetChain('page1', { ...base, nth: 2 })).toStrictEqual([
+        'page1.locator("#x").nth(2)',
+      ]);
+    });
+
+    it('lists each iframe element in its own scope before the target', () => {
+      expect(
+        renderTargetChain('page2', { ...base, framePath: ['#a', '#b'] }),
+      ).toStrictEqual([
+        'page2.locator("#a")',
+        'page2.frameLocator("#a").locator("#b")',
+        'page2.frameLocator("#a").frameLocator("#b").locator("#x")',
+      ]);
+    });
+
+    it('refuses a page variable that is not a page identifier', () => {
+      expect(() => renderTargetChain('page1; boom', base)).toThrow(
+        /Not a page variable/u,
+      );
+    });
   });
 });

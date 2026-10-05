@@ -28,6 +28,28 @@ function renderLocator(scope: string, locator: Locator): string {
 }
 
 /**
+ * One expression per nesting level, outermost first: the locator of each
+ * iframe element, then the target's own locator. Every one of them resolves
+ * to an element of the document the previous one hosts.
+ */
+export function renderTargetChain(
+  pageVariable: string,
+  target: Target,
+): string[] {
+  assertPageVariable(pageVariable);
+  const frames = target.framePath.map((selector, depth) => {
+    const scope = target.framePath
+      .slice(0, depth)
+      .reduce(
+        (chain, outer) => `${chain}.frameLocator(${jsString(outer)})`,
+        pageVariable,
+      );
+    return `${scope}.locator(${jsString(selector)})`;
+  });
+  return [...frames, renderTarget(pageVariable, target)];
+}
+
+/**
  * A Playwright expression that resolves the target on the given page variable:
  * frame chain first, then the locator, then `nth` when it was ambiguous.
  */

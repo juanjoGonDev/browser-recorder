@@ -252,6 +252,17 @@ export const HOSTILE_RECORDING = recordingOf(
       target: targetOf({ kind: 'text', text: '</script>' }),
       values: [HOSTILE_VALUE, "it's"],
     },
+    {
+      kind: 'scroll',
+      offsetMs: 400,
+      pageId: 'page1',
+      target: targetOf(
+        { kind: 'css', selector: '#a"); process.exit(2); ("' },
+        { framePath: ['iframe[title="\\n"]'] },
+      ),
+      x: 1,
+      y: 2,
+    },
   ],
   { name: 'Hostile "); evil(); (" name' },
 );

@@ -3,6 +3,7 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { generateScript } from '../../../src/script-generation/domain/generate-script.ts';
+import type { Target } from '../../../src/shared/domain/locator.ts';
 import type { RecordingEvent } from '../../../src/shared/domain/recording-event.ts';
 import type { FixtureServer } from '../../support/fixture-server.ts';
 import { startFixtureServer } from '../../support/fixture-server.ts';
@@ -185,5 +186,103 @@ describe('generated script against the fixture site', () => {
 
     expect(markers(run).map((m) => m.index)).toStrictEqual([0, 1, 2, 3]);
     expect(run.exitCode).toBe(0);
+  });
+
+  describe('scrolling', () => {
+    interface Reported {
+      readonly window: readonly number[];
+      readonly panel: readonly number[];
+      readonly spyCalls: number;
+      readonly addedGlobals: readonly string[];
+      readonly panelOwnProperties: readonly string[];
+    }
+
+    function scrollTo(
+      offsetMs: number,
+      target: Target | null,
+      position: { x: number; y: number },
+    ): RecordingEvent {
+      return { kind: 'scroll', offsetMs, pageId: 'page1', target, ...position };
+    }
+
+    function css(selector: string, framePath: string[] = []): Target {
+      return {
+        locator: { kind: 'css', selector },
+        nth: null,
+        framePath,
+        description: selector,
+      };
+    }
+
+    const reportClick: RecordingEvent = {
+      kind: 'click',
+      offsetMs: 900,
+      pageId: 'page1',
+      target: css('#report'),
+      button: 'left',
+      modifiers: [],
+    };
+
+    async function replayScrolls(
+      scrolls: readonly RecordingEvent[],
+    ): Promise<{ run: NodeRun; outer: Reported; inner: Reported }> {
+      server.clearReports();
+      const run = await execute([
+        FIRST_PAGE,
+        goto(0, server.urlFor('scroll-replay.html')),
+        ...scrolls,
+        reportClick,
+        // Keeps the browser open until the page's report request has gone out.
+        scrollTo(1400, null, { x: 0, y: 0 }),
+      ]);
+      const [report] = server.reports();
+      const state = JSON.parse(report) as {
+        outer: Reported;
+        inner: Reported;
+      };
+      return { run, ...state };
+    }
+
+    it('restores exact positions of the window, an element and an iframe element', async () => {
+      const { run, outer, inner } = await replayScrolls([
+        scrollTo(200, null, { x: 0, y: 713 }),
+        scrollTo(300, css('#panel'), { x: 0, y: 333 }),
+        scrollTo(400, css('#panel', ['iframe#inner']), { x: 0, y: 222 }),
+      ]);
+
+      expect(run.stdout).not.toContain('::error');
+      expect(run.exitCode).toBe(0);
+      expect(outer.window).toStrictEqual([0, 713]);
+      expect(outer.panel).toStrictEqual([0, 333]);
+      expect(inner.panel).toStrictEqual([0, 222]);
+    });
+
+    it('is exact for other positions too, despite smooth scrolling in the page', async () => {
+      const { outer, inner } = await replayScrolls([
+        scrollTo(200, null, { x: 0, y: 41 }),
+        scrollTo(300, css('#panel'), { x: 0, y: 7 }),
+        scrollTo(400, css('#panel', ['iframe#inner']), { x: 0, y: 500 }),
+      ]);
+
+      expect(outer.window).toStrictEqual([0, 41]);
+      expect(outer.panel).toStrictEqual([0, 7]);
+      expect(inner.panel).toStrictEqual([0, 500]);
+    });
+
+    it('runs nothing in the main world: no page API call, no new global or property', async () => {
+      const { outer, inner } = await replayScrolls([
+        scrollTo(200, null, { x: 0, y: 713 }),
+        scrollTo(300, css('#panel'), { x: 0, y: 333 }),
+        scrollTo(400, css('#panel', ['iframe#inner']), { x: 0, y: 222 }),
+      ]);
+
+      expect(outer.window).toStrictEqual([0, 713]);
+      expect(outer.spyCalls).toBe(0);
+      expect(inner.spyCalls).toBe(0);
+      expect(outer.addedGlobals).toStrictEqual([]);
+      expect(inner.addedGlobals).toStrictEqual([]);
+      expect(outer.panelOwnProperties).toStrictEqual([]);
+      expect(inner.panelOwnProperties).toStrictEqual([]);
+    });
   });
 });

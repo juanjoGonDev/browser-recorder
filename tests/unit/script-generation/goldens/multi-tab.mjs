@@ -6,6 +6,49 @@ import { fileURLToPath } from 'node:url';
 
 const ABORT_EXIT_CODE = 130;
 const DEFAULT_WAIT_MS = 10000;
+const SCROLL_WORLD = '__browser_recorder_replay';
+
+// Runs inside an isolated world through the DevTools protocol, never in the
+// page's own: it is serialized with toString(), so it may not use this file's
+// bindings. segments[i] is the chain of element indexes (children, not nodes)
+// that leads to the i-th element, each one inside the previous one's iframe.
+function scrollInIsolatedWorld(segments, left, top) {
+  let scope = document;
+  for (let hop = 0; hop < segments.length; hop += 1) {
+    let node = scope;
+    for (const index of segments[hop]) {
+      node = node.children[index];
+      if (!node) throw new Error('The element to scroll is no longer in the page');
+    }
+    if (hop === segments.length - 1) {
+      node.scrollTo({ left, top, behavior: 'instant' });
+      return;
+    }
+    scope = node.contentDocument;
+    if (!scope) throw new Error('Cannot scroll inside a frame of another origin');
+  }
+  window.scrollTo({ left, top, behavior: 'instant' });
+}
+
+// Where the element sits in its document as child indexes from the root,
+// read with Playwright's own selector engine (its utility world), so nothing
+// runs in the page. An XPath never crosses a shadow boundary: reaching the
+// document root through ancestors proves the element is not inside one.
+async function elementPath(locator) {
+  const depth = await locator.locator('xpath=ancestor::*').count();
+  const rootSelector = 'xpath=ancestor-or-self::*[' + (depth + 1) + '][self::html]';
+  if ((await locator.locator(rootSelector).count()) !== 1) {
+    throw new Error('Cannot scroll an element inside a shadow tree');
+  }
+  const indexes = await Promise.all(
+    Array.from({ length: depth + 1 }, (_, up) =>
+      locator
+        .locator('xpath=ancestor-or-self::*[' + (up + 1) + ']/preceding-sibling::*')
+        .count(),
+    ),
+  );
+  return indexes.reverse();
+}
 
 function createDeferred() {
   const deferred = {};
@@ -29,6 +72,7 @@ function withTimeout(promise, ms, message) {
 function createRuntime(context, options = {}) {
   const nextPageTimeoutMs = options.nextPageTimeoutMs ?? DEFAULT_WAIT_MS;
   const fileChooserTimeoutMs = options.fileChooserTimeoutMs ?? DEFAULT_WAIT_MS;
+  const elementTimeoutMs = options.elementTimeoutMs ?? DEFAULT_WAIT_MS;
   const filesDir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'files');
   const openedPages = [];
   const pageWaiters = [];
@@ -83,7 +127,65 @@ function createRuntime(context, options = {}) {
     }
   }
 
+  // The frames that host each element of the chain, the page's main frame first.
+  async function framesAndPaths(page, chain) {
+    const frames = [page.mainFrame()];
+    const paths = [];
+    for (const [position, locator] of chain.entries()) {
+      const handle = await locator.elementHandle({ timeout: elementTimeoutMs });
+      try {
+        paths.push(await elementPath(locator));
+        if (position < chain.length - 1) {
+          const frame = await handle.contentFrame();
+          if (!frame) throw new Error('The element that should hold a frame is not an iframe');
+          frames.push(frame);
+        }
+      } finally {
+        await handle.dispose();
+      }
+    }
+    return { frames, paths };
+  }
+
+  // The deepest frame with a DevTools session of its own: the page's, unless a
+  // cross-origin frame lives in another process and the target is inside it.
+  async function sessionFor(page, frames) {
+    for (let depth = frames.length - 1; depth > 0; depth -= 1) {
+      try {
+        return { depth, session: await context.newCDPSession(frames[depth]) };
+      } catch {
+        // Same process as its parent: the parent's session reaches it.
+      }
+    }
+    return { depth: 0, session: await context.newCDPSession(page) };
+  }
+
+  async function scrollInWorld(page, chain, [left, top]) {
+    const { frames, paths } = await framesAndPaths(page, chain);
+    const { depth, session } = await sessionFor(page, frames);
+    try {
+      const { frameTree } = await session.send('Page.getFrameTree');
+      const { executionContextId } = await session.send('Page.createIsolatedWorld', {
+        frameId: frameTree.frame.id,
+        worldName: SCROLL_WORLD,
+      });
+      const { exceptionDetails } = await session.send('Runtime.callFunctionOn', {
+        executionContextId,
+        functionDeclaration: scrollInIsolatedWorld.toString(),
+        arguments: [{ value: paths.slice(depth) }, { value: left }, { value: top }],
+        returnByValue: true,
+      });
+      if (exceptionDetails) {
+        const description = exceptionDetails.exception?.description ?? exceptionDetails.text;
+        throw new Error(description.split('\n')[0].replace(/^Error: /, ''));
+      }
+    } finally {
+      await session.detach().catch(() => {});
+    }
+  }
+
   return {
+    scrollTo: scrollInWorld,
     start() {
       startedAt = performance.now();
       context.on('page', handlePage);
@@ -178,7 +280,7 @@ try {
   await rt.at(4000); rt.mark(11);
   const page3 = await context.newPage();
   await rt.at(4500); rt.mark(12);
-  await page3.locator("nav > .menu").nth(2).evaluate((element, [x, y]) => { element.scrollTo(x, y); }, [3, 9]);
+  await rt.scrollTo(page3, [page3.locator("nav > .menu").nth(2)], [3, 9]);
   await rt.at(4600); rt.mark(13);
   await page3.goto("https://example.com/done");
   rt.done();

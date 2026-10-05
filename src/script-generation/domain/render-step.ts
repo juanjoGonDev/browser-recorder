@@ -5,7 +5,11 @@ import type {
   RecordingEventKind,
 } from '../../shared/domain/recording-event.ts';
 import { jsNumber, jsString, jsStringArray } from './js-literal.ts';
-import { assertPageVariable, renderTarget } from './render-target.ts';
+import {
+  assertPageVariable,
+  renderTarget,
+  renderTargetChain,
+} from './render-target.ts';
 
 type EventOf<K extends RecordingEventKind> = Extract<
   RecordingEvent,
@@ -64,13 +68,11 @@ function renderScroll(
   context: StepContext,
 ): string[] {
   const position = `[${jsNumber(event.x)}, ${jsNumber(event.y)}]`;
-  if (event.target === null) {
-    return [
-      `await ${context.page}.evaluate(([x, y]) => { window.scrollTo(x, y); }, ${position});`,
-    ];
-  }
+  const chain =
+    event.target === null ? [] : renderTargetChain(context.page, event.target);
+  // The runtime scrolls from an isolated world: never code in the page's own.
   return [
-    `await ${on(context, event.target)}.evaluate((element, [x, y]) => { element.scrollTo(x, y); }, ${position});`,
+    `await rt.scrollTo(${context.page}, [${chain.join(', ')}], ${position});`,
   ];
 }
 
