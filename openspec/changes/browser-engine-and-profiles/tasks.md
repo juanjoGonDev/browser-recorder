@@ -45,12 +45,12 @@ Decision already given: user accepted one large PR, `size:exception`, unlimited 
 - [x] 0.3 RED: `tests/spike/patchright-install.test.ts`: `patchright` and `patchright-core` bin names, cache path (`ms-playwright`), whether `--use-mock-keychain` is already dropped. Skip browser-open: headless only.
 - [x] 0.4 GREEN: swap `package.json` to `patchright` `1.63.0` exact, remove `playwright`, `pnpm install`; keep `onlyBuiltDependencies: ["lefthook"]`; mechanical import rename across `src/**` and tests.
 - [x] 0.5 Record S0 outcomes as an addendum in `openspec/changes/browser-engine-and-profiles/design.md`.
-- [ ] 0.6 RED+GREEN: contract files: `src/shared/domain/browser-choice.ts`; `recording.ts` v2 (`display`, `browser`, no `viewport`); shared ports/types for WP1/WP3 (`Platform`, `PathRoots`, `FileProbe`, `ProfileFileSystem`, `ProcessProbe`, `LaunchTarget`, `LaunchOptions`, `CaptureWorld`, `ProfileOptionView`, `BrowserOptionView`, TUI intents/actions, `StartReplayRequest.launchEnv`, `RecordingRepository.writeScript`, `LibraryService.regenerateScript`). Type-level tests.
-- [ ] 0.7 GREEN: minimal stubs and fixtures so `pnpm quality` stays green; `tests/fixtures/profiles/brave-like/**` (Local State, Default/{Preferences,Cookies,Cookies-wal,Cache/x}, Profile 1).
-- [ ] 0.8 RED->GREEN: `tests/support/isolated-home.ts` (vitest globalSetup pins `PLAYWRIGHT_BROWSERS_PATH`, then redirects HOME/USERPROFILE/LOCALAPPDATA/APPDATA/XDG_*); test proves no real home is read. (Repository-quality: Default run.)
-- [ ] 0.9 RED->GREEN: `.dependency-cruiser.json` (`patchright-in-adapters`, `no-playwright`) with a fixture violation test (Playwright reintroduced, Layer violation); ESLint `no-restricted-imports` + `Literal[value=/^(Runtime|Console)\.enable$/]` with a lint fixture (Forbidden call); knip unchanged.
-- [ ] 0.10 RED->GREEN: `src/recording-capture/adapters/guarded-cdp.ts` (shared by WP2 and the audit; `ForbiddenCdpMethodError`, constant-built names) with unit test. Dependency audit scenarios (Audit, Range detected).
-- [ ] 0.11 REFACTOR: run `pnpm quality`; tag WP0 done and branch worktrees.
+- [x] 0.6 RED+GREEN: contract files: `src/shared/domain/browser-choice.ts`; `recording.ts` v2 (`display`, `browser`, no `viewport`); shared ports/types for WP1/WP3 (`Platform`, `PathRoots`, `FileProbe`, `ProfileFileSystem`, `ProcessProbe`, `LaunchTarget`, `LaunchOptions`, `CaptureWorld`, `ProfileOptionView`, `BrowserOptionView`, TUI intents/actions, `StartReplayRequest.launchEnv`, `RecordingRepository.writeScript`, `LibraryService.regenerateScript`). Type-level tests.
+- [x] 0.7 GREEN: minimal stubs and fixtures so `pnpm quality` stays green; `tests/fixtures/profiles/brave-like/**` (Local State, Default/{Preferences,Cookies,Cookies-wal,Cache/x}, Profile 1).
+- [x] 0.8 RED->GREEN: `tests/support/isolated-home.ts` (vitest globalSetup pins `PLAYWRIGHT_BROWSERS_PATH`, then redirects HOME/USERPROFILE/LOCALAPPDATA/APPDATA/XDG_*); test proves no real home is read. (Repository-quality: Default run.)
+- [x] 0.9 RED->GREEN: `.dependency-cruiser.json` (`patchright-in-adapters`, `no-playwright`) with a fixture violation test (Playwright reintroduced, Layer violation); ESLint `no-restricted-imports` + `Literal[value=/^(Runtime|Console)\.enable$/]` with a lint fixture (Forbidden call); knip unchanged.
+- [x] 0.10 RED->GREEN: `src/recording-capture/adapters/guarded-cdp.ts` (shared by WP2 and the audit; `ForbiddenCdpMethodError`, constant-built names) with unit test. Dependency audit scenarios (Audit, Range detected).
+- [x] 0.11 REFACTOR: run `pnpm quality`; tag WP0 done and branch worktrees.
 
 ## WP1: browser-selection (worktree)
 
