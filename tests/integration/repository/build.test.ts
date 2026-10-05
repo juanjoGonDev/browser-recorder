@@ -1,17 +1,20 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../../../scripts/build.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..', '..', '..');
+// Inside the repository so the emitted entry resolves `playwright` like the
+// real build does.
+const SCRATCH_PARENT = path.join(ROOT, 'recordings');
 
 describe('scripts/build.ts against the real toolchain', () => {
   let outDir = '';
 
   beforeAll(async () => {
-    outDir = mkdtempSync(path.join(tmpdir(), 'br-build-out-'));
+    mkdirSync(SCRATCH_PARENT, { recursive: true });
+    outDir = mkdtempSync(path.join(SCRATCH_PARENT, 'build-out-'));
     await buildApp({ root: ROOT, outDir });
   });
 
@@ -24,11 +27,14 @@ describe('scripts/build.ts against the real toolchain', () => {
     expect(main.startsWith('#!/usr/bin/env node')).toBe(true);
   });
 
-  it('runs the emitted CLI entry to a clean exit', () => {
+  it('refuses to start without an interactive terminal, with a message', () => {
     const result = spawnSync(process.execPath, [path.join(outDir, 'main.js')], {
       encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
     });
-    expect(result.status).toBe(0);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('interactive terminal');
+    expect(result.stdout).toBe('');
   });
 
   it('emits the in-page script as an IIFE with no imports or exports', () => {
