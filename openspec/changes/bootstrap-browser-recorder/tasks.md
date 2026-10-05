@@ -76,18 +76,18 @@ Note: `size:exception` was explicitly accepted by the user, so no decision gate 
 
 ## WP2: In-page script and Playwright adapters (parallel; depends on WP0)
 
-- [ ] 2.1 RED integration harness `tests/integration/recording-capture/` driving trusted Playwright input on fixtures; GREEN `in-page/emit.ts`, `capture-script.ts` (install guard `Symbol.for('browser-recorder.installed')`, `isTrusted` only).
-- [ ] 2.2 `deep-query.ts`, `implicit-role.ts`, `accessible-name.ts`, `css-path.ts` with RED tests in Chromium, shadow DOM included.
-- [ ] 2.3 `build-locator.ts` using the WP0 helpers `is-dynamic-id` and `filter-stable-classes`: ordered unique candidates, up to 4 (RC Locator selection: Duplicate id fallback, Dynamic id).
-- [ ] 2.4 `pointer-listener.ts`: click/auxclick/contextmenu from the pointerdown snapshot, checkbox/radio suppression, drag suppression (RC Modified right click).
-- [ ] 2.5 `input-listener.ts`: fill, `isSensitive`, select-option, check, set-input-files names only (RC Checkbox state, Password).
-- [ ] 2.6 `key-listener.ts` using `should-record-key` (RC Event coverage: keys/shortcuts).
-- [ ] 2.7 `scroll-listener.ts`: 150 ms trailing debounce plus 500 ms intent gate (RC Event coverage: scroll).
-- [ ] 2.8 `drag-listener.ts`: dragstart/drop and pointer drag > 5 px (RC Event coverage: drag).
-- [ ] 2.9 `hover-tracker.ts` using `select-hover-targets` plus MutationObserver (RC Deterministic hover: CSS menu, No noise).
-- [ ] 2.10 `navigation-listener.ts`: performance navigation type, `currententrychange`, main frame only (RC Navigation fidelity).
-- [ ] 2.11 Adapters: `performance-clock.ts`, `frame-path-resolver.ts`, `locator-verifier.ts` (`count() === 1` within 150 ms, ordered promise queue), `playwright-browser-launcher.ts`, `playwright-browser-session.ts` (`exposeBinding`, `addInitScript({ path })`, popups, `framenavigated` fallback 500 ms to `unknown`, `page.on('dialog')` -> `dialog-opened`, browser close) (RC Dialog, Navigation fidelity: Reload, Back and forward).
-- [ ] 2.12 Validate design open question: headed dialog assumption; record the outcome in a test note and fall back to documented behavior if it fails. REFACTOR: limits and lint.
+- [x] 2.1 RED integration harness `tests/integration/recording-capture/` driving trusted Playwright input on fixtures; GREEN `in-page/emit.ts`, `capture-script.ts` (install guard `Symbol.for('browser-recorder.installed')`, `isTrusted` only).
+- [x] 2.2 `deep-query.ts`, `implicit-role.ts`, `accessible-name.ts`, `css-path.ts` with RED tests in Chromium, shadow DOM included.
+- [x] 2.3 `build-locator.ts` using the WP0 helpers `is-dynamic-id` and `filter-stable-classes`: ordered unique candidates, up to 4 (RC Locator selection: Duplicate id fallback, Dynamic id).
+- [x] 2.4 `pointer-listener.ts`: click/auxclick/contextmenu from the pointerdown snapshot, checkbox/radio suppression, drag suppression (RC Modified right click).
+- [x] 2.5 `input-listener.ts`: fill, `isSensitive`, select-option, check, set-input-files names only (RC Checkbox state, Password).
+- [x] 2.6 `key-listener.ts` using `should-record-key` (RC Event coverage: keys/shortcuts).
+- [x] 2.7 `scroll-listener.ts`: 150 ms trailing debounce plus 500 ms intent gate (RC Event coverage: scroll).
+- [x] 2.8 `drag-listener.ts`: dragstart/drop and pointer drag > 5 px (RC Event coverage: drag).
+- [x] 2.9 `hover-tracker.ts` using `select-hover-targets` plus MutationObserver (RC Deterministic hover: CSS menu, No noise).
+- [x] 2.10 `navigation-listener.ts`: performance navigation type, `currententrychange`, main frame only (RC Navigation fidelity).
+- [x] 2.11 Adapters: `performance-clock.ts`, `frame-path-resolver.ts`, `locator-verifier.ts` (`count() === 1` within 150 ms, ordered promise queue), `playwright-browser-launcher.ts`, `playwright-browser-session.ts` (`exposeBinding`, `addInitScript({ path })`, popups, `framenavigated` fallback 500 ms to `unknown`, `page.on('dialog')` -> `dialog-opened`, browser close) (RC Dialog, Navigation fidelity: Reload, Back and forward).
+- [x] 2.12 Validate design open question: headed dialog assumption; record the outcome in a test note and fall back to documented behavior if it fails. REFACTOR: limits and lint.
 
 ## WP3: Script generation (parallel; depends on WP0)
 
