@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+recordings/
+pnpm-lock.yaml
+package-lock.json
+*.log
+*.tmp
+# Local AI tooling state and SDD planning artifacts are not formatted source.
+.atl/
+openspec/
+# Golden generated scripts are compared byte for byte.
+tests/unit/script-generation/goldens/
