@@ -20,8 +20,9 @@ export interface LaunchPlan {
 }
 
 export interface LaunchPlanner {
-  forRecording(choice: BrowserChoice): Promise<LaunchPlan>;
   /** Never fails because the browser is gone: it falls back and warns. */
+  forRecording(choice: BrowserChoice): Promise<LaunchPlan>;
+  /** Same fallback, worded for a replay. */
   forReplay(recorded: BrowserChoice): Promise<LaunchPlan>;
 }
 
@@ -78,26 +79,31 @@ async function plan(
   };
 }
 
+/** Resolves the choice against what is installed, warning when it falls back. */
+async function planWithFallback(
+  deps: LaunchPlannerDeps,
+  chosen: BrowserChoice,
+  action: 'recording' | 'replaying',
+): Promise<LaunchPlan> {
+  const available = new Set(
+    (await deps.catalog.list()).map((browser) => browser.browserId),
+  );
+  const resolved = resolveReplayBrowser(chosen, (id) => available.has(id));
+  if (resolved.kind === 'as-recorded') {
+    return plan(deps, resolved.choice, []);
+  }
+  const cleanNote =
+    chosen.profileMode === 'copy-of-real' ? ' with a clean profile' : '';
+  return plan(deps, resolved.choice, [
+    `${browserLabelOf(resolved.missing)} is not installed here: ${action} on the bundled Chromium instead${cleanNote}.`,
+  ]);
+}
+
 /** Turns a browser choice into a launch target by combining both features. */
 export function createLaunchPlanner(deps: LaunchPlannerDeps): LaunchPlanner {
   return {
-    forRecording: (choice) => plan(deps, choice, []),
-    async forReplay(recorded) {
-      const available = new Set(
-        (await deps.catalog.list()).map((browser) => browser.browserId),
-      );
-      const resolved = resolveReplayBrowser(recorded, (id) =>
-        available.has(id),
-      );
-      if (resolved.kind === 'as-recorded') {
-        return plan(deps, resolved.choice, []);
-      }
-      const cleanNote =
-        recorded.profileMode === 'copy-of-real' ? ' with a clean profile' : '';
-      return plan(deps, resolved.choice, [
-        `${browserLabelOf(resolved.missing)} is not installed here: replaying on the bundled Chromium instead${cleanNote}.`,
-      ]);
-    },
+    forRecording: (choice) => planWithFallback(deps, choice, 'recording'),
+    forReplay: (recorded) => planWithFallback(deps, recorded, 'replaying'),
   };
 }
 

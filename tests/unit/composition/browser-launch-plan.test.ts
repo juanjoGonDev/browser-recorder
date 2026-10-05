@@ -109,12 +109,38 @@ describe('src/composition/browser-launch-plan.ts', () => {
       expect(profiles.releases()).toBe(1);
     });
 
-    it('refuses a browser that is not installed and prepares nothing', async () => {
+    it('falls back to the bundled browser and warns when the browser is not installed', async () => {
       const { planner, profiles } = setup([BUNDLED_INSTALLED]);
-      await expect(planner.forRecording(BRAVE_CHOICE)).rejects.toThrow(
-        'Brave is not installed on this machine.',
-      );
-      expect(profiles.requests).toEqual([]);
+      profiles.nextPrepared = { userDataDir: '/fixture/app-data/bundled' };
+      const plan = await planner.forRecording(BRAVE_CHOICE);
+      expect(plan.choice).toEqual({
+        browserId: 'bundled',
+        profileMode: 'managed',
+        sourceProfile: null,
+      });
+      expect(plan.target.executablePath).toBeNull();
+      expect(plan.warnings).toEqual([
+        'Brave is not installed here: recording on the bundled Chromium instead.',
+      ]);
+      expect(profiles.requests).toHaveLength(1);
+      expect(profiles.requests[0]).toMatchObject({ browserId: 'bundled' });
+    });
+
+    it('records a missing copy of a real profile on a clean profile', async () => {
+      const { planner, profiles } = setup([BUNDLED_INSTALLED]);
+      const plan = await planner.forRecording(COPY_CHOICE);
+      expect(plan.choice).toEqual({
+        browserId: 'bundled',
+        profileMode: 'ephemeral',
+        sourceProfile: null,
+      });
+      expect(plan.warnings).toEqual([
+        'Brave is not installed here: recording on the bundled Chromium instead with a clean profile.',
+      ]);
+      expect(profiles.requests[0]).toMatchObject({
+        profileMode: 'ephemeral',
+        sourceProfile: null,
+      });
     });
 
     it('explains a profile in use by naming the browser', async () => {

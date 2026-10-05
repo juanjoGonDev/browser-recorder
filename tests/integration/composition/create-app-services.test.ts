@@ -517,6 +517,31 @@ describe('src/composition/create-app-services.ts', () => {
       ]);
     });
 
+    it('records on the bundled browser and warns live when the chosen one is not installed', async () => {
+      const { services, launcher, repository } = setup({
+        installed: [BUNDLED_INSTALLED],
+      });
+      const live = await services.recording.start({
+        name: 'No Brave',
+        startUrl: null,
+        browser: BRAVE_CHOICE,
+      });
+      expect(live.warnings).toEqual([
+        'Brave is not installed here: recording on the bundled Chromium instead.',
+      ]);
+      expect(launcher.launches[0]?.target.executablePath).toBeNull();
+      await live.stop();
+      expect(
+        JSON.parse(repository.files.get('no-brave')?.recordingJson ?? '{}'),
+      ).toMatchObject({
+        browser: {
+          browserId: 'bundled',
+          profileMode: 'managed',
+          sourceProfile: null,
+        },
+      });
+    });
+
     it('rejects a locked profile with a safe message and leaves no entry', async () => {
       const { services, profiles, repository, launcher } = setup(braveSetup);
       profiles.failNextPrepare(new ProfileInUseError('brave', '/secret/dir'));
