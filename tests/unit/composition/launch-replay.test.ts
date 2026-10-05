@@ -9,7 +9,12 @@ import {
   RECORDED_TIMING,
   humanTiming,
 } from '../../../src/shared/domain/replay-timing.ts';
-import { BRAVE_CHOICE, BRAVE_TARGET } from '../../support/browser-fixtures.ts';
+import {
+  BRAVE_CHOICE,
+  BRAVE_TARGET,
+  BUNDLED_CHOICE,
+  BUNDLED_TARGET,
+} from '../../support/browser-fixtures.ts';
 import { createFakeSpawner } from '../../support/composition-fakes.ts';
 import { recordingOf } from '../../support/golden-recordings.ts';
 
@@ -169,6 +174,59 @@ describe('src/composition/launch-replay.ts', () => {
       /Chromium \(bundled\) is not installed on this machine\.\n.*pnpm exec patchright install chromium/u,
     );
     expect(spawner.children).toHaveLength(0);
+  });
+
+  describe('when the plan targets the bundled Chromium', () => {
+    const bundledPlan = { choice: BUNDLED_CHOICE, target: BUNDLED_TARGET };
+
+    it('rejects before spawning, with the manual install command, when it is not installed', async () => {
+      const { deps, spawner, release } = setup({
+        plan: bundledPlan,
+        isInstalled: false,
+      });
+      await expect(
+        launchReplay(deps, 'demo', {
+          timing: RECORDED_TIMING,
+          isHeadless: false,
+        }),
+      ).rejects.toThrow(
+        /Chromium \(bundled\) is not installed on this machine\.\n.*pnpm exec patchright install chromium/u,
+      );
+      expect(spawner.children).toHaveLength(0);
+      expect(release).toHaveBeenCalledTimes(1);
+    });
+
+    it('still releases the plan when the release itself fails', async () => {
+      const release = vi.fn(() => Promise.reject(new Error('busy')));
+      const { deps } = setup({
+        plan: { ...bundledPlan, release },
+        isInstalled: false,
+      });
+      await expect(
+        launchReplay(deps, 'demo', {
+          timing: RECORDED_TIMING,
+          isHeadless: false,
+        }),
+      ).rejects.toThrow(/pnpm exec patchright install chromium/u);
+    });
+
+    it('spawns when it is installed', async () => {
+      const { deps, spawner } = setup({ plan: bundledPlan, isInstalled: true });
+      await launchReplay(deps, 'demo', {
+        timing: RECORDED_TIMING,
+        isHeadless: false,
+      });
+      expect(spawner.children).toHaveLength(1);
+    });
+  });
+
+  it('does not require the bundled Chromium to replay on an installed browser', async () => {
+    const { deps, spawner } = setup({ isInstalled: false });
+    await launchReplay(deps, 'demo', {
+      timing: RECORDED_TIMING,
+      isHeadless: false,
+    });
+    expect(spawner.children).toHaveLength(1);
   });
 
   it('rethrows any other launch failure untouched', async () => {

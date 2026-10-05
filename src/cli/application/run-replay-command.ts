@@ -115,20 +115,53 @@ function createStepPrinter(
   };
 }
 
+const GENERIC_EXIT = /^The replay exited with code /u;
+const ERROR_LINE = /error/iu;
+
+/**
+ * A script that dies before any step says why on stderr; the generic
+ * "exited with code" summary hides that behind the tail.
+ */
+function explainEarlyExit(
+  message: string,
+  tail: readonly string[],
+): { readonly message: string; readonly tail: readonly string[] } {
+  const at = tail.findIndex((line) => ERROR_LINE.test(line));
+  const found = tail[at];
+  if (!GENERIC_EXIT.test(message) || found === undefined) {
+    return { message, tail };
+  }
+  return { message: found.trim(), tail: tail.filter((_, i) => i !== at) };
+}
+
 function reportFailure(
   run: ReplayRun,
   view: RunView,
   painter: Painter,
 ): string[] {
   const index = view.lastStepIndex;
-  const kind = index === null ? undefined : run.events[index]?.kind;
-  const [, ...moreMessage] = (view.errorMessage ?? '').split('\n');
+  const message = view.errorMessage ?? 'The replay failed.';
+  const [first = message, ...moreMessage] = message.split('\n');
+  const tail = [...moreMessage, ...view.stderrTail];
+  if (index === null) {
+    const early = explainEarlyExit(first, tail);
+    return formatFailure(
+      {
+        name: run.name,
+        step: null,
+        message: early.message,
+        stderrTail: early.tail,
+      },
+      painter,
+    );
+  }
+  const kind = run.events[index]?.kind ?? FALLBACK_STEP_KIND;
   return formatFailure(
     {
       name: run.name,
-      step: index === null ? null : { index, kind: kind ?? FALLBACK_STEP_KIND },
-      message: view.errorMessage ?? 'The replay failed.',
-      stderrTail: [...moreMessage, ...view.stderrTail],
+      step: { index, kind },
+      message: first,
+      stderrTail: tail,
     },
     painter,
   );

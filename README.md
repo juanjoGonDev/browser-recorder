@@ -108,6 +108,9 @@ code 2 and (for a shared name) lists the slugs to choose from. Running
 
 Without `-r` or `-d` the replay keeps the recorded timing, exactly as the UI
 does. Options go after the recording: `pnpm replay demo -r -d 100-300`.
+`pnpm` adds its own banner and an `ELIFECYCLE` line on failure; for clean output
+use `pnpm -s replay demo` or `pnpm exec browser-recorder replay demo`. A negative
+looking delay needs the equals form: `--delay=-5-10` (it is refused anyway).
 
 **Output.** Each step prints one line on stdout (`[3/12] click Save button
 (1.2s)`) and the run ends with `✔ <name> replayed in <s>`. Warnings, such as
@@ -115,8 +118,8 @@ falling back to the bundled Chromium, errors and the usage after a mistake go
 to stderr. A failure prints `✖ <name> failed at step <n> (<kind>): <message>`
 and the last stderr lines of the script, also on stderr. Typed values, passwords
 included, are never printed: a step shows what it acts on, not what it types.
-Colors appear only on a terminal and never with `NO_COLOR`; a pipe gets plain
-text. The command never installs a browser: when Chromium is missing it prints
+Colors appear only when stdout is a terminal and never with `NO_COLOR`, on
+stdout and stderr alike; a pipe gets plain text. The command never installs a browser: when Chromium is missing it prints
 the manual command (`pnpm exec patchright install chromium`) and exits 1.
 
 | Exit code | Meaning                                                           |

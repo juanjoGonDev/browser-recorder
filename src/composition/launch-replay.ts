@@ -46,23 +46,37 @@ function releaseQuietly(plan: LaunchPlan): Promise<void> {
   return plan.release().catch(() => undefined);
 }
 
+const BUNDLED_MISSING = 'Chromium (bundled) is not installed on this machine.';
+
+function withInstallCommand(reason: string, cause?: unknown): Error {
+  return new Error(`${reason}\nInstall it with: ${MANUAL_INSTALL_COMMAND}`, {
+    cause,
+  });
+}
+
 /**
  * A missing Chromium is reported with the manual command: replaying never
- * installs a browser by itself.
+ * installs a browser by itself. The catalog always lists the bundled browser,
+ * so the plan succeeds even when it is absent: the target is checked here.
  */
 async function planReplay(
   deps: ReplayLaunchDeps,
   recording: Recording,
 ): Promise<LaunchPlan> {
+  let plan: LaunchPlan;
   try {
-    return await deps.planner.forReplay(recording.browser);
+    plan = await deps.planner.forReplay(recording.browser);
   } catch (error) {
     if (await deps.installation.isInstalled()) throw error;
     const reason = error instanceof Error ? error.message : String(error);
-    throw new Error(`${reason}\nInstall it with: ${MANUAL_INSTALL_COMMAND}`, {
-      cause: error,
-    });
+    throw withInstallCommand(reason, error);
   }
+  const isBundled = plan.target.executablePath === null;
+  if (isBundled && !(await deps.installation.isInstalled())) {
+    await releaseQuietly(plan);
+    throw withInstallCommand(BUNDLED_MISSING);
+  }
+  return plan;
 }
 
 /**

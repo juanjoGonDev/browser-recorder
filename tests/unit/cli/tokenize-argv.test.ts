@@ -80,4 +80,16 @@ describe('src/cli/adapters/tokenize-argv.ts', () => {
       'rejected',
     );
   });
+
+  it('maps a negative-looking delay with a space to the range rule instead of the parser wording', () => {
+    expect(tokenizeArgv(['replay', 'demo', '-d', '-5-10'])).toStrictEqual({
+      kind: 'rejected',
+      message:
+        '--delay expects <min>-<max> in whole milliseconds, for example 250-900 (got "-5-10"); write it as --delay=-5-10 if you meant that value.',
+    });
+    expect(tokenizeArgv(['replay', 'demo', '--delay', '-7'])).toMatchObject({
+      kind: 'rejected',
+      message: expect.stringContaining('(got "-7")') as string,
+    });
+  });
 });

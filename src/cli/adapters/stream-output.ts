@@ -38,7 +38,8 @@ export function createStreamOutput(deps: StreamOutputDeps): CommandOutput {
   const { stdout, stderr, env } = deps;
   guard(stdout);
   guard(stderr);
-  const isColor = isColorEnabled(env);
+  // One decision for both streams: color only when stdout is a terminal.
+  const hasColor = isColorEnabled(env) && stdout.isTTY === true;
   return {
     out: (text) => {
       stdout.write(text);
@@ -49,7 +50,7 @@ export function createStreamOutput(deps: StreamOutputDeps): CommandOutput {
     flush: async () => {
       await Promise.all([drain(stdout), drain(stderr)]);
     },
-    hasOutColor: isColor && stdout.isTTY === true,
-    hasErrColor: isColor && stderr.isTTY === true,
+    hasOutColor: hasColor,
+    hasErrColor: hasColor && stderr.isTTY === true,
   };
 }

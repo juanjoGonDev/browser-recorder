@@ -45,6 +45,12 @@ RED means the test was written first and observed failing (module not found or a
 | 3.10 | `pnpm quality`, `pnpm test:coverage` | Gate | N/A | lint (complexity) | green | N/A | fixed |
 | 4.1 | `tests/unit/repository/cli-docs.test.ts` | Unit | 263 repository tests | heading missing | 263/263 | AGENTS, README sections | prettier |
 | 4.2 | final gates | Gate | N/A | N/A | `pnpm install --frozen-lockfile`, `pnpm quality`, `pnpm test:coverage`, `pnpm build`, `pnpm audit` all exit 0; `git diff 9a3b8af -- package.json` adds only the `replay` script (version `0.1.0` unchanged) | N/A | N/A |
+| R.1 | `tests/unit/composition/launch-replay.test.ts` | Unit | 9 tests in file | 2 failed: bundled plan with `isInstalled` false still spawned (observed) | 12/12; plan released, nothing spawned | bundled+installed spawns; Brave+not installed spawns; release failure tolerated; planner-throws case kept | extracted `withInstallCommand` |
+| R.2 | `tests/e2e/cli-replay.test.ts` | E2E | 13 tests | N/A (characterization: behavior already held) | recording.json bytes equal after recorded and human replays | both timing modes | N/A |
+| R.3 | `tests/unit/repository/replay-script.test.ts` | Unit | 3 tests | N/A (replaces a string-pin assertion; proof of forwarding) | real `replay` script run by `pnpm -s` in a temp package, argv `replay "My Flow" -r -d 900-250` forwarded | quoted name + flags | N/A |
+| R.4 | `proposal.md` | Docs | N/A | N/A | scope states no version change | N/A | N/A |
+| R.5 | `tests/unit/cli/stream-output.test.ts` | Unit | 8 tests | 1 failed: stderr colored with piped stdout (observed) | color only when stdout is a TTY and NO_COLOR unset; stderr follows | piped-stdout/TTY-stderr and TTY-stdout/piped-stderr | N/A |
+| R.6 | `tokenize-argv.test.ts`, `run-replay-command.test.ts` | Unit | 136 cli tests | 2 failed: Node ambiguity text kept; generic "exited with code" kept (observed) | range-rule message with `--delay=` hint; first error stderr line promoted, generic kept when none | `-d -5-10`, `--delay -7`; error line vs no error line | `reportFailure` split (lint complexity) |
 
 ### Test Summary
 - Baseline: 1894 passing, 6 skipped. Final: 2180 passing, 6 skipped (186 files). Coverage: statements 97.48 %, branches 93.18 %, functions 97.77 %, lines 98.36 %; every file at or above the 85 % per-file floor.
@@ -82,3 +88,7 @@ Mode: single PR, `size:exception`. Boundary: from the archived bootstrap and bro
 - `node dist/main.js --version` prints `0.1.0` (exit 0); `--help` exit 0; `replay` exit 2 with usage; `replay does-not-exist` exit 2; `node dist/main.js < /dev/null` prints the interactive-terminal message, exit 1.
 - `pnpm replay does-not-exist -r -d 10-20` forwards its arguments (exit 2).
 - `main` has no `package.json` (the bootstrap lives on this branch), so the version check compares against the branch base `9a3b8af`.
+
+## Verify remediation (R)
+
+R.1 to R.6 fixed after `verify-report.md`. Gates after the fix: `pnpm quality` exit 0, `pnpm test:coverage` 2189 passed / 6 skipped (97.48 % statements, 93.14 % branches), `pnpm build`, `pnpm audit` clean. Smoke: isolated HOME, empty `PLAYWRIGHT_BROWSERS_PATH`, temp package root: `node dist/main.js replay demo` prints `Chromium (bundled) is not installed on this machine.` + `Install it with: pnpm exec patchright install chromium`, exit 1. Verify suggestion 4 (branch coverage of `run-cli-app.ts`/`replay-flow.ts`) not addressed.

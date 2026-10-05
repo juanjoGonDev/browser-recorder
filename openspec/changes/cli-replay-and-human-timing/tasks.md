@@ -64,3 +64,12 @@ HARD RULES (all tasks): headless tests only; no main-world code; no `Runtime.ena
 
 - [x] 4.1 Update `AGENTS.md` (`cli` feature) and `README.md` (usage, flags, exit codes, timing, Windows note).
 - [x] 4.2 Final `pnpm quality`; confirm `git diff main -- package.json` has no version change.
+
+## Verify remediation (R)
+
+- [x] R.1 (CRITICAL) `launch-replay.ts` `planReplay`: bundled target (`executablePath === null`) and Chromium not installed rejects before spawning with `MANUAL_INSTALL_COMMAND`, releasing the plan; RED test on the production path.
+- [x] R.2 E2E: `recording.json` bytes unchanged after CLI replays (recorded and human).
+- [x] R.3 `pnpm replay` alias: test runs the real script with `pnpm -s` and proves argument forwarding.
+- [x] R.4 `proposal.md`: no version bump; the owner decides.
+- [x] R.5 Color: ANSI only when stdout is a TTY and `NO_COLOR` unset, same decision for stderr; both piped/TTY cases tested.
+- [x] R.6 `-d -5-10` maps to the range rule (exit 2); README documents `pnpm -s replay`; an early script failure promotes its first stderr error line into the summary.

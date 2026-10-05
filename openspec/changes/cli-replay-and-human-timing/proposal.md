@@ -13,7 +13,7 @@ Replaying a recording today requires the interactive TUI, so it cannot run from 
 - Output: one line per step on stdout, warnings on stderr, `✔`/`✖` summary, exits 0/1/130, NO_COLOR and non-TTY aware.
 - Generated script reads `BROWSER_RECORDER_TIMING`, `BROWSER_RECORDER_HUMAN_DELAY`, `BROWSER_RECORDER_SEED`; human mode uses relative random waits and per-key typing ending in the exact value.
 - TUI timing toggle before replay; replay view shows the mode.
-- Minor version bump (feature).
+- No version change: the version stays as it is and the owner decides any bump.
 
 ### Out of Scope
 - Batch replay, JSON output, recording from the CLI.

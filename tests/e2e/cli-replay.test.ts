@@ -191,6 +191,14 @@ describe('node dist/main.js replay (temporary package root, headless)', () => {
     ).toBeGreaterThanOrEqual(MIN_PAUSE_MS - SLACK_MS);
   });
 
+  it('leaves the recording file byte for byte as it was, in both timing modes', async () => {
+    const file = path.join(pkg.root, 'recordings', 'typing', 'recording.json');
+    const before = readFileSync(file);
+    expect((await pkg.run(['replay', 'typing'])).code).toBe(0);
+    expect((await pkg.run(['replay', 'typing', '-d', '10-20'])).code).toBe(0);
+    expect(readFileSync(file).equals(before)).toBe(true);
+  });
+
   it('prints a sensitive value nowhere', async () => {
     const run = await pkg.run(['replay', 'secret', '-r', '-d', '10-20']);
     expect(run.code).toBe(0);

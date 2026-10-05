@@ -72,11 +72,19 @@ describe('src/cli/adapters/stream-output.ts', () => {
     expect(output.hasErrColor).toBe(isColored);
   });
 
-  it('judges each stream on its own', () => {
+  it('colors stderr only when stdout is a terminal too', () => {
     const stdout = Object.assign(new PassThrough(), { isTTY: false });
     const stderr = Object.assign(new PassThrough(), { isTTY: true });
     const output = createStreamOutput({ stdout, stderr, env: {} });
     expect(output.hasOutColor).toBe(false);
-    expect(output.hasErrColor).toBe(true);
+    expect(output.hasErrColor).toBe(false);
+  });
+
+  it('keeps stderr plain when stdout is a terminal but stderr is piped', () => {
+    const stdout = Object.assign(new PassThrough(), { isTTY: true });
+    const stderr = Object.assign(new PassThrough(), { isTTY: false });
+    const output = createStreamOutput({ stdout, stderr, env: {} });
+    expect(output.hasOutColor).toBe(true);
+    expect(output.hasErrColor).toBe(false);
   });
 });

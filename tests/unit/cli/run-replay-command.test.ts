@@ -179,6 +179,46 @@ describe('src/cli/application/run-replay-command.ts', () => {
     );
   });
 
+  it('promotes the first error line of the script when it failed before any step', async () => {
+    const { run, output, execute } = rig();
+    const done = execute();
+    await tick();
+    run.finish({
+      ...stepView(['pending', 'pending', 'pending']),
+      status: 'failed',
+      errorMessage: 'The replay exited with code 1.',
+      stderrTail: [
+        'node:internal/process',
+        'Error: browserType.launch: Executable does not exist',
+        '    at launch (file.js:1:1)',
+      ],
+    });
+    run.release();
+    expect(await done).toBe(1);
+    expect(output.stderr()).toBe(
+      '✖ Demo failed: Error: browserType.launch: Executable does not exist\n' +
+        '  node:internal/process\n' +
+        '      at launch (file.js:1:1)\n',
+    );
+  });
+
+  it('keeps the generic summary when no stderr line is an error', async () => {
+    const { run, output, execute } = rig();
+    const done = execute();
+    await tick();
+    run.finish({
+      ...stepView(['pending', 'pending', 'pending']),
+      status: 'failed',
+      errorMessage: 'The replay exited with code 1.',
+      stderrTail: ['some banner'],
+    });
+    run.release();
+    expect(await done).toBe(1);
+    expect(output.stderr()).toBe(
+      '✖ Demo failed: The replay exited with code 1.\n  some banner\n',
+    );
+  });
+
   it('waits for the profile release before it returns', async () => {
     const { run, execute } = rig();
     const done = execute();
