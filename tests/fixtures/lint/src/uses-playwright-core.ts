@@ -1,0 +1,4 @@
+// @ts-expect-error The package is deliberately not installed.
+import { chromium } from 'playwright-core';
+
+export const engine = chromium;

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Form</title>
+  </head>
+  <body>
+    <form id="login" onsubmit="return false;">
+      <label for="username">Username</label>
+      <input
+        id="username"
+        name="username"
+        type="text"
+        placeholder="Your username"
+      />
+      <label for="password">Password</label>
+      <input
+        id="password"
+        name="password"
+        type="password"
+        autocomplete="current-password"
+      />
+      <label for="country">Country</label>
+      <select id="country" name="country">
+        <option value="es">Spain</option>
+        <option value="fr">France</option>
+        <option value="pt">Portugal</option>
+      </select>
+      <label for="notes">Notes</label>
+      <textarea id="notes" name="notes"></textarea>
+      <button type="submit" id="submit">Sign in</button>
+    </form>
+    <p id="submitted"></p>
+    <script>
+      document.getElementById('login').addEventListener('submit', () => {
+        document.getElementById('submitted').textContent = 'submitted';
+      });
+    </script>
+  </body>
+</html>

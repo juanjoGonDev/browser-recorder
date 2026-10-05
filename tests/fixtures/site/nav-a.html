@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Navigation A</title>
+  </head>
+  <body>
+    <h1>Page A</h1>
+    <a id="to-b" href="nav-b.html">Go to B</a>
+    <a id="redirect" href="redirect.html">Go through a redirect</a>
+    <button id="push-state">Push state</button>
+    <script>
+      document.getElementById('push-state').addEventListener('click', () => {
+        history.pushState({}, '', 'nav-a.html?step=2');
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/main.ts",
+    "src/recording-capture/in-page/capture-script.ts",
+    "scripts/*.ts",
+    "tests/**/*.test.ts"
+  ],
+  "project": ["src/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts"],
+  "ignore": ["tests/fixtures/**"],
+  "ignoreExportsUsedInFile": true
+}

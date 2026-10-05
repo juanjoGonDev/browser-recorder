@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Shadow DOM</title>
+  </head>
+  <body>
+    <app-card id="card"></app-card>
+    <script>
+      class AppCard extends HTMLElement {
+        connectedCallback() {
+          const root = this.attachShadow({ mode: 'open' });
+          root.innerHTML =
+            '<button id="shadow-button">Shadow action</button><p id="shadow-status">idle</p>';
+          root.getElementById('shadow-button').addEventListener('click', () => {
+            root.getElementById('shadow-status').textContent = 'clicked';
+          });
+        }
+      }
+      customElements.define('app-card', AppCard);
+    </script>
+  </body>
+</html>

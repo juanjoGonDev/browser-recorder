@@ -1,0 +1,48 @@
+schema: spec-driven
+artifact_store: hybrid
+strict_tdd: true
+
+context: |
+  Project: browser-recorder (greenfield, intended stack; repo has no commits yet).
+  Runtime: Node.js >=22 (LTS 22.x), ESM, TypeScript 6 strict compiled with tsc.
+  Package manager: pnpm 10.34.4 (packageManager pinned). Only runtime dependency: Playwright.
+  Tests: Vitest 5 + @vitest/coverage-v8. Quality: ESLint 10 + typescript-eslint, Prettier, knip, dependency-cruiser.
+  Git hygiene: lefthook hooks, commitlint (conventional commits).
+  Delivery: single-pr strategy, unlimited review budget. Artifacts in English.
+
+testing:
+  strict_tdd: true
+  runner:
+    command: pnpm test
+    framework: Vitest 5
+  layers:
+    unit: { available: true, tool: Vitest }
+    integration: { available: true, tool: Vitest }
+    e2e: { available: true, tool: Playwright }
+  coverage:
+    available: true
+    command: pnpm test:coverage
+    tool: "@vitest/coverage-v8"
+  quality:
+    linter: ESLint 10 + typescript-eslint
+    type_checker: tsc (TypeScript 6, strict)
+    formatter: Prettier
+    other: [knip, dependency-cruiser, commitlint, lefthook]
+  note: Intended stack. Commands are not yet verifiable until package.json and tooling are scaffolded.
+
+rules:
+  proposal:
+    - Keep scope minimal; Playwright must remain the only runtime dependency.
+  specs:
+    - Use Given/When/Then scenarios with RFC 2119 keywords.
+  design:
+    - Respect dependency-cruiser boundaries; document architectural decisions.
+  tasks:
+    - Test-first task ordering (strict TDD); include delivery-strategy forecast (single-pr).
+  apply:
+    - Write failing test first (RED), then implementation (GREEN), then refactor.
+    - Conventional commits only; no AI attribution.
+  verify:
+    - Run pnpm test, pnpm test:coverage, tsc, ESLint, knip, dependency-cruiser.
+  archive:
+    - Merge delta specs into openspec/specs before archiving.

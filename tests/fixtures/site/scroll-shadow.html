@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Scroll in shadow DOM</title>
+    <style>
+      html {
+        scroll-behavior: smooth;
+      }
+    </style>
+    <script>
+      // Main-world spy: replay must neither call these nor leave a trace here.
+      const spy = { calls: 0, shadowCalls: 0 };
+      window.spy = spy;
+      for (const owner of [window, Element.prototype]) {
+        for (const name of [
+          'scrollTo',
+          'scroll',
+          'scrollBy',
+          'scrollIntoView',
+        ]) {
+          const original = owner[name];
+          if (typeof original !== 'function') continue;
+          owner[name] = function (...args) {
+            spy.calls += 1;
+            return original.apply(this, args);
+          };
+        }
+      }
+      const BOX_STYLE =
+        '<style>.box{width:200px;height:80px;overflow:auto;scroll-behavior:smooth}.fill{height:900px}</style>';
+      class OpenCard extends HTMLElement {
+        connectedCallback() {
+          const root = this.attachShadow({ mode: 'open' });
+          root.innerHTML =
+            BOX_STYLE +
+            '<div id="box" class="box"><div class="fill">Open box</div></div><nested-card id="nested"></nested-card>';
+        }
+      }
+      class NestedCard extends HTMLElement {
+        connectedCallback() {
+          const root = this.attachShadow({ mode: 'open' });
+          root.innerHTML =
+            BOX_STYLE +
+            '<div id="deep" class="box"><div class="fill">Deep box</div></div>';
+        }
+      }
+      class ClosedCard extends HTMLElement {
+        connectedCallback() {
+          const root = this.attachShadow({ mode: 'closed' });
+          root.innerHTML =
+            BOX_STYLE +
+            '<div id="sealed" class="box"><div class="fill">Sealed box</div></div>';
+        }
+      }
+      customElements.define('open-card', OpenCard);
+      customElements.define('nested-card', NestedCard);
+      customElements.define('closed-card', ClosedCard);
+    </script>
+  </head>
+  <body>
+    <open-card id="card"></open-card>
+    <closed-card id="vault"></closed-card>
+    <iframe
+      id="inner"
+      src="scroll-shadow-inner.html"
+      title="Inner"
+      height="200"
+    ></iframe>
+    <button id="attach" type="button">Attach later</button>
+    <div id="late-host"></div>
+    <button id="report" type="button">Report</button>
+    <script>
+      const baseline = new Set(Object.getOwnPropertyNames(window));
+      document.getElementById('report').addEventListener('click', () => {
+        const card = document.getElementById('card').shadowRoot;
+        const box = card.getElementById('box');
+        const deep = card
+          .getElementById('nested')
+          .shadowRoot.getElementById('deep');
+        const state = {
+          box: [box.scrollLeft, box.scrollTop],
+          deep: [deep.scrollLeft, deep.scrollTop],
+          spyCalls: spy.calls,
+          addedGlobals: Object.getOwnPropertyNames(window).filter(
+            (name) => !baseline.has(name),
+          ),
+          deepOwnProperties: Object.getOwnPropertyNames(deep),
+        };
+        void fetch(
+          '/__report?state=' + encodeURIComponent(JSON.stringify(state)),
+        );
+      });
+      document.getElementById('attach').addEventListener('click', () => {
+        const host = document.getElementById('late-host');
+        const root = host.attachShadow({ mode: 'open' });
+        root.innerHTML =
+          BOX_STYLE +
+          '<div id="late" class="box"><div class="fill">Late box</div></div>';
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2023", "DOM"],
+    "types": [],
+    "noEmit": true
+  },
+  "include": [
+    "src/recording-capture/in-page/**/*.ts",
+    "src/recording-capture/domain/**/*.ts",
+    "src/shared/domain/**/*.ts"
+  ]
+}

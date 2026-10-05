@@ -1,0 +1,316 @@
+name: 🚀 Auto release PR
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Create a release PR even below the commit threshold
+        required: true
+        default: false
+        type: boolean
+      strategy:
+        description: Version bump strategy
+        required: true
+        default: auto
+        type: choice
+        options:
+          - auto
+          - patch
+          - minor
+          - major
+      dry_run:
+        description: Calculate and validate without creating a branch or pull request
+        required: true
+        default: false
+        type: boolean
+
+permissions: read-all
+
+concurrency:
+  group: auto-release-pr-${{ github.repository }}
+  cancel-in-progress: false
+
+env:
+  MINIMUM_COMMITS: '3'
+
+jobs:
+  prepare:
+    name: Prepare trusted GitHub release PR
+    if: >-
+      github.repository == 'juanjoGonDev/browser-recorder' &&
+      github.event.repository.fork == false &&
+      github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: admin
+    permissions:
+      contents: read
+      pull-requests: read
+    env:
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      AUTOMATION_TOKEN: ${{ secrets.REPOSITORY_AUTOMATION_TOKEN || secrets.PAT_FINE }}
+      FORCE_RELEASE: ${{ inputs.force || false }}
+      RELEASE_STRATEGY: ${{ inputs.strategy || 'auto' }}
+      DRY_RUN: ${{ inputs.dry_run || false }}
+    steps:
+      - name: Checkout trusted default branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Attach exact default-branch commit
+        run: git checkout -B "$DEFAULT_BRANCH" "$GITHUB_SHA"
+
+      - name: Set up Node.js for release policy
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      - name: Validate release automation identity
+        id: automation
+        env:
+          GH_TOKEN: ${{ env.AUTOMATION_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "::error title=Repository automation token missing::Configure REPOSITORY_AUTOMATION_TOKEN or PAT_FINE in the admin environment."
+            exit 1
+          fi
+
+          actor_login=$(gh api user --jq .login)
+          if [[ "$actor_login" != "$GITHUB_REPOSITORY_OWNER" ]]; then
+            echo "::error title=Invalid release automation actor::The automation token authenticates as $actor_login instead of $GITHUB_REPOSITORY_OWNER."
+            exit 1
+          fi
+
+          labels=$(gh label list --limit 100 --json name --jq '.[].name')
+          if ! grep -Fxq auto-release <<<"$labels"; then
+            echo "::error title=Missing release label::Create the auto-release label before enabling automated releases."
+            exit 1
+          fi
+
+          git config user.name "$actor_login"
+          git config user.email "${actor_login}@users.noreply.github.com"
+          echo "actor_login=$actor_login" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve release baseline
+        id: baseline
+        env:
+          GH_TOKEN: ${{ env.AUTOMATION_TOKEN }}
+        run: |
+          set -euo pipefail
+          current_version=$(node -p "require('./package.json').version")
+          if ! [[ "$current_version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "::error title=Invalid package version::$current_version is not a stable semantic version."
+            exit 1
+          fi
+          current_tag="v${current_version}"
+
+          if ! current_release_json=$(gh release view "$current_tag" --json tagName,isDraft,isPrerelease 2>/dev/null); then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Current package version $current_version has no GitHub Release. Recover it before preparing another version."
+            exit 0
+          fi
+          if [[ "$(jq -r .isDraft <<<"$current_release_json")" != "false" || "$(jq -r .isPrerelease <<<"$current_release_json")" != "false" ]]; then
+            echo "::error title=Release metadata mismatch::$current_tag must be a published stable release."
+            exit 1
+          fi
+
+          latest_tag=$(gh release list --exclude-drafts --exclude-pre-releases --limit 1 --json tagName --jq '.[0].tagName // empty')
+          if [[ "$latest_tag" != "$current_tag" ]]; then
+            echo "::error title=Release drift::package.json contains $current_version while the latest stable GitHub Release is ${latest_tag:-missing}."
+            exit 1
+          fi
+
+          git fetch --force origin "refs/tags/${current_tag}:refs/tags/${current_tag}"
+          release_sha=$(git rev-list -n 1 "$current_tag")
+          if ! git merge-base --is-ancestor "$release_sha" HEAD; then
+            echo "::error title=Invalid release baseline::$current_tag is not an ancestor of the default branch."
+            exit 1
+          fi
+          release_version=$(git show "${release_sha}:package.json" | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).version")
+          if [[ "$release_version" != "$current_version" ]]; then
+            echo "::error title=Release package mismatch::$current_tag targets package version $release_version instead of $current_version."
+            exit 1
+          fi
+
+          existing_pr=$(gh pr list \
+            --limit 100 \
+            --state open \
+            --base "$DEFAULT_BRANCH" \
+            --label auto-release \
+            --author "$GITHUB_REPOSITORY_OWNER" \
+            --json url,headRefName \
+            --jq '[.[] | select(.headRefName | startswith("release/v"))][0].url // empty')
+          if [[ -n "$existing_pr" ]]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Trusted release pull request already open: $existing_pr"
+            exit 0
+          fi
+
+          impact_json=$(node --experimental-strip-types scripts/release-impact-policy.ts pending "$current_tag" HEAD)
+          commit_count=$(jq -r '.commitCount' <<<"$impact_json")
+          if [[ "$FORCE_RELEASE" != "true" && "$commit_count" -lt "$MINIMUM_COMMITS" ]]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Only $commit_count release-impacting commits since $current_tag; at least $MINIMUM_COMMITS are required."
+            exit 0
+          fi
+
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+          echo "current_tag=$current_tag" >> "$GITHUB_OUTPUT"
+          echo "current_version=$current_version" >> "$GITHUB_OUTPUT"
+          echo "commit_count=$commit_count" >> "$GITHUB_OUTPUT"
+
+      - name: Set up pnpm
+        if: steps.baseline.outputs.ready == 'true'
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - name: Set up Node.js
+        if: steps.baseline.outputs.ready == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        if: steps.baseline.outputs.ready == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium with system dependencies
+        if: steps.baseline.outputs.ready == 'true'
+        run: pnpm exec patchright install --with-deps chromium
+
+      - name: Run quality checks
+        if: steps.baseline.outputs.ready == 'true'
+        run: pnpm quality
+
+      - name: Build application
+        if: steps.baseline.outputs.ready == 'true'
+        run: pnpm run build
+
+      - name: Resolve release strategy
+        if: steps.baseline.outputs.ready == 'true'
+        id: strategy
+        env:
+          CURRENT_TAG: ${{ steps.baseline.outputs.current_tag }}
+        run: |
+          set -euo pipefail
+          strategy="$RELEASE_STRATEGY"
+          if [[ "$strategy" == "auto" ]]; then
+            strategy=patch
+            impact_json=$(node --experimental-strip-types scripts/release-impact-policy.ts pending "$CURRENT_TAG" HEAD)
+            mapfile -t release_commits < <(jq -r '.commits[]' <<<"$impact_json")
+            release_log=
+            for sha in "${release_commits[@]}"; do
+              release_log+="$(git show -s --format='%s%n%b' "$sha")"$'\n'
+            done
+            if grep -Eq '(^[a-z]+(\([^)]*\))?!:|^BREAKING CHANGE:)' <<<"$release_log"; then
+              strategy=major
+            elif grep -Eq '^feat(\([^)]*\))?:' <<<"$release_log"; then
+              strategy=minor
+            fi
+          fi
+          echo "value=$strategy" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve next version
+        if: steps.baseline.outputs.ready == 'true'
+        id: version
+        env:
+          CURRENT_VERSION: ${{ steps.baseline.outputs.current_version }}
+          STRATEGY: ${{ steps.strategy.outputs.value }}
+        run: |
+          set -euo pipefail
+          next_version=$(node -e "
+            const [major, minor, patch] = process.argv[1].split('.').map(Number);
+            const strategy = process.argv[2];
+            const versions = {
+              major: [major + 1, 0, 0],
+              minor: [major, minor + 1, 0],
+              patch: [major, minor, patch + 1],
+            };
+            process.stdout.write(versions[strategy].join('.'));
+          " "$CURRENT_VERSION" "$STRATEGY")
+          echo "value=$next_version" >> "$GITHUB_OUTPUT"
+
+      - name: Show dry-run result
+        if: steps.baseline.outputs.ready == 'true' && env.DRY_RUN == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+          STRATEGY: ${{ steps.strategy.outputs.value }}
+          COMMIT_COUNT: ${{ steps.baseline.outputs.commit_count }}
+        run: |
+          {
+            echo "### Release pull request dry run"
+            echo "- Version: v$VERSION"
+            echo "- Strategy: $STRATEGY"
+            echo "- Release-impacting commits: $COMMIT_COUNT"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create version bump pull request
+        if: steps.baseline.outputs.ready == 'true' && env.DRY_RUN != 'true'
+        id: pull_request
+        env:
+          GH_TOKEN: ${{ env.AUTOMATION_TOKEN }}
+          VERSION: ${{ steps.version.outputs.value }}
+          STRATEGY: ${{ steps.strategy.outputs.value }}
+          COMMIT_COUNT: ${{ steps.baseline.outputs.commit_count }}
+          ACTOR_LOGIN: ${{ steps.automation.outputs.actor_login }}
+        run: |
+          set -euo pipefail
+          release_tag="v${VERSION}"
+          release_branch="release/${release_tag}"
+
+          if gh release view "$release_tag" >/dev/null 2>&1; then
+            echo "::error title=Release already exists::GitHub Release $release_tag already exists."
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/${release_tag}" >/dev/null 2>&1; then
+            echo "::error title=Tag collision::Remote tag $release_tag already exists."
+            exit 1
+          fi
+          if git ls-remote --exit-code --heads origin "refs/heads/${release_branch}" >/dev/null 2>&1; then
+            echo "::error title=Release branch collision::$release_branch already exists."
+            exit 1
+          fi
+
+          npm version "$VERSION" --no-git-tag-version
+          git checkout -b "$release_branch"
+          git add package.json
+          git commit -m "chore(release): prepare ${release_tag}"
+
+          authorization=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')
+          echo "::add-mask::$authorization"
+          git -c http.extraheader="Authorization: Basic $authorization" \
+            push origin "HEAD:refs/heads/${release_branch}"
+
+          pr_url=$(gh pr create \
+            --base "$DEFAULT_BRANCH" \
+            --head "$release_branch" \
+            --title "chore(release): prepare ${release_tag}" \
+            --label auto-release \
+            --assignee "$ACTOR_LOGIN" \
+            --body "Automated **${STRATEGY}** release from ${COMMIT_COUNT} release-impacting commits. The trusted release workflow validates this exact head, then repository requirements control squash auto-merge. A version-changing merge with pending artifact impact builds and publishes the macOS installers in GitHub Releases.")
+
+          echo "url=$pr_url" >> "$GITHUB_OUTPUT"
+          echo "head_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Report release pull request
+        if: steps.pull_request.outputs.url != ''
+        env:
+          PR_URL: ${{ steps.pull_request.outputs.url }}
+          HEAD_SHA: ${{ steps.pull_request.outputs.head_sha }}
+          RELEASE_TAG: ${{ steps.pull_request.outputs.release_tag }}
+        run: |
+          {
+            echo "### Release pull request created"
+            echo "- Pull request: $PR_URL"
+            echo "- Head: $HEAD_SHA"
+            echo "- Version: $RELEASE_TAG"
+            echo "- Approval: trusted release contract workflow"
+            echo "- Merge: repository requirements and squash auto-merge"
+          } >> "$GITHUB_STEP_SUMMARY"

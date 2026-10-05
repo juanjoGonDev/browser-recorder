@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Scroll replay inner</title>
+    <style>
+      html,
+      #panel {
+        scroll-behavior: smooth;
+      }
+      #panel {
+        width: 200px;
+        height: 80px;
+        overflow: auto;
+      }
+      #panel-content {
+        height: 600px;
+      }
+    </style>
+    <script>
+      // Taken once the frames exist: they are indexed properties of window.
+      let baseline = new Set();
+      addEventListener('load', () => {
+        baseline = new Set(Object.getOwnPropertyNames(window));
+      });
+      const spy = { calls: 0 };
+      for (const owner of [window, Element.prototype]) {
+        for (const name of [
+          'scrollTo',
+          'scroll',
+          'scrollBy',
+          'scrollIntoView',
+        ]) {
+          const original = owner[name];
+          if (typeof original !== 'function') continue;
+          owner[name] = function (...args) {
+            spy.calls += 1;
+            return original.apply(this, args);
+          };
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="panel"><div id="panel-content">Inner panel</div></div>
+    <script>
+      const panel = document.getElementById('panel');
+      window.addEventListener('message', (event) => {
+        event.source.postMessage(
+          {
+            window: [window.scrollX, window.scrollY],
+            panel: [panel.scrollLeft, panel.scrollTop],
+            spyCalls: spy.calls,
+            addedGlobals: Object.getOwnPropertyNames(window).filter(
+              (name) => !baseline.has(name),
+            ),
+            panelOwnProperties: Object.getOwnPropertyNames(panel),
+          },
+          '*',
+        );
+      });
+    </script>
+  </body>
+</html>

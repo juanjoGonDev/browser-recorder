@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Dynamic id</title>
+  </head>
+  <body>
+    <div class="panel">
+      <span id=":r1:" class="css-1a2b3c flex">Generated id</span>
+      <span id="headlessui-menu-button-:r5:" class="p-4">Headless id</span>
+    </div>
+    <p id="state">idle</p>
+    <script>
+      document.querySelectorAll('.panel span').forEach((element) => {
+        element.addEventListener('click', () => {
+          document.getElementById('state').textContent = 'clicked';
+        });
+      });
+    </script>
+  </body>
+</html>

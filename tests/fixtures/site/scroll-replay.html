@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Scroll replay</title>
+    <style>
+      html,
+      #panel {
+        scroll-behavior: smooth;
+      }
+      #report {
+        position: fixed;
+        top: 0;
+        right: 0;
+      }
+      #panel {
+        width: 300px;
+        height: 120px;
+        overflow: auto;
+        border: 1px solid #333;
+      }
+      #panel-content {
+        height: 900px;
+      }
+      #tall {
+        height: 3000px;
+      }
+    </style>
+    <script>
+      // Main-world spy: replay must neither call these nor leave a trace here.
+      // Taken once the frames exist: they are indexed properties of window.
+      let baseline = new Set();
+      addEventListener('load', () => {
+        baseline = new Set(Object.getOwnPropertyNames(window));
+      });
+      const spy = { calls: 0 };
+      for (const owner of [window, Element.prototype]) {
+        for (const name of [
+          'scrollTo',
+          'scroll',
+          'scrollBy',
+          'scrollIntoView',
+        ]) {
+          const original = owner[name];
+          if (typeof original !== 'function') continue;
+          owner[name] = function (...args) {
+            spy.calls += 1;
+            return original.apply(this, args);
+          };
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <button id="report" type="button">Report</button>
+    <div id="panel"><div id="panel-content">Scrollable panel</div></div>
+    <iframe id="inner" src="scroll-replay-inner.html" title="Inner"></iframe>
+    <div id="tall">Tall page</div>
+    <script>
+      const panel = document.getElementById('panel');
+      const inner = document.getElementById('inner');
+      const snapshotOf = (win, scrollable) => ({
+        window: [win.scrollX, win.scrollY],
+        panel: [scrollable.scrollLeft, scrollable.scrollTop],
+      });
+      document.getElementById('report').addEventListener('click', () => {
+        inner.contentWindow.postMessage('report', '*');
+      });
+      window.addEventListener('message', (event) => {
+        const state = {
+          outer: {
+            ...snapshotOf(window, panel),
+            spyCalls: spy.calls,
+            addedGlobals: Object.getOwnPropertyNames(window).filter(
+              (name) => !baseline.has(name),
+            ),
+            panelOwnProperties: Object.getOwnPropertyNames(panel),
+          },
+          inner: event.data,
+        };
+        void fetch(
+          '/__report?state=' + encodeURIComponent(JSON.stringify(state)),
+        );
+      });
+    </script>
+  </body>
+</html>

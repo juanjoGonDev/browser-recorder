@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>File input</title>
+  </head>
+  <body>
+    <label for="avatar">Avatar</label>
+    <input id="avatar" type="file" multiple />
+    <p id="chosen">none</p>
+    <script>
+      document.getElementById('avatar').addEventListener('change', (event) => {
+        const names = Array.from(event.target.files).map((file) => file.name);
+        document.getElementById('chosen').textContent = names.join(',');
+      });
+    </script>
+  </body>
+</html>

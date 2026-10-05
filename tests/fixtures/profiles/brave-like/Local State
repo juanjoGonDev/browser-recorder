@@ -1,0 +1,10 @@
+{
+  "os_crypt": { "encrypted_key": "RFBBUEkBFIXTURE-NOT-A-KEY" },
+  "profile": {
+    "info_cache": {
+      "Default": { "name": "Person 1" },
+      "Profile 1": { "name": "Work" }
+    },
+    "profiles_order": ["Default", "Profile 1"]
+  }
+}

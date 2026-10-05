@@ -1,0 +1,122 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+    # No base filter: a pull request stacked on another branch must be
+    # validated too — without this it merges with no CI having run.
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions: read-all
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: CI — ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    if: >-
+      github.repository == 'juanjoGonDev/browser-recorder' &&
+      (github.event_name == 'workflow_dispatch' ||
+       github.event.pull_request.draft == false)
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            runner: ubuntu-latest
+            playwright-cache: ~/.cache/ms-playwright
+          - os: macos
+            runner: macos-15
+            playwright-cache: ~/Library/Caches/ms-playwright
+          - os: win
+            runner: windows-latest
+            playwright-cache: ~\AppData\Local\ms-playwright
+    steps:
+      - name: Checkout candidate commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ matrix.playwright-cache }}
+          key: playwright-${{ matrix.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install reproducibly
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        if: matrix.os != 'linux'
+        run: pnpm exec patchright install chromium
+
+      - name: Install Chromium with system dependencies
+        if: matrix.os == 'linux'
+        run: pnpm exec patchright install --with-deps chromium
+
+      - name: Type safety and authored-source policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm typecheck
+          # Golden generated scripts are test data compared byte for byte,
+          # not authored source: they are the one JavaScript-family exception.
+          authored_js=$(git ls-files '*.js' '*.jsx' '*.mjs' '*.cjs' ':(exclude)tests/unit/script-generation/goldens')
+          if [[ -n "$authored_js" ]]; then
+            echo '::error::Repository-authored JavaScript-family files are forbidden: the repository is TypeScript only.'
+            printf '%s\n' "$authored_js"
+            exit 1
+          fi
+
+      - name: Static quality
+        shell: bash
+        run: |
+          set -o pipefail
+          # Self-diagnostic: each gate runs with its own log and a
+          # ::error:: annotation with the output tail, so a failure says
+          # WHICH gate and WHY (the bare && chain only said "exit 1").
+          log_dir=$(mktemp -d)
+          quality() {
+            name="$1"; shift
+            echo "::group::$name"
+            if ! "$@" > "$log_dir/${name//:/-}.log" 2>&1; then
+              echo "::endgroup::"
+              echo "::error::static-quality: $name failed. output tail:"
+              tail -40 "$log_dir/${name//:/-}.log"
+              exit 1
+            fi
+            echo "::endgroup::"
+          }
+          quality lint:strict pnpm lint:strict
+          quality format:check pnpm format:check
+          quality deadcode pnpm deadcode
+          quality deps:check pnpm deps:check
+
+      - name: Audit dependencies
+        if: matrix.os == 'linux'
+        run: pnpm audit --audit-level=moderate
+
+      - name: Tests
+        # --coverage, not a bare run: vitest.config.ts sets the per-file
+        # statements/lines floor, and thresholds are only evaluated when
+        # coverage is collected. `pnpm test` here would let a file fall
+        # below the floor with CI still green.
+        run: pnpm test:coverage
+
+      - name: Build
+        run: pnpm build
