@@ -33,6 +33,7 @@ describe('eslint repository rules', { timeout: LINT_TIMEOUT_MS }, () => {
     ['four-params.ts', 'max-params'],
     ['deep-nesting.ts', 'max-depth'],
     ['uses-console.ts', 'no-console'],
+    ['cli/uses-console.ts', 'no-console'],
     ['headed-browser.ts', 'no-restricted-syntax'],
     ['uses-playwright.ts', 'no-restricted-imports'],
     ['uses-playwright-core.ts', 'no-restricted-imports'],

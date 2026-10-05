@@ -117,6 +117,39 @@ describe('dependency-cruiser layering rules', () => {
     expect(violations).toContain('domain-pure');
   });
 
+  it('keeps the cli feature pure: its domain may not import an adapter or node:util', () => {
+    const adapter = cruise({
+      ...MAIN_IMPORTING(['./cli/domain/bad.ts']),
+      'src/cli/domain/bad.ts':
+        "import { tokenize } from '../adapters/tokenize.ts';\nexport const bad = tokenize;\n",
+      'src/cli/adapters/tokenize.ts': 'export const tokenize = 1;\n',
+    });
+    const nodeCore = cruise({
+      ...MAIN_IMPORTING(['./cli/domain/io.ts']),
+      'src/cli/domain/io.ts':
+        "import { parseArgs } from 'node:util';\nexport const io = parseArgs;\n",
+    });
+    expect(adapter).toContain('domain-pure');
+    expect(nodeCore).toContain('domain-pure');
+  });
+
+  it('keeps the cli application behind its ports and away from other features', () => {
+    const adapter = cruise({
+      ...MAIN_IMPORTING(['./cli/application/run.ts']),
+      'src/cli/application/run.ts':
+        "import { out } from '../adapters/out.ts';\nexport const run = out;\n",
+      'src/cli/adapters/out.ts': 'export const out = 1;\n',
+    });
+    const feature = cruise({
+      ...MAIN_IMPORTING(['./cli/application/run.ts']),
+      'src/cli/application/run.ts':
+        "import { start } from '../../replay/application/start.ts';\nexport const run = start;\n",
+      'src/replay/application/start.ts': 'export const start = 1;\n',
+    });
+    expect(adapter).toContain('application-no-io');
+    expect(feature).toContain('no-cross-feature');
+  });
+
   it('rejects one feature importing another', () => {
     const violations = cruise({
       ...MAIN_IMPORTING(['./replay/domain/a.ts']),

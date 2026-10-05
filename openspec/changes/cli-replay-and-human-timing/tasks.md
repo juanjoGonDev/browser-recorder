@@ -49,16 +49,16 @@ HARD RULES (all tasks): headless tests only; no main-world code; no `Runtime.ena
 
 ## WP3: CLI feature
 
-- [ ] 3.1 RED/GREEN `src/cli/domain/parse-delay-range.ts`: Valid/Invalid ranges, Defaults.
-- [ ] 3.2 RED/GREEN `interpret-arguments.ts`, `usage-text.ts`, `adapters/tokenize-argv.ts`: Help and version, Unknown subcommand, Unknown flag, Missing argument.
-- [ ] 3.3 RED/GREEN `find-recording.ts`: Slug vs display name, Case-insensitive, Ambiguous, Not found.
-- [ ] 3.4 RED/GREEN `describe-step.ts` (never values), `format-step-line.ts`, `format-result.ts`, `exit-code.ts`: Success, Failure, Plain output.
-- [ ] 3.5 RED/GREEN ports and `run-replay-command.ts`, `run-cli.ts` with fakes: Fallback warning, missing browser prints manual command, awaits `released`, Ctrl+C maps to `live.cancel()` (130/143).
-- [ ] 3.6 RED/GREEN adapters `stream-output.ts` (EPIPE, flush), `process-interrupt-signals.ts`.
-- [ ] 3.7 RED/GREEN `create-replay-command-services.ts`, `run-cli-app.ts`, `run-tui-app.ts`, `main.ts` dispatch (lazy services; Non-TTY replay, No subcommand), coverage >= 85 % per file.
-- [ ] 3.8 RED/GREEN `depcruise-rules.test.ts` cases (Layer violation, Console use); `package.json` `replay` script, version unchanged (Alias, Version untouched).
-- [ ] 3.9 E2E `tests/e2e/`: temp package root, fixture recording, `node dist/main.js replay`; exit 0, 1, 2, 130 (SIGINT, POSIX); seeded human gaps >= min, exact fill value; real `recordings/` untouched.
-- [ ] 3.10 REFACTOR; `pnpm quality`.
+- [x] 3.1 RED/GREEN `src/cli/domain/parse-delay-range.ts`: Valid/Invalid ranges, Defaults.
+- [x] 3.2 RED/GREEN `interpret-arguments.ts`, `usage-text.ts`, `adapters/tokenize-argv.ts`: Help and version, Unknown subcommand, Unknown flag, Missing argument.
+- [x] 3.3 RED/GREEN `find-recording.ts`: Slug vs display name, Case-insensitive, Ambiguous, Not found.
+- [x] 3.4 RED/GREEN `describe-step.ts` (never values), `format-step-line.ts`, `format-result.ts`, `exit-code.ts`: Success, Failure, Plain output.
+- [x] 3.5 RED/GREEN ports and `run-replay-command.ts`, `run-cli.ts` with fakes: Fallback warning, missing browser prints manual command, awaits `released`, Ctrl+C maps to `live.cancel()` (130/143).
+- [x] 3.6 RED/GREEN adapters `stream-output.ts` (EPIPE, flush), `process-interrupt-signals.ts`.
+- [x] 3.7 RED/GREEN `create-replay-command-services.ts`, `run-cli-app.ts`, `run-tui-app.ts`, `main.ts` dispatch (lazy services; Non-TTY replay, No subcommand), coverage >= 85 % per file.
+- [x] 3.8 RED/GREEN `depcruise-rules.test.ts` cases (Layer violation, Console use); `package.json` `replay` script, version unchanged (Alias, Version untouched).
+- [x] 3.9 E2E `tests/e2e/`: temp package root, fixture recording, `node dist/main.js replay`; exit 0, 1, 2, 130 (SIGINT, POSIX); seeded human gaps >= min, exact fill value; real `recordings/` untouched.
+- [x] 3.10 REFACTOR; `pnpm quality`.
 
 ## WP4: Docs
 

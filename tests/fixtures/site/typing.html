@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Typing</title>
+  </head>
+  <body>
+    <label for="notes">Notes</label>
+    <textarea id="notes"></textarea>
+    <button id="send" type="button">Send</button>
+    <script>
+      const notes = document.getElementById('notes');
+      // Each event tells the fixture server what happened and when, so a test
+      // can measure the pauses between actions from outside the browser.
+      function report(kind, value) {
+        const state = [kind, Date.now(), value].join('|');
+        void fetch('/__report?state=' + encodeURIComponent(state));
+      }
+      report('load', '');
+      notes.addEventListener('input', () => {
+        report('input', notes.value);
+      });
+      document.getElementById('send').addEventListener('click', () => {
+        report('click', notes.value);
+      });
+    </script>
+  </body>
+</html>
