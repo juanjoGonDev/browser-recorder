@@ -17,9 +17,11 @@ import { withScriptCheck } from '../replay/adapters/script-checking-spawner.ts';
 import { createFileSystemRecordingRepository } from '../script-library/adapters/file-system-recording-repository.ts';
 import { createLibraryService } from '../script-library/application/library-service.ts';
 import { generateScript } from '../script-generation/domain/generate-script.ts';
+import type { ReplayCommandServices } from '../cli/application/ports/replay-command-services.ts';
 import { createLaunchPlanner } from './browser-launch-plan.ts';
 import { createBrowserViews } from './browser-views.ts';
 import { createAppServices } from './create-app-services.ts';
+import { createReplayCommandServices } from './create-replay-command-services.ts';
 import { pathRootsFor } from './path-roots.ts';
 import { createRunningCheck, sleep } from './profile-runtime.ts';
 import type {
@@ -139,4 +141,18 @@ export function createProductionServices(
   options: ProductionOptions,
 ): ComposedServices {
   return createAppServices(createProductionDeps(options));
+}
+
+/** The replay command over the same adapters, without the TUI services. */
+export function createProductionReplayCommandServices(
+  options: ProductionOptions,
+): ReplayCommandServices {
+  const deps = createProductionDeps(options);
+  return createReplayCommandServices({
+    library: deps.library,
+    planner: deps.planner,
+    installation: deps.installation,
+    replay: deps.replay,
+    now: () => deps.clock.now(),
+  });
 }

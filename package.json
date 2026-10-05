@@ -24,6 +24,7 @@
   },
   "scripts": {
     "start": "pnpm run build && node dist/main.js",
+    "replay": "pnpm run --silent build && node dist/main.js replay",
     "build": "node --experimental-strip-types scripts/build.ts",
     "test": "vitest run",
     "test:watch": "vitest",
