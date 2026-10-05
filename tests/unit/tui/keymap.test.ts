@@ -151,6 +151,28 @@ describe('src/tui/domain/keymap.ts', () => {
       expect(press(form, named('escape'))).toEqual({ kind: 'cancel' });
     });
 
+    it('cycles the option with the arrow keys on a picker', () => {
+      for (const focus of ['browser', 'profile'] as const) {
+        const picker = on(newRecordingScreen({ focus }));
+        expect(press(picker, named('right'))).toEqual({
+          kind: 'cycle-option',
+          delta: 1,
+        });
+        expect(press(picker, named('left'))).toEqual({
+          kind: 'cycle-option',
+          delta: -1,
+        });
+        expect(press(picker, named('tab'))).toEqual({ kind: 'switch-field' });
+        expect(press(picker, named('return'))).toEqual({ kind: 'submit' });
+      }
+    });
+
+    it('does not turn typed characters into text on a picker', () => {
+      const picker = on(newRecordingScreen({ focus: 'browser' }));
+      expect(press(picker, char('x'))).toBeNull();
+      expect(press(picker, named('backspace'))).toBeNull();
+    });
+
     it('does not insert modified keys or named keys as text', () => {
       expect(press(form, named('x', { meta: true }))).toBeNull();
       expect(press(form, named('f5'))).toBeNull();

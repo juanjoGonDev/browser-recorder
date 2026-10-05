@@ -376,10 +376,22 @@ describe('src/tui/domain/app-reducer.ts', () => {
       expect(screen.name.value).toBe('D');
       expect(screen.startUrl.value).toBe('h');
       expect(screen.focus).toBe('url');
-      expect(
-        (reduce(typed, { type: 'switch-field' }).screen as NewRecordingScreen)
-          .focus,
-      ).toBe('name');
+    });
+
+    it('walks the focus name, url, browser, profile and back to name', () => {
+      const focusAfter = (count: number): string => {
+        const actions = Array.from({ length: count }, () => ({
+          type: 'switch-field' as const,
+        }));
+        return (reduce(on(newForm), ...actions).screen as NewRecordingScreen)
+          .focus;
+      };
+      expect([1, 2, 3, 4].map(focusAfter)).toEqual([
+        'url',
+        'browser',
+        'profile',
+        'name',
+      ]);
     });
 
     it('shows an inline error and clears it when the user edits again', () => {

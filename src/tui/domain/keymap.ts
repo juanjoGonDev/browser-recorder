@@ -1,4 +1,9 @@
-import type { AppState, RecordingScreen, Screen } from './app-state.ts';
+import type {
+  AppState,
+  NewRecordingScreen,
+  RecordingScreen,
+  Screen,
+} from './app-state.ts';
 import type { Intent } from './intent.ts';
 import { keyId, typedCharacter, type KeyInput } from './key-input.ts';
 
@@ -36,6 +41,12 @@ const FORM_KEYS: KeyTable = {
   down: SWITCH_FIELD,
   return: SUBMIT,
   escape: BACK,
+};
+
+const PICKER_KEYS: KeyTable = {
+  ...FORM_KEYS,
+  left: { kind: 'cycle-option', delta: -1 },
+  right: { kind: 'cycle-option', delta: 1 },
 };
 
 const LIBRARY_KEYS: KeyTable = {
@@ -106,6 +117,12 @@ function forSetup(screen: Screen, key: KeyInput): Intent | null {
   return keyId(key) === 'q' ? QUIT : null;
 }
 
+/** Text fields edit; the two pickers only cycle their options. */
+function forForm(screen: NewRecordingScreen, key: KeyInput): Intent | null {
+  const isPicker = screen.focus === 'browser' || screen.focus === 'profile';
+  return isPicker ? lookup(PICKER_KEYS, key) : textOr(FORM_KEYS, key);
+}
+
 function forRecording(screen: RecordingScreen, key: KeyInput): Intent | null {
   if (screen.isStopping) return null;
   if (screen.isConfirmingDiscard) return lookup(CONFIRM_KEYS, key);
@@ -135,7 +152,7 @@ function forScreen(screen: Screen, key: KeyInput): Intent | null {
     case 'main-menu':
       return lookup(MENU_KEYS, key);
     case 'new-recording':
-      return textOr(FORM_KEYS, key);
+      return forForm(screen, key);
     case 'recording':
       return forRecording(screen, key);
     case 'library':

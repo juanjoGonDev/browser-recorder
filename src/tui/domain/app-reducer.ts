@@ -89,6 +89,16 @@ function moveSelection(state: AppState, delta: number): AppState {
   return moveListSelection(menu, delta);
 }
 
+const FOCUS_ORDER = ['name', 'url', 'browser', 'profile'] as const;
+
+function nextFocus(screen: NewRecordingScreen): NewRecordingScreen {
+  const at = FOCUS_ORDER.indexOf(screen.focus);
+  return {
+    ...screen,
+    focus: FOCUS_ORDER[(at + 1) % FOCUS_ORDER.length] ?? 'name',
+  };
+}
+
 function editLibrary(screen: LibraryScreen, edit: TextEdit): LibraryScreen {
   if (screen.mode.kind !== 'rename') return screen;
   return {
@@ -137,11 +147,7 @@ const handlers: Handlers = {
   'move-selection': (state, action) => moveSelection(state, action.delta),
   'page-selection': (state, action) =>
     pageListSelection(state, action.direction),
-  'switch-field': (state) =>
-    onForm(state, (screen) => ({
-      ...screen,
-      focus: screen.focus === 'name' ? 'url' : 'name',
-    })),
+  'switch-field': (state) => onForm(state, nextFocus),
   'cycle-option': (state, action) => cycleOption(state, action.delta),
   'browsers-loaded': (state, action) => browsersLoaded(state, action.browsers),
   'browsers-failed': (state, action) => browsersFailed(state, action.message),
