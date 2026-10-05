@@ -21,6 +21,14 @@ const vendoredFiles = [
   'tests/unit/repository/script-runtime.test.ts',
 ];
 
+const PLAYWRIGHT_PACKAGES = [
+  'playwright',
+  'playwright-core',
+  '@playwright/test',
+];
+// An ESQuery regular expression literal, kept in one place for both selectors.
+const CDP_LEAK_PATTERN = '/^(Runtime|Console)\\.enable$/';
+
 const BOOLEAN_PREFIXES = ['is', 'has', 'should', 'can', 'did', 'was', 'will'];
 
 /** Size and shape limits that keep every unit small enough to review. */
@@ -192,6 +200,41 @@ export default defineConfig(
           selector: "Property[key.name='headless'][value.value=false]",
           message:
             'Do not hardcode headless: false; tests run headless unless BROWSER_RECORDER_HEADED_TESTS=1.',
+        },
+        {
+          // Either call reintroduces the automation leak Patchright removes.
+          // Build the method name from parts where a test must mention it.
+          selector: `Literal[value=${CDP_LEAK_PATTERN}]`,
+          message:
+            'Never send Runtime.enable or Console.enable: they make the automation detectable.',
+        },
+        {
+          selector: `TemplateElement[value.cooked=${CDP_LEAK_PATTERN}]`,
+          message:
+            'Never send Runtime.enable or Console.enable: they make the automation detectable.',
+        },
+      ],
+    },
+  },
+  {
+    // Playwright was replaced by Patchright: nothing may import it again.
+    files: typedFiles,
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: PLAYWRIGHT_PACKAGES.map((name) => ({
+            name,
+            message:
+              'Playwright was replaced by Patchright: import patchright.',
+          })),
+          patterns: [
+            {
+              group: PLAYWRIGHT_PACKAGES.map((name) => `${name}/*`),
+              message:
+                'Playwright was replaced by Patchright: import patchright.',
+            },
+          ],
         },
       ],
     },

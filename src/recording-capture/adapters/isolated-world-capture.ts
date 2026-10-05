@@ -96,6 +96,9 @@ export async function attachCapture(
   // Scripts registered for new documents only run while the Page domain is
   // enabled in the session; a frame's own session is not enabled by anyone else.
   await cdp.send('Page.enable');
+  // Removed by the capture rewrite (work package 2): until then this is the
+  // one place that still sends the forbidden call.
+  // eslint-disable-next-line no-restricted-syntax
   await cdp.send('Runtime.enable');
   // Added before the world exists: Chromium puts it into the world on creation.
   await cdp.send('Runtime.addBinding', {

@@ -20,15 +20,27 @@ interface CruiseReport {
 
 const workDirs: string[] = [];
 
-/** Write a throwaway source tree (plus a stub `playwright`) and cruise it. */
+const STUB_PACKAGES = ['patchright', 'playwright', 'playwright-core'] as const;
+
+function stubPackageFiles(): Record<string, string> {
+  return Object.fromEntries(
+    STUB_PACKAGES.flatMap((name) => [
+      [
+        `node_modules/${name}/package.json`,
+        `{"name":"${name}","version":"1.0.0","main":"index.js"}`,
+      ],
+      [`node_modules/${name}/index.js`, 'module.exports = {};'],
+    ]),
+  );
+}
+
+/** Write a throwaway source tree (plus stub browser libraries) and cruise it. */
 function cruise(files: Record<string, string>): string[] {
   const dir = mkdtempSync(path.join(tmpdir(), 'br-depcruise-'));
   workDirs.push(dir);
   const all: Record<string, string> = {
-    'package.json': '{"name":"fixture","dependencies":{"playwright":"1.0.0"}}',
-    'node_modules/playwright/package.json':
-      '{"name":"playwright","version":"1.0.0","main":"index.js"}',
-    'node_modules/playwright/index.js': 'module.exports = {};',
+    'package.json': '{"name":"fixture","dependencies":{"patchright":"1.0.0"}}',
+    ...stubPackageFiles(),
     ...files,
   };
   for (const [relative, content] of Object.entries(all)) {
@@ -69,7 +81,7 @@ describe('dependency-cruiser layering rules', () => {
       'src/replay/application/runner.ts':
         "import { parse } from '../domain/parse.ts';\nexport const run = parse;\n",
       'src/replay/adapters/spawner.ts':
-        "import 'playwright';\nimport { run } from '../application/runner.ts';\nexport const spawn = run;\n",
+        "import 'patchright';\nimport { run } from '../application/runner.ts';\nexport const spawn = run;\n",
       'src/recording-capture/domain/pure.ts': 'export const pure = 1;\n',
       'src/recording-capture/in-page/capture-script.ts':
         "import { pure } from '../domain/pure.ts';\nexport const entry = pure;\n",
@@ -119,14 +131,61 @@ describe('dependency-cruiser layering rules', () => {
     expect(violations).toEqual([]);
   });
 
-  it('rejects playwright inside application code', () => {
+  it('rejects patchright inside application code', () => {
     const violations = cruise({
       ...MAIN_IMPORTING(['./replay/application/runner.ts']),
       'src/replay/application/runner.ts':
-        "import 'playwright';\nexport const run = 1;\n",
+        "import 'patchright';\nexport const run = 1;\n",
     });
-    expect(violations).toContain('playwright-in-adapters');
+    expect(violations).toContain('patchright-in-adapters');
     expect(violations).toContain('application-no-io');
+  });
+
+  it('allows patchright in adapters and in the composition root', () => {
+    const violations = cruise({
+      ...MAIN_IMPORTING([
+        './replay/adapters/launch.ts',
+        './composition/wire.ts',
+      ]),
+      'src/replay/adapters/launch.ts':
+        "import 'patchright';\nexport const launch = 1;\n",
+      'src/composition/wire.ts':
+        "import 'patchright';\nexport const wire = 1;\n",
+    });
+    expect(violations).toEqual([]);
+  });
+
+  it.each([
+    ['playwright', 'src/replay/adapters/launch.ts'],
+    ['playwright-core', 'src/replay/adapters/launch.ts'],
+    ['playwright', 'src/composition/wire.ts'],
+  ])('rejects %s even where patchright is allowed (%s)', (library, file) => {
+    const violations = cruise({
+      ...MAIN_IMPORTING([`./${file.replace('src/', '')}`]),
+      [file]: `import '${library}';\nexport const launch = 1;\n`,
+    });
+    expect(violations).toContain('no-playwright');
+  });
+
+  it('rejects an adapter import from a browser-profiles domain module', () => {
+    const violations = cruise({
+      ...MAIN_IMPORTING(['./browser-profiles/domain/bad.ts']),
+      'src/browser-profiles/domain/bad.ts':
+        "import { fs } from '../adapters/node-fs.ts';\nexport const bad = fs;\n",
+      'src/browser-profiles/adapters/node-fs.ts': 'export const fs = 1;\n',
+    });
+    expect(violations).toContain('domain-pure');
+  });
+
+  it('rejects an adapter import from a browser-selection domain module', () => {
+    const violations = cruise({
+      ...MAIN_IMPORTING(['./browser-selection/domain/bad.ts']),
+      'src/browser-selection/domain/bad.ts':
+        "import { probe } from '../adapters/node-probe.ts';\nexport const bad = probe;\n",
+      'src/browser-selection/adapters/node-probe.ts':
+        'export const probe = 1;\n',
+    });
+    expect(violations).toContain('domain-pure');
   });
 
   it('rejects an in-page module that imports outside its allow-list', () => {

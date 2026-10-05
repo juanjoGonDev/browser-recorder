@@ -34,8 +34,23 @@ describe('eslint repository rules', { timeout: LINT_TIMEOUT_MS }, () => {
     ['deep-nesting.ts', 'max-depth'],
     ['uses-console.ts', 'no-console'],
     ['headed-browser.ts', 'no-restricted-syntax'],
+    ['uses-playwright.ts', 'no-restricted-imports'],
+    ['uses-playwright-core.ts', 'no-restricted-imports'],
+    ['uses-playwright-test.ts', 'no-restricted-imports'],
+    ['forbidden-runtime-enable.ts', 'no-restricted-syntax'],
+    ['forbidden-console-enable.ts', 'no-restricted-syntax'],
   ])('reports %s through %s', async (fixture, ruleId) => {
     expect(await lintRuleIds(fixture)).toContain(ruleId);
+  });
+
+  it('reports each forbidden CDP method with the offending name', async () => {
+    const results = await eslint.lintFiles([
+      path.join('src', 'forbidden-runtime-enable.ts'),
+    ]);
+    const messages = results.flatMap((result) =>
+      result.messages.map((message) => message.message),
+    );
+    expect(messages.join('\n')).toMatch(/Runtime|Console/);
   });
 
   it('accepts a module that follows every rule', async () => {

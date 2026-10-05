@@ -76,6 +76,20 @@ describe('package.json dependency hygiene', () => {
     ]);
   });
 
+  it.each(['playwright', 'playwright-core', '@playwright/test'])(
+    'does not declare %s in any dependency section',
+    (name) => {
+      const manifest = readManifest();
+      for (const section of DEPENDENCY_SECTIONS) {
+        expect(Object.keys(manifest[section] ?? {})).not.toContain(name);
+      }
+    },
+  );
+
+  it('pins patchright to the audited version', () => {
+    expect(readManifest().dependencies?.['patchright']).toBe('1.63.0');
+  });
+
   it('allows only the minimal set of dependency build scripts', () => {
     const pnpmConfig = (
       JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8')) as {

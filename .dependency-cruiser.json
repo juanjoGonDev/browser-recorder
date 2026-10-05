@@ -69,12 +69,21 @@
       }
     },
     {
-      "name": "playwright-in-adapters",
-      "comment": "Playwright is reachable from adapters and the composition root only.",
+      "name": "patchright-in-adapters",
+      "comment": "Patchright is reachable from adapters and the composition root only.",
       "severity": "error",
       "from": {
         "pathNot": "/adapters/|^src/composition/|^src/main\\.ts$"
       },
+      "to": {
+        "path": "node_modules/patchright(-core)?/"
+      }
+    },
+    {
+      "name": "no-playwright",
+      "comment": "Playwright was replaced by Patchright and must not come back, not even in adapters.",
+      "severity": "error",
+      "from": {},
       "to": {
         "path": "node_modules/playwright(-core)?/"
       }
