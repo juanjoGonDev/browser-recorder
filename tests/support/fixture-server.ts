@@ -20,6 +20,9 @@ export interface FixtureServer {
   /** `http://127.0.0.1:<port>`, no trailing slash. */
   readonly baseUrl: string;
   urlFor(page: string): string;
+  /** The `state` query of every `/__report` call, oldest first. */
+  reports(): readonly string[];
+  clearReports(): void;
   close(): Promise<void>;
 }
 
@@ -51,6 +54,9 @@ const NOT_FOUND: Reply = {
   body: 'Not found',
 };
 
+const REPORT_PATH = '/__report';
+const NO_CONTENT = 204;
+
 async function serve(
   requestUrl: string,
   response: ServerResponse,
@@ -81,7 +87,16 @@ function listen(server: Server): Promise<number> {
 
 /** Serves `tests/fixtures/site` on an ephemeral loopback port. */
 export async function startFixtureServer(): Promise<FixtureServer> {
+  const reports: string[] = [];
   const server = createServer((request, response) => {
+    const url = new URL(request.url ?? '/', 'http://fixture.invalid');
+    if (url.pathname === REPORT_PATH) {
+      // Pages tell the test what they show, so a replay can be checked from
+      // outside the browser that is closed when the script ends.
+      reports.push(url.searchParams.get('state') ?? '');
+      response.writeHead(NO_CONTENT).end();
+      return;
+    }
     void serve(request.url ?? '/', response);
   });
   const port = await listen(server);
@@ -90,6 +105,10 @@ export async function startFixtureServer(): Promise<FixtureServer> {
   return {
     baseUrl,
     urlFor: (page) => `${baseUrl}/${page}`,
+    reports: () => [...reports],
+    clearReports() {
+      reports.length = 0;
+    },
     close() {
       closing ??= new Promise((resolve, reject) => {
         server.close((error) => {

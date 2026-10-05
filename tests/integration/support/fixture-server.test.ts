@@ -54,6 +54,24 @@ describe('tests/support/fixture-server.ts', () => {
     expect(response.status).toBe(404);
   });
 
+  it('collects what a page reports to /__report, in order', async () => {
+    const server = await start();
+    const first = await fetch(`${server.baseUrl}/__report?state=a%20b`);
+    await fetch(`${server.baseUrl}/__report?state=c`);
+
+    expect(first.status).toBe(204);
+    expect(server.reports()).toEqual(['a b', 'c']);
+  });
+
+  it('forgets reports once they are cleared', async () => {
+    const server = await start();
+    await fetch(`${server.baseUrl}/__report?state=x`);
+    server.clearReports();
+    await fetch(`${server.baseUrl}/__report?state=y`);
+
+    expect(server.reports()).toEqual(['y']);
+  });
+
   it('refuses connections once closed and tolerates a second close', async () => {
     const server = await start();
     const url = server.urlFor('button.html');

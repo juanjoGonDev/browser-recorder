@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Round trip</title>
+  </head>
+  <body>
+    <label for="full-name">Full name</label>
+    <input id="full-name" type="text" />
+    <label><input id="agree" type="checkbox" /> I agree</label>
+    <button id="send" type="button">Send</button>
+    <p id="result">waiting</p>
+    <script>
+      const name = document.getElementById('full-name');
+      const agree = document.getElementById('agree');
+      const result = document.getElementById('result');
+      let isSent = false;
+      // Every change tells the fixture server what the page shows, so a test
+      // can compare a recording session with its replay from outside.
+      function show() {
+        const parts = [
+          name.value,
+          agree.checked ? 'agreed' : '',
+          isSent ? 'sent' : '',
+        ];
+        result.textContent = parts.join('|');
+        void fetch('/__report?state=' + encodeURIComponent(result.textContent));
+      }
+      name.addEventListener('input', show);
+      agree.addEventListener('change', show);
+      document.getElementById('send').addEventListener('click', () => {
+        isSent = true;
+        show();
+      });
+    </script>
+  </body>
+</html>
