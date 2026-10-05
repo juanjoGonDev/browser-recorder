@@ -110,14 +110,14 @@ Note: `size:exception` was explicitly accepted by the user, so no decision gate 
 
 ## WP5: Replay and environment setup (parallel; depends on WP0)
 
-- [ ] 5.1 `split-lines.ts` (chunk splits, CRLF) and `parse-progress-line.ts` (`::step i ms`, `::done`, `::error`, `log`; `::step abc` is noise) (RP Progress parsing: Split chunk, Noise).
-- [ ] 5.2 `replay-progress.ts`: per-step drift = elapsed - offset, status, last step index, stderr tail (RP Exit handling: Failing step; Timing tolerance).
-- [ ] 5.3 `replay-runner.ts` with a fake spawner: missing script errors and spawns nothing; `process.execPath` plus args array, no shell; exit code 0 vs failed; cancel writes `abort\n`, then `kill()` after `cancelGraceMs` (RP Replay by spawning: Windows path via `node:path.win32` helper, Missing script; Exit handling: Cancel).
-- [ ] 5.4 `node-process-spawner.ts`: `shell: false`, stdio pipe; integration against a fixture script (stdout, stderr, exit code, kill, stdin).
-- [ ] 5.5 `linux-deps-hint.ts`: missing-libs error on linux -> `sudo pnpm exec playwright install-deps chromium` printed, never executed (ES Linux system dependencies: Missing libs; threat matrix: installer subprocess).
-- [ ] 5.6 `ensure-browser.ts`: present -> no install; missing -> announce then install; non-zero exit or still absent -> `failed` with the manual command (`pnpm exec playwright install chromium`); offline failure no crash (ES Chromium detection: Present, Missing; Automatic install: Success, Failure, Offline).
-- [ ] 5.7 `playwright-browser-installation.ts`: `existsSync(chromium.executablePath())`; install spawns `process.execPath [cli, 'install', 'chromium']` with a fixed argv, verify `playwright/cli` resolves or fall back to `playwright-core/cli.js` (resolves design open question) (ES Cross-OS portability: Windows spawn, no `.cmd`).
-- [ ] 5.8 Node version guard function in `environment-setup/domain` (`assertSupportedNode`): Node 20 yields a message with the minimum 22.13 (ES Cross-OS portability: Old Node). Wired in WP7.
+- [x] 5.1 `split-lines.ts` (chunk splits, CRLF) and `parse-progress-line.ts` (`::step i ms`, `::done`, `::error`, `log`; `::step abc` is noise) (RP Progress parsing: Split chunk, Noise).
+- [x] 5.2 `replay-progress.ts`: per-step drift = elapsed - offset, status, last step index, stderr tail (RP Exit handling: Failing step; Timing tolerance).
+- [x] 5.3 `replay-runner.ts` with a fake spawner: missing script errors and spawns nothing; `process.execPath` plus args array, no shell; exit code 0 vs failed; cancel writes `abort\n`, then `kill()` after `cancelGraceMs` (RP Replay by spawning: Windows path via `node:path.win32` helper, Missing script; Exit handling: Cancel).
+- [x] 5.4 `node-process-spawner.ts`: `shell: false`, stdio pipe; integration against a fixture script (stdout, stderr, exit code, kill, stdin).
+- [x] 5.5 `linux-deps-hint.ts`: missing-libs error on linux -> `sudo pnpm exec playwright install-deps chromium` printed, never executed (ES Linux system dependencies: Missing libs; threat matrix: installer subprocess).
+- [x] 5.6 `ensure-browser.ts`: present -> no install; missing -> announce then install; non-zero exit or still absent -> `failed` with the manual command (`pnpm exec playwright install chromium`); offline failure no crash (ES Chromium detection: Present, Missing; Automatic install: Success, Failure, Offline).
+- [x] 5.7 `playwright-browser-installation.ts`: `existsSync(chromium.executablePath())`; install spawns `process.execPath [cli, 'install', 'chromium']` with a fixed argv, verify `playwright/cli` resolves or fall back to `playwright-core/cli.js` (resolves design open question) (ES Cross-OS portability: Windows spawn, no `.cmd`).
+- [x] 5.8 Node version guard function in `environment-setup/domain` (`assertSupportedNode`): Node 20 yields a message with the minimum 22.13 (ES Cross-OS portability: Old Node). Wired in WP7.
 
 ## WP6: TUI (parallel; depends on WP0; fake `AppServices`)
 
