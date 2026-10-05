@@ -20,6 +20,7 @@ export type Intent =
   | { readonly kind: 'page-selection'; readonly direction: 'up' | 'down' }
   | { readonly kind: 'activate' }
   | { readonly kind: 'switch-field' }
+  | { readonly kind: 'cycle-option'; readonly delta: number }
   | { readonly kind: 'edit-text'; readonly edit: TextEdit }
   | { readonly kind: 'submit' }
   | { readonly kind: 'cancel' }

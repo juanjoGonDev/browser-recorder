@@ -1,8 +1,10 @@
 import type { RecordingEvent } from '../../shared/domain/recording-event.ts';
-import type { Recording, Viewport } from '../../shared/domain/recording.ts';
+import type { BrowserChoice } from '../../shared/domain/browser-choice.ts';
+import type { Display, Recording } from '../../shared/domain/recording.ts';
 import type {
   BrowserLauncher,
   BrowserSession,
+  LaunchTarget,
   SessionSignal,
 } from './ports/browser-launcher.ts';
 import type { MonotonicClock } from './ports/monotonic-clock.ts';
@@ -14,8 +16,8 @@ import {
 } from './session-timeline.ts';
 import type { Timeline } from './session-timeline.ts';
 
-/** The window size replay recreates, so recorded coordinates still apply. */
-const DEFAULT_VIEWPORT: Viewport = { width: 1280, height: 800 };
+/** New recordings use a real window of this size, not emulated metrics. */
+const DEFAULT_DISPLAY: Display = { kind: 'window', width: 1280, height: 800 };
 /** Writes wait this long for a quiet moment so a typing burst saves once. */
 const SAVE_DEBOUNCE_MS = 250;
 
@@ -45,6 +47,10 @@ export interface StartRecordingRequest {
   readonly name: string;
   readonly slug: string;
   readonly startUrl: string | null;
+  /** Stored in the recording; replay launches the same browser and mode. */
+  readonly browser: BrowserChoice;
+  /** What the composition prepared for that choice. */
+  readonly target: LaunchTarget;
 }
 
 type DialogSignal = Extract<SessionSignal, { kind: 'dialog-opened' }>;
@@ -179,7 +185,7 @@ class RecordingRun implements LiveRecording {
   private snapshot(status: Recording['status']): Recording {
     const elapsedMs = Math.round(this.deps.clock.now() - this.timeline.t0);
     return {
-      schemaVersion: 1,
+      schemaVersion: 2,
       name: this.request.name,
       slug: this.request.slug,
       startUrl: this.request.startUrl,
@@ -187,7 +193,8 @@ class RecordingRun implements LiveRecording {
       updatedAt: this.deps.now().toISOString(),
       status,
       durationMs: Math.max(this.timeline.lastOffsetMs, elapsedMs),
-      viewport: DEFAULT_VIEWPORT,
+      display: DEFAULT_DISPLAY,
+      browser: this.request.browser,
       events: this.timeline.events,
     };
   }
@@ -230,8 +237,9 @@ export async function startRecording(
 ): Promise<LiveRecording> {
   const browser = await deps.launcher.launch({
     startUrl: request.startUrl,
-    viewport: DEFAULT_VIEWPORT,
+    display: DEFAULT_DISPLAY,
     isHeadless: deps.isHeadless ?? false,
+    target: request.target,
   });
   return new RecordingRun(deps, request, browser);
 }

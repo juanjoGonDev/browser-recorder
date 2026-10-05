@@ -40,6 +40,7 @@ export function toLiveRecordingView(
   hooks: RecordingViewHooks,
 ): LiveRecordingView {
   return {
+    warnings: [],
     subscribe: (listener) =>
       live.subscribe((update) => {
         listener(toRecordingUpdateView(update));

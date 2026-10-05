@@ -256,6 +256,9 @@ class IntentController implements TuiController {
     const { store } = this.deps;
     return {
       'stop-recording': () => this.recording.stop(),
+      'cycle-option': (intent) => {
+        store.dispatch({ type: 'cycle-option', delta: intent.delta });
+      },
       'request-discard': () => {
         store.dispatch({ type: 'request-discard' });
       },

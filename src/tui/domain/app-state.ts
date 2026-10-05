@@ -1,6 +1,11 @@
 import type { Recording } from '../../shared/domain/recording.ts';
 import type { RecordingEvent } from '../../shared/domain/recording-event.ts';
-import type { DialogView, LibraryEntryView, ReplayView } from './app-views.ts';
+import type {
+  BrowserOptionView,
+  DialogView,
+  LibraryEntryView,
+  ReplayView,
+} from './app-views.ts';
 
 /** A single-line editable field. `cursor` is an index into `value`. */
 export interface TextField {
@@ -32,7 +37,12 @@ export interface NewRecordingScreen {
   readonly kind: 'new-recording';
   readonly name: TextField;
   readonly startUrl: TextField;
-  readonly focus: 'name' | 'url';
+  readonly focus: 'name' | 'url' | 'browser' | 'profile';
+  /** `null` while the browsers are still being detected. */
+  readonly browsers: readonly BrowserOptionView[] | null;
+  readonly browserIndex: number;
+  /** An index into the profiles of the chosen browser. */
+  readonly profileIndex: number;
   readonly error: string | null;
 }
 

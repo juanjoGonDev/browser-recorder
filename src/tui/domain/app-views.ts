@@ -1,4 +1,8 @@
 import type {
+  BrowserChoice,
+  BrowserId,
+} from '../../shared/domain/browser-choice.ts';
+import type {
   DialogType,
   RecordingEvent,
 } from '../../shared/domain/recording-event.ts';
@@ -20,7 +24,12 @@ export type LibraryEntryView =
     };
 
 export type EnvironmentView =
-  | { readonly kind: 'ready'; readonly linuxHint: string | null }
+  | {
+      readonly kind: 'ready';
+      readonly linuxHint: string | null;
+      /** Labels of the browsers found on this machine. */
+      readonly browsers: readonly string[];
+    }
   | {
       readonly kind: 'failed';
       readonly manualCommand: string;
@@ -39,7 +48,23 @@ export interface RecordingUpdateView {
   readonly isClosed: boolean;
 }
 
+/** One way to provide the profile of a browser, as the picker lists it. */
+export interface ProfileOptionView {
+  readonly choice: BrowserChoice;
+  readonly label: string;
+  /** A caution to show next to the option, if any. */
+  readonly note: string | null;
+}
+
+export interface BrowserOptionView {
+  readonly browserId: BrowserId;
+  readonly label: string;
+  readonly profiles: readonly ProfileOptionView[];
+}
+
 export interface LiveRecordingView {
+  /** Cautions raised while preparing the browser (for example a stale copy). */
+  readonly warnings: readonly string[];
   subscribe(listener: (update: RecordingUpdateView) => void): () => void;
   respondToDialog(response: {
     readonly action: 'accept' | 'dismiss';
@@ -63,6 +88,7 @@ export interface ReplayView {
 }
 
 export interface LiveReplayView {
+  readonly warnings: readonly string[];
   subscribe(listener: (view: ReplayView) => void): () => void;
   cancel(): Promise<void>;
   readonly finished: Promise<ReplayView>;

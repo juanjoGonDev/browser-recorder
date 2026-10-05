@@ -107,9 +107,11 @@ describe('src/script-generation/domain/generate-script.ts', () => {
     );
   });
 
-  it('uses the recorded viewport', () => {
+  it('uses the recorded display size', () => {
     const script = generateScript(
-      recordingOf([], { viewport: { width: 800, height: 600 } }),
+      recordingOf([], {
+        display: { kind: 'emulated', width: 800, height: 600 },
+      }),
     );
     expect(script).toContain('viewport: { width: 800, height: 600 }');
   });
@@ -151,9 +153,9 @@ describe('src/script-generation/domain/generate-script.ts', () => {
     );
   });
 
-  it('rejects a viewport that is not finite numbers', () => {
+  it('rejects a display that is not finite numbers', () => {
     const recording = recordingOf([], {
-      viewport: { width: Number.NaN, height: 1 },
+      display: { kind: 'window', width: Number.NaN, height: 1 },
     });
     expect(() => generateScript(recording)).toThrow(/finite/);
   });

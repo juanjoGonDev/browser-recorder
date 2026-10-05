@@ -16,6 +16,7 @@ import type {
   LiveRecordingView,
   ReplayView,
 } from '../../src/tui/domain/app-views.ts';
+import { BUNDLED_CHOICE } from '../support/browser-fixtures.ts';
 import { IN_PAGE_BUNDLE_PATH } from '../support/build-in-page-bundle.ts';
 import type { FixtureServer } from '../support/fixture-server.ts';
 import { startFixtureServer } from '../support/fixture-server.ts';
@@ -39,7 +40,12 @@ describe('record, generate and replay round trip', () => {
   const launcher: BrowserLauncher = {
     async launch(options) {
       const browser = await chromium.launch({ headless: options.isHeadless });
-      context = await browser.newContext({ viewport: options.viewport });
+      context = await browser.newContext({
+        viewport: {
+          width: options.display.width,
+          height: options.display.height,
+        },
+      });
       return startPlaywrightSession({
         browser,
         context,
@@ -129,6 +135,7 @@ describe('record, generate and replay round trip', () => {
     const live = await services.recording.start({
       name: 'Round trip',
       startUrl: server.urlFor('roundtrip.html'),
+      browser: BUNDLED_CHOICE,
     });
     await userSession(live);
     await live.stop();
@@ -187,6 +194,7 @@ describe('record, generate and replay round trip', () => {
     const live = await services.recording.start({
       name: 'Shadow scroll',
       startUrl: server.urlFor('scroll-shadow.html'),
+      browser: BUNDLED_CHOICE,
     });
     let recordedKinds: readonly string[] = [];
     live.subscribe((update) => {

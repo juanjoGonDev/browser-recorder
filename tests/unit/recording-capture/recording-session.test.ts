@@ -10,6 +10,7 @@ import type {
 } from '../../../src/recording-capture/application/recording-session.ts';
 import { startRecording } from '../../../src/recording-capture/application/recording-session.ts';
 import type { Recording } from '../../../src/shared/domain/recording.ts';
+import { BRAVE_CHOICE, BRAVE_TARGET } from '../../support/browser-fixtures.ts';
 import { createFakeClock } from '../../support/fake-clock.ts';
 import type { FakeClock } from '../../support/fake-clock.ts';
 import {
@@ -88,7 +89,13 @@ async function begin(
       now: () => new Date('2026-03-04T05:06:07.000Z'),
       ...(isHeadless === undefined ? {} : { isHeadless }),
     },
-    { name: 'Checkout flow', slug: 'checkout-flow', startUrl },
+    {
+      name: 'Checkout flow',
+      slug: 'checkout-flow',
+      startUrl,
+      browser: BRAVE_CHOICE,
+      target: BRAVE_TARGET,
+    },
   );
   const updates: RecordingUpdate[] = [];
   live.subscribe((update) => updates.push(update));
@@ -109,15 +116,21 @@ describe('src/recording-capture/application/recording-session.ts', () => {
   });
 
   describe('starting', () => {
-    it('launches a headed browser at the start URL with the default viewport', async () => {
+    it('launches a headed browser at the start URL in a 1280x800 window', async () => {
       const harness = await begin('https://a.test/');
       expect(harness.launches).toEqual([
         {
           startUrl: 'https://a.test/',
-          viewport: { width: 1280, height: 800 },
+          display: { kind: 'window', width: 1280, height: 800 },
           isHeadless: false,
+          target: BRAVE_TARGET,
         },
       ]);
+    });
+
+    it('hands the prepared target over untouched', async () => {
+      const harness = await begin();
+      expect(harness.launches[0]?.target).toBe(BRAVE_TARGET);
     });
 
     it('launches headless when the composition asks for it', async () => {
@@ -201,13 +214,14 @@ describe('src/recording-capture/application/recording-session.ts', () => {
       harness.clock.advance(7000);
       const recording = await harness.live.stop();
       expect(recording).toMatchObject({
-        schemaVersion: 1,
+        schemaVersion: 2,
         name: 'Checkout flow',
         slug: 'checkout-flow',
         startUrl: 'https://a.test/',
         status: 'complete',
         durationMs: 7000,
-        viewport: { width: 1280, height: 800 },
+        display: { kind: 'window', width: 1280, height: 800 },
+        browser: BRAVE_CHOICE,
         createdAt: '2026-03-04T05:06:07.000Z',
         updatedAt: '2026-03-04T05:06:07.000Z',
       });

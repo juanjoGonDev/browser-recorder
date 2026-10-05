@@ -20,6 +20,13 @@ import {
   timelineOpened,
 } from './reduce-library.ts';
 import {
+  blankForm,
+  browsersFailed,
+  browsersLoaded,
+  cycleOption,
+  onForm,
+} from './reduce-form.ts';
+import {
   onRecording,
   recordingStarted,
   recordingUpdated,
@@ -33,7 +40,7 @@ import {
   setupReady,
 } from './reduce-setup.ts';
 import { updateScreen } from './screen-update.ts';
-import { applyEdit, emptyField } from './text-input.ts';
+import { applyEdit } from './text-input.ts';
 import { listRowsFor } from './viewport.ts';
 import type { MenuTarget, TextEdit } from './intent.ts';
 
@@ -62,13 +69,7 @@ function screenFor(target: MenuTarget): Screen {
     case 'main-menu':
       return { kind: 'main-menu', selected: 0 };
     case 'new-recording':
-      return {
-        kind: 'new-recording',
-        name: emptyField(),
-        startUrl: emptyField(),
-        focus: 'name',
-        error: null,
-      };
+      return blankForm();
     case 'library':
       return {
         kind: 'library',
@@ -88,13 +89,6 @@ function moveSelection(state: AppState, delta: number): AppState {
   return moveListSelection(menu, delta);
 }
 
-function onForm(
-  state: AppState,
-  update: (screen: NewRecordingScreen) => NewRecordingScreen,
-): AppState {
-  return updateScreen(state, 'new-recording', update);
-}
-
 function editLibrary(screen: LibraryScreen, edit: TextEdit): LibraryScreen {
   if (screen.mode.kind !== 'rename') return screen;
   return {
@@ -108,6 +102,7 @@ function editForm(
   screen: NewRecordingScreen,
   edit: TextEdit,
 ): NewRecordingScreen {
+  if (screen.focus !== 'name' && screen.focus !== 'url') return screen;
   const key = screen.focus === 'name' ? 'name' : 'startUrl';
   return { ...screen, error: null, [key]: applyEdit(screen[key], edit) };
 }
@@ -147,6 +142,9 @@ const handlers: Handlers = {
       ...screen,
       focus: screen.focus === 'name' ? 'url' : 'name',
     })),
+  'cycle-option': (state, action) => cycleOption(state, action.delta),
+  'browsers-loaded': (state, action) => browsersLoaded(state, action.browsers),
+  'browsers-failed': (state, action) => browsersFailed(state, action.message),
   'edit-text': (state, action) => editText(state, action.edit),
   'form-error': (state, action) =>
     onForm(state, (screen) => ({ ...screen, error: action.message })),

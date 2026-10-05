@@ -1,6 +1,7 @@
 import type { Target } from '../../src/shared/domain/locator.ts';
 import type { Recording } from '../../src/shared/domain/recording.ts';
 import type { RecordingEvent } from '../../src/shared/domain/recording-event.ts';
+import { BUNDLED_CHOICE, WINDOW_DISPLAY } from './browser-fixtures.ts';
 
 function targetOf(
   locator: Target['locator'],
@@ -14,7 +15,7 @@ export function recordingOf(
   overrides: Partial<Recording> = {},
 ): Recording {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     name: 'Golden',
     slug: 'golden',
     startUrl: 'https://example.com/',
@@ -22,7 +23,8 @@ export function recordingOf(
     updatedAt: '2026-01-01T00:00:10.000Z',
     status: 'complete',
     durationMs: 9000,
-    viewport: { width: 1280, height: 800 },
+    display: WINDOW_DISPLAY,
+    browser: BUNDLED_CHOICE,
     events,
     ...overrides,
   };

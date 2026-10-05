@@ -28,6 +28,8 @@ export interface StartReplayRequest {
   readonly scriptPath: string;
   readonly cwd: string;
   readonly isHeadless: boolean;
+  /** Browser settings for the script, merged over the inherited environment. */
+  readonly launchEnv: Readonly<Record<string, string>>;
   /** Recorded offset of every step, in order: drift is `elapsed - offset`. */
   readonly stepOffsetsMs: readonly number[];
 }
@@ -35,8 +37,12 @@ export interface StartReplayRequest {
 const HEADLESS_ENV = 'BROWSER_RECORDER_HEADLESS';
 const ABORT_LINE = 'abort\n';
 
-function spawnEnvironment(isHeadless: boolean): Record<string, string> {
-  return isHeadless ? { [HEADLESS_ENV]: '1' } : {};
+/** The headless flag comes last so the launch environment cannot undo it. */
+function spawnEnvironment(request: StartReplayRequest): Record<string, string> {
+  return {
+    ...request.launchEnv,
+    ...(request.isHeadless ? { [HEADLESS_ENV]: '1' } : {}),
+  };
 }
 
 function failedBeforeStart(
@@ -66,7 +72,7 @@ export function startReplay(
       command: deps.nodePath,
       args: [request.scriptPath],
       cwd: request.cwd,
-      env: spawnEnvironment(request.isHeadless),
+      env: spawnEnvironment(request),
     });
   } catch (error) {
     return failedBeforeStart(request, error);

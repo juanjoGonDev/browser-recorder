@@ -3,13 +3,24 @@ import type {
   DialogType,
   PageId,
 } from '../../../shared/domain/recording-event.ts';
-import type { Viewport } from '../../../shared/domain/recording.ts';
+import type { Display } from '../../../shared/domain/recording.ts';
 import type { CapturedEvent } from '../../domain/captured-event.ts';
+
+/** What the composition prepared: plain data, nothing the adapter must compute. */
+export interface LaunchTarget {
+  /** `null` launches the bundled Chromium. */
+  readonly executablePath: string | null;
+  readonly userDataDir: string;
+  readonly browserArgs: readonly string[];
+  /** A copy of a real profile needs the browser's real keychain access. */
+  readonly shouldUseRealKeychain: boolean;
+}
 
 export interface LaunchOptions {
   readonly startUrl: string | null;
-  readonly viewport: Viewport;
+  readonly display: Display;
   readonly isHeadless: boolean;
+  readonly target: LaunchTarget;
 }
 
 export interface DialogResponse {

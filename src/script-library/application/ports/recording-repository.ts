@@ -21,6 +21,8 @@ export interface RecordingRepository {
   /** The parsed-but-unvalidated content of `recording.json`. */
   read(slug: string): Promise<unknown>;
   write(slug: string, files: RecordingFiles): Promise<void>;
+  /** Replaces `script.mjs` only; `recording.json` is left as it is. */
+  writeScript(slug: string, scriptMjs: string): Promise<void>;
   /** Fails when the target slug already exists. */
   move(from: string, to: string): Promise<void>;
   remove(slug: string): Promise<void>;

@@ -86,6 +86,11 @@ class FileSystemRecordingRepository implements RecordingRepository {
     await atomicWriteFile(script, files.scriptMjs, this.io);
   }
 
+  async writeScript(slug: string, scriptMjs: string): Promise<void> {
+    await mkdir(this.slugDir(slug), { recursive: true });
+    await atomicWriteFile(this.fileOf(slug, SCRIPT_FILE), scriptMjs, this.io);
+  }
+
   async move(from: string, to: string): Promise<void> {
     const source = this.slugDir(from);
     const target = this.slugDir(to);

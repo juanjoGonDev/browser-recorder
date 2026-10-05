@@ -1,5 +1,6 @@
 import type { Recording } from '../../shared/domain/recording.ts';
 import type {
+  BrowserOptionView,
   LibraryEntryView,
   RecordingUpdateView,
   ReplayView,
@@ -22,6 +23,12 @@ export type AppAction =
   | { readonly type: 'move-selection'; readonly delta: number }
   | { readonly type: 'page-selection'; readonly direction: 'up' | 'down' }
   | { readonly type: 'switch-field' }
+  | { readonly type: 'cycle-option'; readonly delta: number }
+  | {
+      readonly type: 'browsers-loaded';
+      readonly browsers: readonly BrowserOptionView[];
+    }
+  | { readonly type: 'browsers-failed'; readonly message: string }
   | { readonly type: 'edit-text'; readonly edit: TextEdit }
   | { readonly type: 'form-error'; readonly message: string | null }
   | { readonly type: 'recording-started'; readonly name: string }

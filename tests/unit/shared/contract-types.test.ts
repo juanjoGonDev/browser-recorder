@@ -65,7 +65,7 @@ describe('frozen contracts', () => {
   });
 
   it('keeps the recording schema version literal', () => {
-    expectTypeOf<Recording['schemaVersion']>().toEqualTypeOf<1>();
+    expectTypeOf<Recording['schemaVersion']>().toEqualTypeOf<2>();
     expectTypeOf<Recording['status']>().toEqualTypeOf<
       'recording' | 'complete'
     >();

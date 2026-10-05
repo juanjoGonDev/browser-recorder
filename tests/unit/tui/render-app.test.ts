@@ -5,7 +5,11 @@ import { initialState } from '../../../src/tui/domain/app-reducer.ts';
 import { cellWidth, stripAnsi } from '../../../src/tui/render/layout.ts';
 import { toFrameText } from '../../../src/tui/render/frame-text.ts';
 import { renderApp } from '../../../src/tui/render/render-app.ts';
-import { clicks, validEntry } from '../../support/tui-fixtures.ts';
+import {
+  clicks,
+  newRecordingScreen,
+  validEntry,
+} from '../../support/tui-fixtures.ts';
 
 const SIZE = { columns: 80, rows: 24 };
 
@@ -27,13 +31,7 @@ const library: Screen = {
 const everyScreen: Screen[] = [
   initialState().screen,
   { kind: 'main-menu', selected: 0 },
-  {
-    kind: 'new-recording',
-    name: { value: '', cursor: 0 },
-    startUrl: { value: '', cursor: 0 },
-    focus: 'name',
-    error: null,
-  },
+  newRecordingScreen(),
   library,
 ];
 

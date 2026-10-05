@@ -71,6 +71,7 @@ function setup(offsets: readonly number[] = [0, 400, 900]): {
       scriptPath: '/repo/recordings/a b/script.mjs',
       cwd: '/repo',
       isHeadless: false,
+      launchEnv: {},
       stepOffsetsMs: offsets,
     },
   );
@@ -106,10 +107,69 @@ describe('startReplay', () => {
 
     startReplay(
       { spawner, nodePath: 'node', cancelGraceMs: GRACE_MS },
-      { scriptPath: 's', cwd: 'c', isHeadless: true, stepOffsetsMs: [] },
+      {
+        scriptPath: 's',
+        cwd: 'c',
+        isHeadless: true,
+        launchEnv: {},
+        stepOffsetsMs: [],
+      },
     );
 
     expect(requests[0]?.env).toEqual({ BROWSER_RECORDER_HEADLESS: '1' });
+  });
+
+  it('hands the launch environment to the script next to the headless flag', () => {
+    const requests: SpawnRequest[] = [];
+    const spawner: ProcessSpawner = {
+      spawn: (request) => {
+        requests.push(request);
+        return fakeProcess();
+      },
+    };
+
+    startReplay(
+      { spawner, nodePath: 'node', cancelGraceMs: GRACE_MS },
+      {
+        scriptPath: 's',
+        cwd: 'c',
+        isHeadless: true,
+        launchEnv: {
+          BROWSER_RECORDER_EXECUTABLE_PATH: '/fixture/Brave Browser',
+          BROWSER_RECORDER_USER_DATA_DIR: '',
+        },
+        stepOffsetsMs: [],
+      },
+    );
+
+    expect(requests[0]?.env).toEqual({
+      BROWSER_RECORDER_EXECUTABLE_PATH: '/fixture/Brave Browser',
+      BROWSER_RECORDER_USER_DATA_DIR: '',
+      BROWSER_RECORDER_HEADLESS: '1',
+    });
+  });
+
+  it('never lets the launch environment turn headless off', () => {
+    const requests: SpawnRequest[] = [];
+    const spawner: ProcessSpawner = {
+      spawn: (request) => {
+        requests.push(request);
+        return fakeProcess();
+      },
+    };
+
+    startReplay(
+      { spawner, nodePath: 'node', cancelGraceMs: GRACE_MS },
+      {
+        scriptPath: 's',
+        cwd: 'c',
+        isHeadless: true,
+        launchEnv: { BROWSER_RECORDER_HEADLESS: '0' },
+        stepOffsetsMs: [],
+      },
+    );
+
+    expect(requests[0]?.env['BROWSER_RECORDER_HEADLESS']).toBe('1');
   });
 
   it('publishes progress as markers arrive, across chunk splits', () => {
@@ -183,6 +243,7 @@ describe('startReplay', () => {
         scriptPath: '/x/script.mjs',
         cwd: '/',
         isHeadless: false,
+        launchEnv: {},
         stepOffsetsMs: [0],
       },
     );

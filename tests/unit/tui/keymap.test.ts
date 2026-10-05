@@ -11,6 +11,11 @@ import type { Intent } from '../../../src/tui/domain/intent.ts';
 import { initialState } from '../../../src/tui/domain/app-reducer.ts';
 import { keymap } from '../../../src/tui/domain/keymap.ts';
 import { emptyField } from '../../../src/tui/domain/text-input.ts';
+import {
+  BUNDLED_CHOICE,
+  WINDOW_DISPLAY,
+} from '../../support/browser-fixtures.ts';
+import { newRecordingScreen } from '../../support/tui-fixtures.ts';
 
 function named(name: string, modifiers: Partial<KeyInput> = {}): KeyInput {
   return {
@@ -113,13 +118,7 @@ describe('src/tui/domain/keymap.ts', () => {
   });
 
   describe('new recording form', () => {
-    const form = on({
-      kind: 'new-recording',
-      name: emptyField(),
-      startUrl: emptyField(),
-      focus: 'name',
-      error: null,
-    });
+    const form = on(newRecordingScreen());
 
     it('edits text with typing, backspace, arrows and Ctrl+U', () => {
       expect(press(form, char('q'))).toEqual({
@@ -312,7 +311,7 @@ describe('src/tui/domain/keymap.ts', () => {
     const timeline = on({
       kind: 'timeline',
       recording: {
-        schemaVersion: 1,
+        schemaVersion: 2,
         name: 'n',
         slug: 'n',
         startUrl: null,
@@ -320,7 +319,8 @@ describe('src/tui/domain/keymap.ts', () => {
         updatedAt: '',
         status: 'complete',
         durationMs: 0,
-        viewport: { width: 1, height: 1 },
+        display: WINDOW_DISPLAY,
+        browser: BUNDLED_CHOICE,
         events: [],
       },
       cursor: { selected: 0, top: 0 },

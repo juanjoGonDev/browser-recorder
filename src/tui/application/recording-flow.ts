@@ -7,6 +7,7 @@ import {
   syncClock,
   type ControllerDeps,
 } from './controller-deps.ts';
+import { BUNDLED_EPHEMERAL } from '../../shared/domain/browser-choice.ts';
 import type { NewRecordingRequest } from './ports/app-services.ts';
 
 export interface RecordingFlow {
@@ -101,7 +102,11 @@ class LiveRecordingFlow implements RecordingFlow {
   private async begin(request: NewRecordingRequest): Promise<void> {
     syncClock(this.deps);
     try {
-      this.live = await this.deps.services.recording.start(request);
+      this.live = await this.deps.services.recording.start({
+        ...request,
+        // Until the form offers a picker, every recording uses the default.
+        browser: BUNDLED_EPHEMERAL,
+      });
     } catch (error) {
       this.deps.store.dispatch({
         type: 'form-error',

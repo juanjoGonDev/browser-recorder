@@ -1,17 +1,29 @@
 import type { BrowserInstallation } from '../environment-setup/application/ports/browser-installation.ts';
 import { ensureBrowser } from '../environment-setup/application/ensure-browser.ts';
 import { linuxDepsHint } from '../environment-setup/domain/linux-deps-hint.ts';
-import type { BrowserLauncher } from '../recording-capture/application/ports/browser-launcher.ts';
+import type {
+  BrowserLauncher,
+  LaunchTarget,
+} from '../recording-capture/application/ports/browser-launcher.ts';
 import type { MonotonicClock } from '../recording-capture/application/ports/monotonic-clock.ts';
 import { startRecording } from '../recording-capture/application/recording-session.ts';
-import type { LiveRecording } from '../recording-capture/application/recording-session.ts';
+import type {
+  LiveRecording,
+  StartRecordingRequest,
+} from '../recording-capture/application/recording-session.ts';
 import { startReplay } from '../replay/application/replay-runner.ts';
 import type { ProcessSpawner } from '../replay/application/ports/process-spawner.ts';
+import type { Recording } from '../shared/domain/recording.ts';
 import type { LibraryService } from '../script-library/application/library-service.ts';
 import { validateName } from '../script-library/domain/validate-name.ts';
 import { validateStartUrl } from '../script-library/domain/validate-start-url.ts';
+import {
+  BUNDLED_EPHEMERAL,
+  type BrowserChoice,
+} from '../shared/domain/browser-choice.ts';
 import type { AppServices } from '../tui/application/ports/app-services.ts';
 import type {
+  BrowserOptionView,
   EnvironmentView,
   LibraryEntryView,
 } from '../tui/domain/app-views.ts';
@@ -46,6 +58,28 @@ export interface ComposedServices extends AppServices {
   persistActiveRecording(): Promise<void>;
 }
 
+/**
+ * Until the launch planner exists, every recording runs on the bundled browser
+ * and the launcher ignores the target; this only fills the required field.
+ */
+const UNPLANNED_TARGET: LaunchTarget = {
+  executablePath: null,
+  userDataDir: '',
+  browserArgs: [],
+  shouldUseRealKeychain: false,
+};
+const BUNDLED_BROWSER_VIEW: BrowserOptionView = {
+  browserId: 'bundled',
+  label: 'Chromium (bundled)',
+  profiles: [
+    {
+      choice: BUNDLED_EPHEMERAL,
+      label: 'Ephemeral (clean each time)',
+      note: null,
+    },
+  ],
+};
+
 const INSTALLING_MESSAGE =
   'Chromium is not installed yet; installing it now (one time, about 150 MB)...';
 
@@ -59,6 +93,19 @@ function toEntryView(
   if (listing.kind === 'invalid') return listing;
   const { slug, name, createdAt, durationMs, stepCount } = listing.summary;
   return { kind: 'valid', slug, name, createdAt, durationMs, stepCount };
+}
+
+function sessionRequest(
+  draft: Recording,
+  browser: BrowserChoice,
+): StartRecordingRequest {
+  return {
+    name: draft.name,
+    slug: draft.slug,
+    startUrl: draft.startUrl,
+    browser,
+    target: UNPLANNED_TARGET,
+  };
 }
 
 /** Adapts every feature use case to what the TUI asks of `AppServices`. */
@@ -90,6 +137,7 @@ class Composition {
         },
         remove: (slug) => library.remove(slug),
       },
+      browsers: { list: () => Promise.resolve([BUNDLED_BROWSER_VIEW]) },
       recording: {
         start: (request) => this.startRecording(request),
       },
@@ -107,12 +155,15 @@ class Composition {
       onEvent: (event) => {
         onLine(event.kind === 'missing' ? INSTALLING_MESSAGE : event.line);
       },
-    });
+    }).then((result) =>
+      result.kind === 'ready' ? { ...result, browsers: [] } : result,
+    );
   }
 
   private async startRecording(request: {
     readonly name: string;
     readonly startUrl: string | null;
+    readonly browser: BrowserChoice;
   }) {
     const { library, launcher, clock, now, isHeadless } = this.deps;
     const draft = await library.createDraft(request.name, request.startUrl);
@@ -126,7 +177,7 @@ class Composition {
           isHeadless,
           sink: { save: (recording) => library.save(recording) },
         },
-        { name: draft.name, slug: draft.slug, startUrl: draft.startUrl },
+        sessionRequest(draft, request.browser),
       );
     } catch (error) {
       await library.remove(draft.slug).catch(() => undefined);
@@ -165,6 +216,7 @@ class Composition {
         scriptPath: replay.scriptPathOf(slug),
         cwd: replay.cwd,
         isHeadless,
+        launchEnv: {},
         stepOffsetsMs: recording.events.map((event) => event.offsetMs),
       },
     );

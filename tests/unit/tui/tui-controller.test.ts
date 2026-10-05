@@ -12,6 +12,7 @@ import type { KeyPress } from '../../../src/tui/application/ports/terminal.ts';
 import { createFakeClock, createFakeTimers } from '../../support/fake-clock.ts';
 import { createFakeServices } from '../../support/fake-app-services.ts';
 import { char, named } from '../../support/keys.ts';
+import { BUNDLED_CHOICE } from '../../support/browser-fixtures.ts';
 import { clickAt, validEntry } from '../../support/tui-fixtures.ts';
 
 function setup() {
@@ -54,7 +55,7 @@ describe('src/tui/application/tui-controller.ts', () => {
     it('opens the main menu once Chromium is ready and keeps the Linux hint', async () => {
       const harness = setup();
       harness.fake.environment = () =>
-        Promise.resolve({ kind: 'ready', linuxHint: 'sudo x' });
+        Promise.resolve({ kind: 'ready', linuxHint: 'sudo x', browsers: [] });
       await harness.controller.start();
       expect(harness.store.getState().screen).toEqual({
         kind: 'main-menu',
@@ -91,7 +92,7 @@ describe('src/tui/application/tui-controller.ts', () => {
         await new Promise<void>((resolve) => {
           release = resolve;
         });
-        return { kind: 'ready', linuxHint: null };
+        return { kind: 'ready', linuxHint: null, browsers: [] };
       };
       const started = harness.controller.start();
       await Promise.resolve();
@@ -109,7 +110,7 @@ describe('src/tui/application/tui-controller.ts', () => {
         Promise.resolve({ kind: 'failed', manualCommand: 'cmd', exitCode: 1 });
       await harness.controller.start();
       harness.fake.environment = () =>
-        Promise.resolve({ kind: 'ready', linuxHint: null });
+        Promise.resolve({ kind: 'ready', linuxHint: null, browsers: [] });
       await harness.press(named('return'));
       expect(harness.store.getState().screen.kind).toBe('main-menu');
     });
@@ -188,7 +189,7 @@ describe('src/tui/application/tui-controller.ts', () => {
           });
         await harness.controller.start();
         harness.fake.environment = () =>
-          Promise.resolve({ kind: 'ready', linuxHint: null });
+          Promise.resolve({ kind: 'ready', linuxHint: null, browsers: [] });
         await harness.press(named('return'));
         await harness.press(named('return'));
         expect(harness.store.getState().screen.kind).toBe('new-recording');
@@ -251,7 +252,7 @@ describe('src/tui/application/tui-controller.ts', () => {
       const harness = setup();
       await startRecording(harness);
       expect(harness.fake.startRequests).toEqual([
-        { name: 'Demo', startUrl: null },
+        { name: 'Demo', startUrl: null, browser: BUNDLED_CHOICE },
       ]);
       expect(harness.store.getState().screen).toMatchObject({
         kind: 'recording',
@@ -267,7 +268,11 @@ describe('src/tui/application/tui-controller.ts', () => {
       await harness.type(' https://shop.test/ ');
       await harness.press(named('return'));
       expect(harness.fake.startRequests).toEqual([
-        { name: 'Shop', startUrl: 'https://shop.test/' },
+        {
+          name: 'Shop',
+          startUrl: 'https://shop.test/',
+          browser: BUNDLED_CHOICE,
+        },
       ]);
     });
 

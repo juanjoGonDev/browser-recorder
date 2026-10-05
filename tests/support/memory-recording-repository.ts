@@ -30,6 +30,13 @@ export class MemoryRecordingRepository implements RecordingRepository {
     return Promise.resolve();
   }
 
+  writeScript(slug: string, scriptMjs: string): Promise<void> {
+    const files = this.files.get(slug);
+    if (files === undefined) return Promise.reject(new Error('No such slug'));
+    this.files.set(slug, { ...files, scriptMjs });
+    return Promise.resolve();
+  }
+
   move(from: string, to: string): Promise<void> {
     const files = this.files.get(from);
     if (files === undefined || this.files.has(to)) {

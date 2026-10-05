@@ -1,5 +1,7 @@
 import type { Recording } from '../../../shared/domain/recording.ts';
+import type { BrowserChoice } from '../../../shared/domain/browser-choice.ts';
 import type {
+  BrowserOptionView,
   EnvironmentView,
   LibraryEntryView,
   LiveRecordingView,
@@ -32,8 +34,14 @@ export interface AppServices {
     rename(slug: string, name: string): Promise<void>;
     remove(slug: string): Promise<void>;
   };
+  readonly browsers: {
+    /** The detected browsers, each with the profiles it can offer. */
+    list(): Promise<readonly BrowserOptionView[]>;
+  };
   readonly recording: {
-    start(request: NewRecordingRequest): Promise<LiveRecordingView>;
+    start(
+      request: NewRecordingRequest & { readonly browser: BrowserChoice },
+    ): Promise<LiveRecordingView>;
   };
   readonly replay: {
     start(slug: string): Promise<LiveReplayView>;

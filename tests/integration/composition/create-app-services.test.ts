@@ -13,6 +13,7 @@ import {
   createFakeLauncher,
   createFakeSpawner,
 } from '../../support/composition-fakes.ts';
+import { BUNDLED_CHOICE } from '../../support/browser-fixtures.ts';
 import { createFakeClock } from '../../support/fake-clock.ts';
 import { MemoryRecordingRepository } from '../../support/memory-recording-repository.ts';
 import { clickPayload, domSignal } from '../../support/session-signals.ts';
@@ -72,7 +73,7 @@ describe('src/composition/create-app-services.ts', () => {
       const lines: string[] = [];
       await expect(
         services.environment.ensureBrowser((line) => lines.push(line)),
-      ).resolves.toEqual({ kind: 'ready', linuxHint: null });
+      ).resolves.toEqual({ kind: 'ready', linuxHint: null, browsers: [] });
       expect(installation.installs()).toBe(0);
       expect(lines).toEqual([]);
     });
@@ -123,11 +124,13 @@ describe('src/composition/create-app-services.ts', () => {
       const first = await services.recording.start({
         name: 'First flow',
         startUrl: null,
+        browser: BUNDLED_CHOICE,
       });
       await first.stop();
       const second = await services.recording.start({
         name: 'Second flow',
         startUrl: 'https://a.test/',
+        browser: BUNDLED_CHOICE,
       });
       await second.stop();
     }
@@ -137,6 +140,7 @@ describe('src/composition/create-app-services.ts', () => {
       const live = await services.recording.start({
         name: 'First flow',
         startUrl: null,
+        browser: BUNDLED_CHOICE,
       });
       clock.advance(1500);
       launcher.sessions[0]?.emit(domSignal(clock.now(), clickPayload()));
@@ -205,19 +209,59 @@ describe('src/composition/create-app-services.ts', () => {
     });
   });
 
+  describe('browsers', () => {
+    it('offers the bundled browser with an ephemeral profile', async () => {
+      const { services } = setup();
+      await expect(services.browsers.list()).resolves.toEqual([
+        {
+          browserId: 'bundled',
+          label: 'Chromium (bundled)',
+          profiles: [
+            {
+              choice: BUNDLED_CHOICE,
+              label: 'Ephemeral (clean each time)',
+              note: null,
+            },
+          ],
+        },
+      ]);
+    });
+  });
+
+  describe('warnings', () => {
+    it('starts a recording and a replay without warnings', async () => {
+      const { services } = setup();
+      const live = await services.recording.start({
+        name: 'Quiet',
+        startUrl: null,
+        browser: BUNDLED_CHOICE,
+      });
+      await live.stop();
+      expect(live.warnings).toEqual([]);
+      expect((await services.replay.start('quiet')).warnings).toEqual([]);
+    });
+  });
+
   describe('recording', () => {
     it('reserves a library entry and launches the browser at the start URL', async () => {
       const { services, repository, launcher } = setup({ isHeadless: true });
       await services.recording.start({
         name: 'My flow',
         startUrl: 'https://a.test/',
+        browser: BUNDLED_CHOICE,
       });
       expect(repository.files.has('my-flow')).toBe(true);
       expect(launcher.launches).toEqual([
         {
           startUrl: 'https://a.test/',
-          viewport: { width: 1280, height: 800 },
+          display: { kind: 'window', width: 1280, height: 800 },
           isHeadless: true,
+          target: {
+            executablePath: null,
+            userDataDir: '',
+            browserArgs: [],
+            shouldUseRealKeychain: false,
+          },
         },
       ]);
     });
@@ -227,6 +271,7 @@ describe('src/composition/create-app-services.ts', () => {
       const live = await services.recording.start({
         name: 'Dialogs',
         startUrl: null,
+        browser: BUNDLED_CHOICE,
       });
       const updates = collect(live);
       clock.advance(200);
@@ -254,6 +299,7 @@ describe('src/composition/create-app-services.ts', () => {
       const live = await services.recording.start({
         name: 'Answers',
         startUrl: null,
+        browser: BUNDLED_CHOICE,
       });
       await live.respondToDialog({ action: 'accept', promptText: 'abc' });
       expect(launcher.sessions[0]?.responses).toEqual([
@@ -266,6 +312,7 @@ describe('src/composition/create-app-services.ts', () => {
       const live = await services.recording.start({
         name: 'Saved flow',
         startUrl: null,
+        browser: BUNDLED_CHOICE,
       });
       clock.advance(800);
       launcher.sessions[0]?.emit(domSignal(clock.now(), clickPayload()));
@@ -284,6 +331,7 @@ describe('src/composition/create-app-services.ts', () => {
       const live = await services.recording.start({
         name: 'Throwaway',
         startUrl: null,
+        browser: BUNDLED_CHOICE,
       });
       await live.discard();
       expect(repository.files.size).toBe(0);
@@ -294,7 +342,11 @@ describe('src/composition/create-app-services.ts', () => {
       const { services, repository, launcher } = setup();
       launcher.failNextLaunch(new Error('Chromium launch failed'));
       await expect(
-        services.recording.start({ name: 'Broken', startUrl: null }),
+        services.recording.start({
+          name: 'Broken',
+          startUrl: null,
+          browser: BUNDLED_CHOICE,
+        }),
       ).rejects.toThrow('Chromium launch failed');
       expect(repository.files.size).toBe(0);
     });
@@ -305,13 +357,21 @@ describe('src/composition/create-app-services.ts', () => {
         new Error('error while loading shared libraries: libnss3.so'),
       );
       await expect(
-        services.recording.start({ name: 'Broken', startUrl: null }),
+        services.recording.start({
+          name: 'Broken',
+          startUrl: null,
+          browser: BUNDLED_CHOICE,
+        }),
       ).rejects.toThrow(/install-deps chromium/);
     });
 
     it('persists the live recording on demand and then has nothing left to save', async () => {
       const { services, launcher, clock, repository } = setup();
-      await services.recording.start({ name: 'Interrupted', startUrl: null });
+      await services.recording.start({
+        name: 'Interrupted',
+        startUrl: null,
+        browser: BUNDLED_CHOICE,
+      });
       clock.advance(300);
       launcher.sessions[0]?.emit(domSignal(clock.now(), clickPayload()));
       await services.persistActiveRecording();
@@ -323,7 +383,11 @@ describe('src/composition/create-app-services.ts', () => {
 
     it('forgets a recording that ended on its own', async () => {
       const { services, launcher, clock } = setup();
-      await services.recording.start({ name: 'Closed', startUrl: null });
+      await services.recording.start({
+        name: 'Closed',
+        startUrl: null,
+        browser: BUNDLED_CHOICE,
+      });
       clock.advance(10);
       launcher.sessions[0]?.emit({
         kind: 'browser-closed',
@@ -341,6 +405,7 @@ describe('src/composition/create-app-services.ts', () => {
       const live = await rig.services.recording.start({
         name: 'Replayed',
         startUrl: null,
+        browser: BUNDLED_CHOICE,
       });
       rig.clock.advance(1000);
       rig.launcher.sessions[0]?.emit(

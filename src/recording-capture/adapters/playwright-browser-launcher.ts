@@ -12,7 +12,10 @@ export interface PlaywrightLauncherDeps {
   readonly inPageScriptPath: string;
 }
 
-/** Launches a fresh ephemeral Chromium profile with a fixed viewport. */
+/**
+ * Launches a fresh ephemeral Chromium profile. The target and the display kind
+ * are not honoured yet: the persistent-context launcher replaces this one.
+ */
 export function createPlaywrightBrowserLauncher(
   deps: PlaywrightLauncherDeps,
 ): BrowserLauncher {
@@ -21,7 +24,10 @@ export function createPlaywrightBrowserLauncher(
       const browser = await chromium.launch({ headless: options.isHeadless });
       try {
         const context = await browser.newContext({
-          viewport: options.viewport,
+          viewport: {
+            width: options.display.width,
+            height: options.display.height,
+          },
         });
         return await startPlaywrightSession({
           browser,

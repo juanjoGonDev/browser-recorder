@@ -57,6 +57,29 @@ describe('FileSystemRecordingRepository', () => {
     );
   });
 
+  it('replaces script.mjs without touching recording.json', async () => {
+    await repository.write('a', {
+      recordingJson: '{"name":"A"}',
+      scriptMjs: 'old',
+    });
+    const recordingPath = join(root, 'a', 'recording.json');
+    const before = await stat(recordingPath);
+
+    await repository.writeScript('a', 'export const fresh = 1;');
+
+    expect(await readFile(repository.scriptPath('a'), 'utf8')).toBe(
+      'export const fresh = 1;',
+    );
+    expect(await readFile(recordingPath, 'utf8')).toBe('{"name":"A"}');
+    expect((await stat(recordingPath)).mtimeMs).toBe(before.mtimeMs);
+  });
+
+  it('refuses to write a script for an unsafe slug', async () => {
+    await expect(repository.writeScript('../x', '')).rejects.toThrow(
+      /invalid recording slug/i,
+    );
+  });
+
   it('writes into a slug that was never reserved', async () => {
     await repository.write('fresh', { recordingJson: '{}', scriptMjs: '' });
     expect(await repository.listSlugs()).toEqual(['fresh']);

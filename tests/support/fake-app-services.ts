@@ -1,9 +1,11 @@
+import type { BrowserChoice } from '../../src/shared/domain/browser-choice.ts';
 import type { Recording } from '../../src/shared/domain/recording.ts';
 import type {
   AppServices,
   NewRecordingRequest,
 } from '../../src/tui/application/ports/app-services.ts';
 import type {
+  BrowserOptionView,
   EnvironmentView,
   LibraryEntryView,
   LiveRecordingView,
@@ -13,9 +15,10 @@ import type {
 } from '../../src/tui/domain/app-views.ts';
 import { validateName } from '../../src/script-library/domain/validate-name.ts';
 import { validateStartUrl } from '../../src/script-library/domain/validate-start-url.ts';
-import { recordingWith, clicks } from './tui-fixtures.ts';
+import { BROWSER_VIEWS, recordingWith, clicks } from './tui-fixtures.ts';
 
 export class FakeLiveRecording implements LiveRecordingView {
+  readonly warnings: readonly string[] = [];
   readonly responses: {
     action: 'accept' | 'dismiss';
     promptText: string | null;
@@ -56,6 +59,7 @@ export class FakeLiveRecording implements LiveRecordingView {
 }
 
 export class FakeLiveReplay implements LiveReplayView {
+  readonly warnings: readonly string[] = [];
   cancelCount = 0;
   readonly finished: Promise<ReplayView>;
   private readonly listeners: ((view: ReplayView) => void)[] = [];
@@ -90,11 +94,14 @@ export interface FakeServicesHandle {
   readonly services: AppServices;
   readonly live: FakeLiveRecording;
   readonly replay: FakeLiveReplay;
-  readonly startRequests: NewRecordingRequest[];
+  readonly startRequests: (NewRecordingRequest & {
+    readonly browser: BrowserChoice;
+  })[];
   readonly removed: string[];
   readonly renamed: { slug: string; name: string }[];
   readonly replayed: string[];
   entries: LibraryEntryView[];
+  browsers: readonly BrowserOptionView[];
   environment: (onLine: (line: string) => void) => Promise<EnvironmentView>;
   renameError: Error | null;
   removeError: Error | null;
@@ -114,7 +121,9 @@ export function createFakeServices(): FakeServicesHandle {
     renamed: [],
     replayed: [],
     entries: [],
-    environment: () => Promise.resolve({ kind: 'ready', linuxHint: null }),
+    browsers: BROWSER_VIEWS,
+    environment: () =>
+      Promise.resolve({ kind: 'ready', linuxHint: null, browsers: [] }),
     renameError: null,
     removeError: null,
     startError: null,
@@ -147,6 +156,7 @@ export function createFakeServices(): FakeServicesHandle {
           return Promise.resolve();
         },
       },
+      browsers: { list: () => Promise.resolve(handle.browsers) },
       recording: {
         start: (request) => {
           handle.startRequests.push(request);

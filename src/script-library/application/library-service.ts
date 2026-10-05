@@ -1,3 +1,4 @@
+import { BUNDLED_EPHEMERAL } from '../../shared/domain/browser-choice.ts';
 import type { Recording } from '../../shared/domain/recording.ts';
 import { allocateSlug } from '../domain/allocate-slug.ts';
 import { parseRecording } from '../domain/parse-recording.ts';
@@ -24,11 +25,18 @@ export interface LibraryService {
   load(slug: string): Promise<Recording>;
   /** Writes `recording.json` and the regenerated `script.mjs` atomically. */
   save(recording: Recording): Promise<void>;
+  /** Rewrites `script.mjs` from `recording.json`; the recording is untouched. */
+  regenerateScript(slug: string): Promise<Recording>;
   rename(slug: string, name: string): Promise<Recording>;
   remove(slug: string): Promise<void>;
 }
 
-const DEFAULT_VIEWPORT = { width: 1280, height: 800 } as const;
+const DEFAULT_DISPLAY: Recording['display'] = {
+  kind: 'window',
+  width: 1280,
+  height: 800,
+};
+
 const JSON_INDENT = 2;
 
 function assertValid(message: string | null): void {
@@ -64,7 +72,7 @@ class RepositoryLibraryService implements LibraryService {
     const slug = await this.reserveSlug(name);
     const createdAt = this.deps.now().toISOString();
     const draft: Recording = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       name,
       slug,
       startUrl: trimmedUrl === '' ? null : trimmedUrl,
@@ -72,7 +80,8 @@ class RepositoryLibraryService implements LibraryService {
       updatedAt: createdAt,
       status: 'recording',
       durationMs: 0,
-      viewport: DEFAULT_VIEWPORT,
+      display: DEFAULT_DISPLAY,
+      browser: BUNDLED_EPHEMERAL,
       events: [],
     };
     await this.serializer.run(slug, () => this.writeFiles(draft));
@@ -95,6 +104,17 @@ class RepositoryLibraryService implements LibraryService {
     return this.serializer.run(recording.slug, () =>
       this.writeFiles(recording),
     );
+  }
+
+  async regenerateScript(slug: string): Promise<Recording> {
+    return await this.serializer.run(slug, async () => {
+      const recording = await this.load(slug);
+      await this.deps.repository.writeScript(
+        slug,
+        this.deps.renderScript(recording),
+      );
+      return recording;
+    });
   }
 
   async rename(slug: string, name: string): Promise<Recording> {

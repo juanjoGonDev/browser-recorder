@@ -21,7 +21,14 @@ import {
   appReducer,
   initialState,
 } from '../../../src/tui/domain/app-reducer.ts';
-import { emptyField } from '../../../src/tui/domain/text-input.ts';
+import {
+  BUNDLED_CHOICE,
+  WINDOW_DISPLAY,
+} from '../../support/browser-fixtures.ts';
+import {
+  BROWSER_VIEWS,
+  newRecordingScreen,
+} from '../../support/tui-fixtures.ts';
 
 const target = {
   locator: { kind: 'css', selector: '#go' },
@@ -53,7 +60,7 @@ function entry(slug: string, name = slug): LibraryEntryView {
 }
 
 const recording: Recording = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   name: 'Demo',
   slug: 'demo',
   startUrl: null,
@@ -61,7 +68,8 @@ const recording: Recording = {
   updatedAt: '2026-01-01T00:00:00.000Z',
   status: 'complete',
   durationMs: 100,
-  viewport: { width: 1280, height: 800 },
+  display: WINDOW_DISPLAY,
+  browser: BUNDLED_CHOICE,
   events: [click(0), click(100), click(200)],
 };
 
@@ -83,13 +91,7 @@ function library(count: number, selected = 0): LibraryScreen {
   };
 }
 
-const newForm: NewRecordingScreen = {
-  kind: 'new-recording',
-  name: emptyField(),
-  startUrl: emptyField(),
-  focus: 'name',
-  error: null,
-};
+const newForm: NewRecordingScreen = newRecordingScreen();
 
 const idleReplay: ReplayView = {
   status: 'running',
@@ -203,6 +205,105 @@ describe('src/tui/domain/app-reducer.ts', () => {
       expect(
         reduce(on(newForm), { type: 'navigate', target: 'main-menu' }).screen,
       ).toEqual({ kind: 'main-menu', selected: 0 });
+    });
+
+    describe('browser pickers', () => {
+      const loaded = (focus: NewRecordingScreen['focus']): AppState =>
+        reduce(on(newRecordingScreen({ focus })), {
+          type: 'browsers-loaded',
+          browsers: BROWSER_VIEWS,
+        });
+      const form = (state: AppState): NewRecordingScreen =>
+        state.screen as NewRecordingScreen;
+
+      it('keeps the list unknown until the browsers are loaded', () => {
+        expect(form(on(newRecordingScreen())).browsers).toBeNull();
+      });
+
+      it('stores the loaded browsers and starts at the first option', () => {
+        const screen = form(
+          reduce(on(newRecordingScreen({ browserIndex: 1, profileIndex: 2 })), {
+            type: 'browsers-loaded',
+            browsers: BROWSER_VIEWS,
+          }),
+        );
+        expect(screen.browsers).toEqual(BROWSER_VIEWS);
+        expect([screen.browserIndex, screen.profileIndex]).toEqual([0, 0]);
+      });
+
+      it('shows a detection failure inline and stops waiting', () => {
+        const screen = form(
+          reduce(on(newRecordingScreen()), {
+            type: 'browsers-failed',
+            message: 'no catalog',
+          }),
+        );
+        expect(screen.error).toBe('no catalog');
+        expect(screen.browsers).toEqual([]);
+      });
+
+      it('ignores loaded browsers on another screen', () => {
+        const state = reduce(on({ kind: 'main-menu', selected: 1 }), {
+          type: 'browsers-loaded',
+          browsers: BROWSER_VIEWS,
+        });
+        expect(state.screen).toEqual({ kind: 'main-menu', selected: 1 });
+      });
+
+      it('cycles the browser, wraps around and resets the profile', () => {
+        const next = reduce(
+          { ...loaded('browser') },
+          { type: 'cycle-option', delta: 1 },
+        );
+        expect(form(next)).toMatchObject({ browserIndex: 1, profileIndex: 0 });
+        const wrapped = reduce(next, { type: 'cycle-option', delta: 1 });
+        expect(form(wrapped).browserIndex).toBe(0);
+        const back = reduce(loaded('browser'), {
+          type: 'cycle-option',
+          delta: -1,
+        });
+        expect(form(back).browserIndex).toBe(1);
+      });
+
+      it('cycles only the profiles of the chosen browser', () => {
+        const state = reduce(
+          loaded('profile'),
+          { type: 'cycle-option', delta: 1 },
+          { type: 'cycle-option', delta: 1 },
+        );
+        expect(form(state).profileIndex).toBe(2);
+        expect(
+          form(reduce(state, { type: 'cycle-option', delta: 1 })).profileIndex,
+        ).toBe(0);
+        const bundled = reduce(
+          { ...loaded('browser') },
+          { type: 'cycle-option', delta: 1 },
+          { type: 'cycle-option', delta: 1 },
+          { type: 'cycle-option', delta: 1 },
+        );
+        expect(form(bundled).browserIndex).toBe(1);
+      });
+
+      it('does nothing while a text field has the focus or nothing is loaded', () => {
+        const textFocus = loaded('url');
+        expect(reduce(textFocus, { type: 'cycle-option', delta: 1 })).toEqual(
+          textFocus,
+        );
+        const pending = on(newRecordingScreen({ focus: 'browser' }));
+        expect(reduce(pending, { type: 'cycle-option', delta: 1 })).toEqual(
+          pending,
+        );
+      });
+
+      it('does not type into a picker', () => {
+        const picker = loaded('browser');
+        expect(
+          reduce(picker, {
+            type: 'edit-text',
+            edit: { kind: 'insert', text: 'x' },
+          }),
+        ).toEqual(picker);
+      });
     });
 
     it('selects 2nd after Down, Down, Up on a library of 3', () => {

@@ -33,6 +33,14 @@ class MemoryRepository implements RecordingRepository {
     return Promise.resolve(JSON.parse(files.recordingJson));
   }
 
+  writeScript(slug: string, scriptMjs: string): Promise<void> {
+    const files = this.files.get(slug);
+    if (files === undefined) return Promise.reject(new Error('ENOENT'));
+    this.files.set(slug, { ...files, scriptMjs });
+    this.writeLog.push(`script ${slug}`);
+    return Promise.resolve();
+  }
+
   async write(slug: string, files: RecordingFiles): Promise<void> {
     this.writeLog.push(`start ${slug}`);
     await new Promise((resolve) => setTimeout(resolve, this.writeDelayMs));
@@ -95,12 +103,18 @@ describe('createLibraryService', () => {
         'https://example.com',
       );
       expect(draft).toMatchObject({
-        schemaVersion: 1,
+        schemaVersion: 2,
         name: 'Login Flow',
         slug: 'login-flow',
         startUrl: 'https://example.com',
         createdAt: NOW.toISOString(),
         status: 'recording',
+        display: { kind: 'window', width: 1280, height: 800 },
+        browser: {
+          browserId: 'bundled',
+          profileMode: 'ephemeral',
+          sourceProfile: null,
+        },
         events: [],
       });
       const stored = repository.files.get('login-flow');
@@ -260,6 +274,19 @@ describe('createLibraryService', () => {
       expect((await service.load('brand-new')).name).toBe('Brand New');
     });
 
+    it('keeps the browser and the mode of the recording', async () => {
+      const { service } = setup();
+      const chrome = {
+        browserId: 'chrome',
+        profileMode: 'managed',
+        sourceProfile: null,
+      } as const;
+      await seed(service, recordingOf([], { slug: 'a', browser: chrome }));
+      const renamed = await service.rename('a', 'Other');
+      expect(renamed.browser).toEqual(chrome);
+      expect((await service.load('other')).browser).toEqual(chrome);
+    });
+
     it('refuses a name whose slug is taken and leaves both recordings unchanged', async () => {
       const { repository, service } = setup();
       await seed(service, recordingOf([], { slug: 'a', name: 'A' }));
@@ -295,6 +322,53 @@ describe('createLibraryService', () => {
       repository.shouldFailNextWrite = true;
       await expect(service.rename('a', 'Zed')).rejects.toThrow('disk full');
       expect([...repository.files.keys()]).toEqual(['a']);
+    });
+  });
+
+  describe('regenerateScript', () => {
+    it('rewrites only script.mjs and returns the recording', async () => {
+      const { repository, service } = setup();
+      await seed(service, recordingOf([], { slug: 'a', name: 'A' }));
+      repository.writeLog.length = 0;
+      const jsonBefore = repository.files.get('a')?.recordingJson;
+      repository.files.set('a', {
+        recordingJson: jsonBefore ?? '',
+        scriptMjs: '// stale\n',
+      });
+
+      const recording = await service.regenerateScript('a');
+
+      expect(recording).toMatchObject({ slug: 'a', name: 'A' });
+      expect(repository.files.get('a')).toEqual({
+        recordingJson: jsonBefore,
+        scriptMjs: '// script for a\n',
+      });
+      expect(repository.writeLog).toEqual(['script a']);
+    });
+
+    it('does not upgrade a version 1 file on disk', async () => {
+      const { repository, service } = setup();
+      const legacy = JSON.stringify({
+        ...BASIC_RECORDING,
+        schemaVersion: 1,
+        display: undefined,
+        browser: undefined,
+        viewport: { width: 1280, height: 800 },
+      });
+      repository.files.set('golden', { recordingJson: legacy, scriptMjs: '' });
+
+      const recording = await service.regenerateScript('golden');
+
+      expect(recording.schemaVersion).toBe(2);
+      expect(repository.files.get('golden')?.recordingJson).toBe(legacy);
+      expect(repository.files.get('golden')?.scriptMjs).toBe(
+        '// script for golden\n',
+      );
+    });
+
+    it('fails for a recording that cannot be read', async () => {
+      const { service } = setup();
+      await expect(service.regenerateScript('missing')).rejects.toThrow();
     });
   });
 

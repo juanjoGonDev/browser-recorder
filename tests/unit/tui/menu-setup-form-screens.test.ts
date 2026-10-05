@@ -11,6 +11,7 @@ import { renderMainMenuScreen } from '../../../src/tui/render/screens/main-menu-
 import { renderNewRecordingScreen } from '../../../src/tui/render/screens/new-recording-screen.ts';
 import { renderSetupScreen } from '../../../src/tui/render/screens/setup-screen.ts';
 import { plainContext } from '../../support/render-context.ts';
+import { newRecordingScreen } from '../../support/tui-fixtures.ts';
 
 describe('src/tui/render/screens (main menu, setup, new recording)', () => {
   describe('main menu', () => {
@@ -140,13 +141,9 @@ describe('src/tui/render/screens (main menu, setup, new recording)', () => {
   });
 
   describe('new recording', () => {
-    const form: NewRecordingScreen = {
-      kind: 'new-recording',
+    const form: NewRecordingScreen = newRecordingScreen({
       name: emptyField('Demo'),
-      startUrl: emptyField(),
-      focus: 'name',
-      error: null,
-    };
+    });
 
     it('shows the focused field with a cursor and the placeholder of the other', () => {
       const text = renderNewRecordingScreen(form, plainContext()).body.join(
