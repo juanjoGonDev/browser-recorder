@@ -107,19 +107,13 @@ worktree, in their own commit, before the worktrees merge them in.
 
 ## Branching and pull requests
 
-Follows the Twenix engineering policy:
-
 - Trunk-based: `main` is the only long-lived branch; branches are short.
 - Squash + merge only. Update a branch with `git merge main`; never rebase.
   No force push and no `--amend` on commits that were already pushed.
-- Branch name `<type>/OPRS-<parent>/OPRS-<subtask>-<slug>` when the work has a
-  Jira parent, `<type>/OPRS-<id>-<slug>` with a single Jira issue and no parent
-  (never repeat the id), and `<type>/<slug>` when there is no Jira issue.
-  `<type>` is one of `feat`, `fix`, `refactor`, `chore`, `docs`; the slug is
-  short kebab-case.
+- Branch name `<type>/<slug>`, where `<type>` is one of `feat`, `fix`,
+  `refactor`, `chore`, `docs` and the slug is short kebab-case.
 - Commits and pull request titles are Conventional Commits in English
-  (`feat: add replay progress parser`). With Jira issues the scope carries the
-  same ids as the branch: `feat(OPRS-<parent>/OPRS-<subtask>): ...`.
+  (`feat: add replay progress parser`).
 - No AI attribution and no `Co-Authored-By` trailers in commits or pull
   requests.
 - Never work on `main`.

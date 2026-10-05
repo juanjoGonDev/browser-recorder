@@ -52,10 +52,9 @@ describe('AGENTS.md', () => {
     expect(agents).toContain('git worktree remove');
   });
 
-  it('states the branch naming rule for issues with and without a parent', () => {
-    expect(agents).toContain('<type>/OPRS-<parent>/OPRS-<subtask>-<slug>');
-    expect(agents).toContain('<type>/OPRS-<id>-<slug>');
+  it('states a self-contained branch naming rule', () => {
     expect(agents).toContain('<type>/<slug>');
+    expect(agents).not.toMatch(/OPRS|Jira|Twenix/i);
   });
 
   it('forbids rebasing, force pushes and AI attribution', () => {
