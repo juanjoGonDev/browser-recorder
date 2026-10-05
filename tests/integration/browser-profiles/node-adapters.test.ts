@@ -33,6 +33,13 @@ describe('nodeProfileFileSystem', () => {
     await rm(dir, { recursive: true, force: true });
   });
 
+  it('creates nested directories and accepts one that already exists', async () => {
+    const nested = join(dir, 'a', 'b', 'c');
+    await fsAdapter.makePrivateDir(nested);
+    await fsAdapter.makePrivateDir(nested);
+    expect((await lstat(nested)).isDirectory()).toBe(true);
+  });
+
   it.skipIf(!isPosix)('creates nested directories with mode 0700', async () => {
     const nested = join(dir, 'a', 'b', 'c');
     await fsAdapter.makePrivateDir(nested);
@@ -59,6 +66,18 @@ describe('nodeProfileFileSystem', () => {
     expect(await fsAdapter.stamp(dir)).toBeNull();
   });
 
+  it('lists files and directories and reads no link from a plain entry', async () => {
+    await writeFile(join(dir, 'file'), 'x');
+    await fsAdapter.makePrivateDir(join(dir, 'folder'));
+    expect(await fsAdapter.list(dir)).toEqual([
+      { name: 'file', kind: 'file' },
+      { name: 'folder', kind: 'directory' },
+    ]);
+    expect(await fsAdapter.readLink(join(dir, 'file'))).toBeNull();
+    expect(await fsAdapter.readLink(join(dir, 'nope'))).toBeNull();
+  });
+
+  // Creating a symlink needs extra privileges on Windows.
   it.skipIf(!isPosix)('lists kinds from lstat and reads links', async () => {
     await writeFile(join(dir, 'file'), 'x');
     await fsAdapter.makePrivateDir(join(dir, 'folder'));
