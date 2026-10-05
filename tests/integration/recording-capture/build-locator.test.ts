@@ -2,6 +2,7 @@ import { chromium } from 'playwright';
 import type { Browser, Page } from 'playwright';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Locator } from '../../../src/shared/domain/locator.ts';
+import { toPlaywrightLocator } from '../../../src/recording-capture/adapters/locator-verifier.ts';
 import { startFixtureServer } from '../../support/fixture-server.ts';
 import type { FixtureServer } from '../../support/fixture-server.ts';
 import { loadKit, probe } from '../../support/in-page-probe.ts';
@@ -81,10 +82,34 @@ describe('src/recording-capture/in-page/build-locator.ts', () => {
       await page.close();
     });
 
-    it('uses a stable css path for an unnamed input behind a duplicated id', async () => {
+    it('finds a labelled input behind a duplicated id by its label, not by the id', async () => {
       await open('duplicate-id.html');
-      await expect(candidatesOf('input')).resolves.toEqual([
-        { kind: 'css', selector: 'input[name="second"]' },
+      const candidates = await candidatesOf('input');
+      expect(candidates).toContainEqual({
+        kind: 'label',
+        text: 'Second field',
+      });
+      expect(candidates[0]).toEqual({
+        kind: 'role',
+        role: 'textbox',
+        name: 'Second field',
+      });
+      expect(candidates).not.toContainEqual({ kind: 'css', selector: '#x' });
+      await page.close();
+    });
+
+    it('falls back to a stable css path for a duplicated id with no label', async () => {
+      await open('duplicate-id.html');
+      await page.evaluate(() => {
+        document.querySelector('label')?.replaceWith(
+          Object.assign(document.createElement('input'), {
+            name: 'third',
+            id: 'x',
+          }),
+        );
+      });
+      await expect(candidatesOf('input[name="third"]')).resolves.toEqual([
+        { kind: 'css', selector: 'input[name="third"]' },
       ]);
       await page.close();
     });
@@ -120,18 +145,40 @@ describe('src/recording-capture/in-page/build-locator.ts', () => {
     });
 
     it('never offers a candidate Playwright finds more than once', async () => {
-      await open('locators.html');
-      for (const selector of [
-        '.repeat',
-        '.current',
-        '[data-testid="export"]',
-      ]) {
-        const candidates = await candidatesOf(selector);
-        expect(candidates.length).toBeGreaterThan(0);
-        const [first] = candidates;
-        expect(first).toBeDefined();
+      const cases: readonly [string, readonly string[]][] = [
+        [
+          'locators.html',
+          [
+            '.repeat',
+            '.current',
+            '[data-testid="export"]',
+            '.twin',
+            '.note',
+            '#colour',
+            '[data-case="dynamic-empty"]',
+          ],
+        ],
+        ['duplicate-id.html', ['button', 'input']],
+        ['form.html', ['#username']],
+      ];
+      let checked = 0;
+      for (const [fixture, selectors] of cases) {
+        await open(fixture);
+        for (const selector of selectors) {
+          const candidates = await candidatesOf(selector);
+          expect(candidates.length).toBeGreaterThan(0);
+          for (const candidate of candidates) {
+            const count = await toPlaywrightLocator(page, candidate).count();
+            expect(
+              count,
+              `${fixture} ${selector} ${JSON.stringify(candidate)}`,
+            ).toBe(1);
+            checked += 1;
+          }
+        }
+        await page.close();
       }
-      await page.close();
+      expect(checked).toBeGreaterThan(20);
     });
   });
 
