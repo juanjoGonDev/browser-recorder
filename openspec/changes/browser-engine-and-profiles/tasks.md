@@ -87,12 +87,12 @@ Decision already given: user accepted one large PR, `size:exception`, unlimited 
 
 ## WP4: script-generation + script-library (worktree)
 
-- [ ] 4.1 RED->GREEN: `generate-script.ts`/`script-prelude.ts`: `patchright` import, `openContext(display)`, header names browser and mode; goldens for window and emulated (Runnable, Deterministic, Managed Brave, Ephemeral, Copy of real).
-- [ ] 4.2 RED->GREEN: prelude env handling: four variables, only `--profile-directory=` accepted (`--remote-debugging-port=1` ignored), `mkdtemp` and cleanup; text scan for forbidden CDP literals; parity golden with `launch-arguments.ts`.
-- [ ] 4.3 RED->GREEN: multi-tab `context.pages()[0] ?? newPage()`, `finally close()` (Multi-tab, Unknown event type, Legacy recording).
-- [ ] 4.4 RED->GREEN: `parse-recording.ts` v1 -> v2 migration, v2 requires fields, bad mode rejected (Round trip, Legacy file, Bad mode).
-- [ ] 4.5 RED->GREEN: `library-service.ts` `regenerateScript` (writes only `script.mjs`), `file-system-recording-repository.ts` `writeScript`, v2 draft; rename keeps browser (Rename).
-- [ ] 4.6 REFACTOR: dedupe prelude and parser constants.
+- [x] 4.1 RED->GREEN: `generate-script.ts`/`script-prelude.ts`: `patchright` import, `openContext(display)`, header names browser and mode; goldens for window and emulated (Runnable, Deterministic, Managed Brave, Ephemeral, Copy of real).
+- [x] 4.2 RED->GREEN: prelude env handling: four variables, only `--profile-directory=` accepted (`--remote-debugging-port=1` ignored), `mkdtemp` and cleanup; text scan for forbidden CDP literals; parity golden with `launch-arguments.ts`.
+- [x] 4.3 RED->GREEN: multi-tab `context.pages()[0] ?? newPage()`, `finally close()` (Multi-tab, Unknown event type, Legacy recording).
+- [x] 4.4 RED->GREEN: `parse-recording.ts` v1 -> v2 migration, v2 requires fields, bad mode rejected (Round trip, Legacy file, Bad mode).
+- [x] 4.5 RED->GREEN: `library-service.ts` `regenerateScript` (writes only `script.mjs`), `file-system-recording-repository.ts` `writeScript`, v2 draft; rename keeps browser (Rename).
+- [x] 4.6 REFACTOR: dedupe prelude and parser constants.
 
 ## WP5: replay + environment-setup + CI (worktree)
 
