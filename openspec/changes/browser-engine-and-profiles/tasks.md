@@ -96,10 +96,10 @@ Decision already given: user accepted one large PR, `size:exception`, unlimited 
 
 ## WP5: replay + environment-setup + CI (worktree)
 
-- [ ] 5.1 RED->GREEN: `replay-runner.ts` `launchEnv` merged over env, `shell: false`, inherited vars overridden (Stored browser, Legacy recording, Locked, Missing browser pass-through).
-- [ ] 5.2 RED->GREEN: rename `patchright-browser-installation.ts`, `resolve-patchright-cli.ts` (fallback to `patchright-core`, argv `[cli,'install','chromium']`); detection Present/Missing/System browser only.
-- [ ] 5.3 RED->GREEN: `ensure-browser.ts`, `linux-deps-hint.ts` commands say `patchright` (Success, Failure prints `pnpm exec patchright install chromium`, Offline, Missing libs).
-- [ ] 5.4 GREEN: `.github/workflows/ci.yml` `pnpm exec patchright install chromium` (`--with-deps` Ubuntu); workflow lint test.
+- [x] 5.1 RED->GREEN: `replay-runner.ts` `launchEnv` merged over env, `shell: false`, inherited vars overridden (Stored browser, Legacy recording, Locked, Missing browser pass-through).
+- [x] 5.2 RED->GREEN: rename `patchright-browser-installation.ts`, `resolve-patchright-cli.ts` (fallback to `patchright-core`, argv `[cli,'install','chromium']`); detection Present/Missing/System browser only.
+- [x] 5.3 RED->GREEN: `ensure-browser.ts`, `linux-deps-hint.ts` commands say `patchright` (Success, Failure prints `pnpm exec patchright install chromium`, Offline, Missing libs).
+- [x] 5.4 GREEN: `.github/workflows/ci.yml` `pnpm exec patchright install chromium` (`--with-deps` Ubuntu); workflow lint test.
 
 ## WP6: TUI (worktree)
 
