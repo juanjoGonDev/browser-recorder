@@ -9,5 +9,6 @@ export function summarizeRecording(recording: Recording): RecordingSummary {
     createdAt: recording.createdAt,
     durationMs: recording.durationMs,
     stepCount: recording.events.length,
+    browser: recording.browser,
   };
 }

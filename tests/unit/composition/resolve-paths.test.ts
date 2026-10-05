@@ -20,11 +20,15 @@ function installPackage(name: string): string {
   return root;
 }
 
-function depsWithCli(cli: string): PathDeps {
+function depsWithCli(cli: string, overrides: Partial<PathDeps> = {}): PathDeps {
   return {
     readText: (file) => readFileSync(file, 'utf8'),
     exists: existsSync,
     resolveCli: () => cli,
+    platform: 'darwin',
+    environment: {},
+    homeDirectory: '/Users/ana',
+    ...overrides,
   };
 }
 
@@ -61,9 +65,39 @@ describe('src/composition/resolve-paths.ts', () => {
       packageRoot: root,
       recordingsRoot: path.join(root, 'recordings'),
       inPageScriptPath: path.join(root, 'dist', 'in-page', 'capture-script.js'),
-      playwrightCliPath: '/the/cli.js',
+      patchrightCliPath: '/the/cli.js',
+      appDataRoot: '/Users/ana/Library/Application Support/browser-recorder',
     });
   });
+
+  it.each([
+    {
+      platform: 'linux',
+      environment: { XDG_DATA_HOME: '/data' },
+      homeDirectory: '/home/ana',
+      expected: '/data/browser-recorder',
+    },
+    {
+      platform: 'linux',
+      environment: {},
+      homeDirectory: '/home/ana',
+      expected: '/home/ana/.local/share/browser-recorder',
+    },
+    {
+      platform: 'win32',
+      environment: { LOCALAPPDATA: 'C:\\Users\\ana\\AppData\\Local' },
+      homeDirectory: 'C:\\Users\\ana',
+      expected: 'C:\\Users\\ana\\AppData\\Local\\browser-recorder',
+    },
+  ])(
+    'puts the tool-owned data under the OS app-data directory on $platform',
+    ({ expected, ...overrides }) => {
+      const root = installPackage('browser-recorder');
+      const entry = pathToFileURL(path.join(root, 'dist', 'main.js')).href;
+      const paths = resolveAppPaths(entry, depsWithCli('/cli.js', overrides));
+      expect(paths.appDataRoot).toBe(expected);
+    },
+  );
 
   it('skips a package.json that belongs to another package', () => {
     const outer = path.join(scratch, 'outer');

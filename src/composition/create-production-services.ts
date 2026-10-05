@@ -1,5 +1,13 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { homedir } from 'node:os';
+import { nodeProcessProbe } from '../browser-profiles/adapters/node-process-probe.ts';
+import { nodeProfileFileSystem } from '../browser-profiles/adapters/node-profile-file-system.ts';
+import { checkProfileLock } from '../browser-profiles/application/check-profile-lock.ts';
+import { createProfileStore } from '../browser-profiles/application/profile-store.ts';
+import { createProfileLayout } from '../browser-profiles/domain/profile-layout.ts';
+import { createNodeFileProbe } from '../browser-selection/adapters/node-file-probe.ts';
+import { createBrowserCatalog } from '../browser-selection/application/browser-catalog.ts';
 import { createPatchrightBrowserInstallation } from '../environment-setup/adapters/patchright-browser-installation.ts';
 import { resolvePatchrightCli } from '../environment-setup/adapters/resolve-patchright-cli.ts';
 import { createPerformanceClock } from '../recording-capture/adapters/performance-clock.ts';
@@ -10,7 +18,10 @@ import { withScriptCheck } from '../replay/adapters/script-checking-spawner.ts';
 import { createFileSystemRecordingRepository } from '../script-library/adapters/file-system-recording-repository.ts';
 import { createLibraryService } from '../script-library/application/library-service.ts';
 import { generateScript } from '../script-generation/domain/generate-script.ts';
+import { createLaunchPlanner } from './browser-launch-plan.ts';
+import { createBrowserViews } from './browser-views.ts';
 import { createAppServices } from './create-app-services.ts';
+import { pathRootsFor } from './path-roots.ts';
 import type {
   AppServicesDeps,
   ComposedServices,
@@ -24,7 +35,7 @@ const CANCEL_GRACE_MS = 3000;
 export interface ProductionOptions {
   readonly paths: AppPaths;
   readonly isHeadless: boolean;
-  /** Replaces the Playwright launcher, for tests that need the page. */
+  /** Replaces the Patchright launcher, for tests that need the page. */
   readonly launcher?: BrowserLauncher;
 }
 
@@ -34,6 +45,9 @@ export function resolveProductionPaths(moduleUrl: string): AppPaths {
   return resolveAppPaths(moduleUrl, {
     readText: (file) => readFileSync(file, 'utf8'),
     exists: existsSync,
+    platform: process.platform,
+    environment: process.env,
+    homeDirectory: homedir(),
     resolveCli: () =>
       resolvePatchrightCli({
         resolve: (id) => nodeRequire.resolve(id),
@@ -41,6 +55,54 @@ export function resolveProductionPaths(moduleUrl: string): AppPaths {
         exists: existsSync,
       }),
   });
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+type BrowserFeatures = Pick<
+  AppServicesDeps,
+  'planner' | 'browserViews' | 'sweepStaleSessions'
+>;
+
+/** Browser detection and profiles, the two features only composition joins. */
+function createBrowserFeatures(
+  paths: AppPaths,
+  installation: AppServicesDeps['installation'],
+): BrowserFeatures {
+  const { platform } = process;
+  const profiles = createProfileStore({
+    fs: nodeProfileFileSystem,
+    processes: nodeProcessProbe,
+    platform,
+    layout: createProfileLayout(platform, paths.appDataRoot),
+    sleep,
+  });
+  const catalog = createBrowserCatalog({
+    probe: createNodeFileProbe(platform),
+    platform,
+    roots: pathRootsFor(process.env, homedir()),
+    isBundledInstalled: () => installation.isInstalled(),
+  });
+  const lockDeps = {
+    fs: nodeProfileFileSystem,
+    processes: nodeProcessProbe,
+    platform,
+  };
+  return {
+    planner: createLaunchPlanner({ catalog, profiles }),
+    browserViews: createBrowserViews({
+      catalog,
+      profiles,
+      platform,
+      isRunning: async (directory) =>
+        (await checkProfileLock(lockDeps, directory)).kind === 'locked',
+    }),
+    sweepStaleSessions: () => profiles.sweepStaleSessions(),
+  };
 }
 
 /** Real adapters behind every port: the only place they are put together. */
@@ -52,7 +114,12 @@ export function createProductionDeps(
     root: paths.recordingsRoot,
   });
   const clock = createPerformanceClock();
+  const installation = createPatchrightBrowserInstallation({
+    cliPath: paths.patchrightCliPath,
+    nodePath: process.execPath,
+  });
   return {
+    ...createBrowserFeatures(paths, installation),
     library: createLibraryService({
       repository,
       renderScript: generateScript,
@@ -66,10 +133,7 @@ export function createProductionDeps(
       }),
     clock,
     now: () => new Date(),
-    installation: createPatchrightBrowserInstallation({
-      cliPath: paths.playwrightCliPath,
-      nodePath: process.execPath,
-    }),
+    installation,
     platform: process.platform,
     isHeadless: options.isHeadless,
     replay: {

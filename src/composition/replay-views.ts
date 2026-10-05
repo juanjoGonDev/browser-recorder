@@ -15,9 +15,12 @@ export function toReplayView(progress: ReplayProgress): ReplayView {
   };
 }
 
-export function toLiveReplayView(replay: LiveReplay): LiveReplayView {
+export function toLiveReplayView(
+  replay: LiveReplay,
+  warnings: readonly string[],
+): LiveReplayView {
   return {
-    warnings: [],
+    warnings,
     subscribe: (listener) =>
       replay.subscribe((progress) => {
         listener(toReplayView(progress));

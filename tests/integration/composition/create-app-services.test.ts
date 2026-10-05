@@ -1,4 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { ProfileInUseError } from '../../../src/browser-profiles/domain/profile-errors.ts';
+import { createLaunchPlanner } from '../../../src/composition/browser-launch-plan.ts';
+import { createBrowserViews } from '../../../src/composition/browser-views.ts';
 import { createAppServices } from '../../../src/composition/create-app-services.ts';
 import type { AppServicesDeps } from '../../../src/composition/create-app-services.ts';
 import { createLibraryService } from '../../../src/script-library/application/library-service.ts';
@@ -8,12 +11,20 @@ import type {
   RecordingUpdateView,
   ReplayView,
 } from '../../../src/tui/domain/app-views.ts';
+import type { InstalledBrowser } from '../../../src/browser-selection/application/browser-catalog.ts';
 import {
+  BRAVE_INSTALLED,
+  BUNDLED_INSTALLED,
+  createFakeCatalog,
   createFakeInstallation,
   createFakeLauncher,
+  createFakeProfiles,
   createFakeSpawner,
 } from '../../support/composition-fakes.ts';
-import { BUNDLED_CHOICE } from '../../support/browser-fixtures.ts';
+import {
+  BRAVE_CHOICE,
+  BUNDLED_CHOICE,
+} from '../../support/browser-fixtures.ts';
 import { createFakeClock } from '../../support/fake-clock.ts';
 import { MemoryRecordingRepository } from '../../support/memory-recording-repository.ts';
 import { clickPayload, domSignal } from '../../support/session-signals.ts';
@@ -27,7 +38,10 @@ interface Overrides {
   readonly installation?: AppServicesDeps['installation'];
   readonly platform?: string;
   readonly isHeadless?: boolean;
+  readonly installed?: readonly InstalledBrowser[];
 }
+
+const PROFILE_DIR = '/fixture/app-data/profiles/dir';
 
 function setup(overrides: Overrides = {}) {
   const repository = new MemoryRecordingRepository();
@@ -39,7 +53,17 @@ function setup(overrides: Overrides = {}) {
   const launcher = createFakeLauncher();
   const spawner = createFakeSpawner();
   const clock = createFakeClock(START_MS);
+  const profiles = createFakeProfiles();
+  const catalog = createFakeCatalog(overrides.installed ?? [BUNDLED_INSTALLED]);
   const services = createAppServices({
+    planner: createLaunchPlanner({ catalog, profiles }),
+    browserViews: createBrowserViews({
+      catalog,
+      profiles,
+      platform: overrides.platform ?? 'darwin',
+      isRunning: () => Promise.resolve(false),
+    }),
+    sweepStaleSessions: () => profiles.sweepStaleSessions(),
     library,
     launcher,
     clock,
@@ -56,7 +80,7 @@ function setup(overrides: Overrides = {}) {
       scriptPathOf: (slug) => repository.scriptPath(slug),
     },
   });
-  return { services, repository, launcher, spawner, clock };
+  return { services, repository, launcher, spawner, clock, profiles };
 }
 
 function collect(live: LiveRecordingView): RecordingUpdateView[] {
@@ -73,7 +97,11 @@ describe('src/composition/create-app-services.ts', () => {
       const lines: string[] = [];
       await expect(
         services.environment.ensureBrowser((line) => lines.push(line)),
-      ).resolves.toEqual({ kind: 'ready', linuxHint: null, browsers: [] });
+      ).resolves.toEqual({
+        kind: 'ready',
+        linuxHint: null,
+        browsers: ['Chromium (bundled)'],
+      });
       expect(installation.installs()).toBe(0);
       expect(lines).toEqual([]);
     });
@@ -154,6 +182,7 @@ describe('src/composition/create-app-services.ts', () => {
           createdAt: NOW.toISOString(),
           durationMs: 1500,
           stepCount: 1,
+          browser: BUNDLED_CHOICE,
         },
       ]);
     });
@@ -210,21 +239,72 @@ describe('src/composition/create-app-services.ts', () => {
   });
 
   describe('browsers', () => {
-    it('offers the bundled browser with an ephemeral profile', async () => {
+    it('offers the bundled browser with a managed and an ephemeral profile', async () => {
       const { services } = setup();
-      await expect(services.browsers.list()).resolves.toEqual([
-        {
-          browserId: 'bundled',
-          label: 'Chromium (bundled)',
-          profiles: [
-            {
-              choice: BUNDLED_CHOICE,
-              label: 'Ephemeral (clean each time)',
-              note: null,
-            },
-          ],
-        },
+      const options = await services.browsers.list();
+      expect(options).toHaveLength(1);
+      expect(options[0]).toMatchObject({
+        browserId: 'bundled',
+        label: 'Chromium (bundled)',
+      });
+      expect(options[0]?.profiles.map((profile) => profile.label)).toEqual([
+        'Managed (keeps logins)',
+        'Ephemeral (clean each time)',
       ]);
+    });
+
+    it('lists an installed browser before the bundled one', async () => {
+      const { services } = setup({
+        installed: [BRAVE_INSTALLED, BUNDLED_INSTALLED],
+      });
+      const options = await services.browsers.list();
+      expect(options.map((option) => option.browserId)).toEqual([
+        'brave',
+        'bundled',
+      ]);
+    });
+  });
+
+  describe('startup', () => {
+    it('sweeps leftover sessions once when the services are created', () => {
+      const { profiles } = setup();
+      expect(profiles.sweeps()).toBe(1);
+    });
+
+    it('does not fail when the sweep does', () => {
+      const profiles = createFakeProfiles();
+      profiles.sweepStaleSessions = () => Promise.reject(new Error('denied'));
+      const catalog = createFakeCatalog([BUNDLED_INSTALLED]);
+      expect(() =>
+        createAppServices({
+          planner: createLaunchPlanner({ catalog, profiles }),
+          browserViews: createBrowserViews({
+            catalog,
+            profiles,
+            platform: 'darwin',
+            isRunning: () => Promise.resolve(false),
+          }),
+          sweepStaleSessions: () => profiles.sweepStaleSessions(),
+          library: createLibraryService({
+            repository: new MemoryRecordingRepository(),
+            renderScript: generateScript,
+            now: () => NOW,
+          }),
+          launcher: createFakeLauncher(),
+          clock: createFakeClock(START_MS),
+          now: () => NOW,
+          installation: createFakeInstallation({ isInstalled: true }),
+          platform: 'darwin',
+          isHeadless: true,
+          replay: {
+            spawner: createFakeSpawner(),
+            nodePath: NODE_PATH,
+            cancelGraceMs: 3000,
+            cwd: PACKAGE_ROOT,
+            scriptPathOf: () => '/x',
+          },
+        }),
+      ).not.toThrow();
     });
   });
 
@@ -258,7 +338,7 @@ describe('src/composition/create-app-services.ts', () => {
           isHeadless: true,
           target: {
             executablePath: null,
-            userDataDir: '',
+            userDataDir: PROFILE_DIR,
             browserArgs: [],
             shouldUseRealKeychain: false,
           },
@@ -399,6 +479,114 @@ describe('src/composition/create-app-services.ts', () => {
     });
   });
 
+  describe('launch plan', () => {
+    const braveSetup: Overrides = {
+      installed: [BRAVE_INSTALLED, BUNDLED_INSTALLED],
+    };
+
+    it('launches the stored browser on the prepared profile and saves the choice', async () => {
+      const { services, launcher, repository, profiles } = setup(braveSetup);
+      profiles.nextPrepared = { userDataDir: '/fixture/brave/managed' };
+      const live = await services.recording.start({
+        name: 'On Brave',
+        startUrl: null,
+        browser: BRAVE_CHOICE,
+      });
+      expect(launcher.launches[0]?.target).toEqual({
+        executablePath: '/fixture/Brave Browser',
+        userDataDir: '/fixture/brave/managed',
+        browserArgs: [],
+        shouldUseRealKeychain: false,
+      });
+      await live.stop();
+      expect(
+        JSON.parse(repository.files.get('on-brave')?.recordingJson ?? '{}'),
+      ).toMatchObject({ browser: BRAVE_CHOICE });
+    });
+
+    it('shows the profile warnings on the live recording', async () => {
+      const { services, profiles } = setup(braveSetup);
+      profiles.nextPrepared = { warnings: [{ code: 'source-running' }] };
+      const live = await services.recording.start({
+        name: 'Warned',
+        startUrl: null,
+        browser: BRAVE_CHOICE,
+      });
+      expect(live.warnings).toEqual([
+        'Brave is running: the copy may miss its latest changes.',
+      ]);
+    });
+
+    it('rejects a locked profile with a safe message and leaves no entry', async () => {
+      const { services, profiles, repository, launcher } = setup(braveSetup);
+      profiles.failNextPrepare(new ProfileInUseError('brave', '/secret/dir'));
+      const failure = await services.recording
+        .start({ name: 'Locked', startUrl: null, browser: BRAVE_CHOICE })
+        .then(
+          () => null,
+          (error: unknown) => error as Error,
+        );
+      expect(failure?.message).toMatch(/Brave profile is in use/);
+      expect(failure?.message).not.toContain('/secret');
+      expect(repository.files.size).toBe(0);
+      expect(launcher.launches).toEqual([]);
+    });
+
+    it('releases the profile when the browser fails to launch', async () => {
+      const { services, profiles, launcher } = setup(braveSetup);
+      launcher.failNextLaunch(new Error('boom'));
+      await expect(
+        services.recording.start({
+          name: 'Boom',
+          startUrl: null,
+          browser: BRAVE_CHOICE,
+        }),
+      ).rejects.toThrow('boom');
+      expect(profiles.releases()).toBe(1);
+    });
+
+    it('releases the profile once when the recording is stopped', async () => {
+      const { services, profiles } = setup(braveSetup);
+      const live = await services.recording.start({
+        name: 'Stopped',
+        startUrl: null,
+        browser: BRAVE_CHOICE,
+      });
+      expect(profiles.releases()).toBe(0);
+      await live.stop();
+      expect(profiles.releases()).toBe(1);
+    });
+
+    it('releases the profile when the recording is discarded', async () => {
+      const { services, profiles } = setup(braveSetup);
+      const live = await services.recording.start({
+        name: 'Dropped',
+        startUrl: null,
+        browser: BRAVE_CHOICE,
+      });
+      await live.discard();
+      expect(profiles.releases()).toBe(1);
+    });
+
+    it('releases the profile when the browser is closed by the person recording', async () => {
+      const { services, profiles, launcher, clock } = setup(braveSetup);
+      await services.recording.start({
+        name: 'Closed by hand',
+        startUrl: null,
+        browser: BRAVE_CHOICE,
+      });
+      clock.advance(10);
+      launcher.sessions[0]?.emit({
+        kind: 'browser-closed',
+        receivedAt: clock.now(),
+        pageId: 'page1',
+      });
+      await vi.waitFor(() => {
+        expect(profiles.releases()).toBe(1);
+      });
+    });
+  });
+
   describe('replay', () => {
     async function recorded(overrides: Overrides = {}) {
       const rig = setup(overrides);
@@ -426,7 +614,13 @@ describe('src/composition/create-app-services.ts', () => {
         command: NODE_PATH,
         args: ['/library/replayed/script.mjs'],
         cwd: PACKAGE_ROOT,
-        env: { BROWSER_RECORDER_HEADLESS: '1' },
+        env: {
+          BROWSER_RECORDER_EXECUTABLE_PATH: '',
+          BROWSER_RECORDER_USER_DATA_DIR: PROFILE_DIR,
+          BROWSER_RECORDER_BROWSER_ARGS: '[]',
+          BROWSER_RECORDER_REAL_KEYCHAIN: '',
+          BROWSER_RECORDER_HEADLESS: '1',
+        },
       });
     });
 
@@ -480,6 +674,104 @@ describe('src/composition/create-app-services.ts', () => {
       await expect(live.finished).resolves.toMatchObject({
         status: 'cancelled',
       });
+    });
+
+    it('sets the four browser variables for the stored browser', async () => {
+      const rig = setup({
+        installed: [BRAVE_INSTALLED, BUNDLED_INSTALLED],
+        isHeadless: true,
+      });
+      rig.profiles.nextPrepared = { userDataDir: '/fixture/brave/managed' };
+      const live = await rig.services.recording.start({
+        name: 'Stored',
+        startUrl: null,
+        browser: BRAVE_CHOICE,
+      });
+      await live.stop();
+      await rig.services.replay.start('stored');
+      expect(rig.spawner.children[0]?.request.env).toEqual({
+        BROWSER_RECORDER_EXECUTABLE_PATH: '/fixture/Brave Browser',
+        BROWSER_RECORDER_USER_DATA_DIR: '/fixture/brave/managed',
+        BROWSER_RECORDER_BROWSER_ARGS: '[]',
+        BROWSER_RECORDER_REAL_KEYCHAIN: '',
+        BROWSER_RECORDER_HEADLESS: '1',
+      });
+    });
+
+    it('regenerates the script before every replay', async () => {
+      const { services, repository, spawner } = await recorded();
+      repository.files.set('replayed', {
+        recordingJson: repository.files.get('replayed')?.recordingJson ?? '',
+        scriptMjs: "import 'playwright';",
+      });
+      await services.replay.start('replayed');
+      expect(repository.files.get('replayed')?.scriptMjs).toContain(
+        'patchright',
+      );
+      expect(repository.files.get('replayed')?.scriptMjs).not.toContain(
+        "'playwright'",
+      );
+      expect(spawner.children).toHaveLength(1);
+    });
+
+    it('warns on the live replay when the recorded browser is missing', async () => {
+      const rig = setup({
+        installed: [BRAVE_INSTALLED, BUNDLED_INSTALLED],
+      });
+      const live = await rig.services.recording.start({
+        name: 'Was brave',
+        startUrl: null,
+        browser: BRAVE_CHOICE,
+      });
+      await live.stop();
+      const withoutBrave = setup({ installed: [BUNDLED_INSTALLED] });
+      withoutBrave.repository.files.set(
+        'was-brave',
+        rig.repository.files.get('was-brave') ?? {
+          recordingJson: '',
+          scriptMjs: '',
+        },
+      );
+      const replay = await withoutBrave.services.replay.start('was-brave');
+      expect(replay.warnings).toEqual([
+        'Brave is not installed here: replaying on the bundled Chromium instead.',
+      ]);
+      expect(withoutBrave.spawner.children[0]?.request.env).toMatchObject({
+        BROWSER_RECORDER_EXECUTABLE_PATH: '',
+      });
+    });
+
+    it('releases the profile once the replay has ended', async () => {
+      const rig = setup({ installed: [BRAVE_INSTALLED, BUNDLED_INSTALLED] });
+      const live = await rig.services.recording.start({
+        name: 'Releasing',
+        startUrl: null,
+        browser: BRAVE_CHOICE,
+      });
+      await live.stop();
+      const before = rig.profiles.releases();
+      const replay = await rig.services.replay.start('releasing');
+      expect(rig.profiles.releases()).toBe(before);
+      rig.spawner.children[0]?.exit(0);
+      await replay.finished;
+      await vi.waitFor(() => {
+        expect(rig.profiles.releases()).toBe(before + 1);
+      });
+    });
+
+    it('rejects a locked profile with a message and spawns nothing', async () => {
+      const rig = setup({ installed: [BRAVE_INSTALLED, BUNDLED_INSTALLED] });
+      const live = await rig.services.recording.start({
+        name: 'Busy',
+        startUrl: null,
+        browser: BRAVE_CHOICE,
+      });
+      await live.stop();
+      rig.profiles.failNextPrepare(new ProfileInUseError('brave', '/x'));
+      await expect(rig.services.replay.start('busy')).rejects.toThrow(
+        /Brave profile is in use/,
+      );
+      expect(rig.spawner.children).toEqual([]);
     });
 
     it('rejects an unknown recording with a readable error', async () => {

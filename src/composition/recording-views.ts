@@ -38,9 +38,10 @@ export interface RecordingViewHooks {
 export function toLiveRecordingView(
   live: LiveRecording,
   hooks: RecordingViewHooks,
+  warnings: readonly string[],
 ): LiveRecordingView {
   return {
-    warnings: [],
+    warnings,
     subscribe: (listener) =>
       live.subscribe((update) => {
         listener(toRecordingUpdateView(update));

@@ -1,10 +1,7 @@
 import type { BrowserInstallation } from '../environment-setup/application/ports/browser-installation.ts';
 import { ensureBrowser } from '../environment-setup/application/ensure-browser.ts';
 import { linuxDepsHint } from '../environment-setup/domain/linux-deps-hint.ts';
-import type {
-  BrowserLauncher,
-  LaunchTarget,
-} from '../recording-capture/application/ports/browser-launcher.ts';
+import type { BrowserLauncher } from '../recording-capture/application/ports/browser-launcher.ts';
 import type { MonotonicClock } from '../recording-capture/application/ports/monotonic-clock.ts';
 import { startRecording } from '../recording-capture/application/recording-session.ts';
 import type {
@@ -17,16 +14,15 @@ import type { Recording } from '../shared/domain/recording.ts';
 import type { LibraryService } from '../script-library/application/library-service.ts';
 import { validateName } from '../script-library/domain/validate-name.ts';
 import { validateStartUrl } from '../script-library/domain/validate-start-url.ts';
-import {
-  BUNDLED_EPHEMERAL,
-  type BrowserChoice,
-} from '../shared/domain/browser-choice.ts';
+import type { BrowserChoice } from '../shared/domain/browser-choice.ts';
 import type { AppServices } from '../tui/application/ports/app-services.ts';
 import type {
-  BrowserOptionView,
   EnvironmentView,
   LibraryEntryView,
 } from '../tui/domain/app-views.ts';
+import type { LaunchPlan, LaunchPlanner } from './browser-launch-plan.ts';
+import { toReplayEnvironment } from './browser-launch-plan.ts';
+import type { BrowserViews } from './browser-views.ts';
 import { toLiveRecordingView } from './recording-views.ts';
 import { toLiveReplayView } from './replay-views.ts';
 
@@ -34,7 +30,7 @@ export interface ReplayDeps {
   readonly spawner: ProcessSpawner;
   readonly nodePath: string;
   readonly cancelGraceMs: number;
-  /** The package root: the generated script resolves `playwright` from it. */
+  /** The package root: the generated script resolves `patchright` from it. */
   readonly cwd: string;
   readonly scriptPathOf: (slug: string) => string;
 }
@@ -50,6 +46,10 @@ export interface AppServicesDeps {
   /** Opens no browser window (tests, automation). */
   readonly isHeadless: boolean;
   readonly replay: ReplayDeps;
+  readonly planner: LaunchPlanner;
+  readonly browserViews: BrowserViews;
+  /** Deletes the profile copies a crashed run left behind. */
+  readonly sweepStaleSessions: () => Promise<void>;
 }
 
 /** `AppServices` plus what the entry point needs when the process is cut short. */
@@ -57,28 +57,6 @@ export interface ComposedServices extends AppServices {
   /** Saves and closes the live recording, if any; never rejects. */
   persistActiveRecording(): Promise<void>;
 }
-
-/**
- * Until the launch planner exists, every recording runs on the bundled browser
- * and the launcher ignores the target; this only fills the required field.
- */
-const UNPLANNED_TARGET: LaunchTarget = {
-  executablePath: null,
-  userDataDir: '',
-  browserArgs: [],
-  shouldUseRealKeychain: false,
-};
-const BUNDLED_BROWSER_VIEW: BrowserOptionView = {
-  browserId: 'bundled',
-  label: 'Chromium (bundled)',
-  profiles: [
-    {
-      choice: BUNDLED_EPHEMERAL,
-      label: 'Ephemeral (clean each time)',
-      note: null,
-    },
-  ],
-};
 
 const INSTALLING_MESSAGE =
   'Chromium is not installed yet; installing it now (one time, about 150 MB)...';
@@ -91,21 +69,35 @@ function toEntryView(
   listing: Awaited<ReturnType<LibraryService['list']>>[number],
 ): LibraryEntryView {
   if (listing.kind === 'invalid') return listing;
-  const { slug, name, createdAt, durationMs, stepCount } = listing.summary;
-  return { kind: 'valid', slug, name, createdAt, durationMs, stepCount };
+  const { slug, name, createdAt, durationMs, stepCount, browser } =
+    listing.summary;
+  return {
+    kind: 'valid',
+    slug,
+    name,
+    createdAt,
+    durationMs,
+    stepCount,
+    browser,
+  };
 }
 
 function sessionRequest(
   draft: Recording,
-  browser: BrowserChoice,
+  plan: LaunchPlan,
 ): StartRecordingRequest {
   return {
     name: draft.name,
     slug: draft.slug,
     startUrl: draft.startUrl,
-    browser,
-    target: UNPLANNED_TARGET,
+    browser: plan.choice,
+    target: plan.target,
   };
+}
+
+/** Releasing is cleanup: it must never turn a good run into a failure. */
+function releaseQuietly(plan: LaunchPlan): Promise<void> {
+  return plan.release().catch(() => undefined);
 }
 
 /** Adapts every feature use case to what the TUI asks of `AppServices`. */
@@ -119,6 +111,7 @@ class Composition {
 
   constructor(deps: AppServicesDeps) {
     this.deps = deps;
+    void deps.sweepStaleSessions().catch(() => undefined);
   }
 
   services(): ComposedServices {
@@ -137,7 +130,7 @@ class Composition {
         },
         remove: (slug) => library.remove(slug),
       },
-      browsers: { list: () => Promise.resolve([BUNDLED_BROWSER_VIEW]) },
+      browsers: { list: () => this.deps.browserViews.options() },
       recording: {
         start: (request) => this.startRecording(request),
       },
@@ -155,8 +148,10 @@ class Composition {
       onEvent: (event) => {
         onLine(event.kind === 'missing' ? INSTALLING_MESSAGE : event.line);
       },
-    }).then((result) =>
-      result.kind === 'ready' ? { ...result, browsers: [] } : result,
+    }).then(async (result) =>
+      result.kind === 'ready'
+        ? { ...result, browsers: await this.deps.browserViews.labels() }
+        : result,
     );
   }
 
@@ -165,37 +160,64 @@ class Composition {
     readonly startUrl: string | null;
     readonly browser: BrowserChoice;
   }) {
-    const { library, launcher, clock, now, isHeadless } = this.deps;
+    const { library } = this.deps;
     const draft = await library.createDraft(request.name, request.startUrl);
+    let plan: LaunchPlan | null = null;
     let live: LiveRecording;
     try {
-      live = await startRecording(
-        {
-          launcher,
-          clock,
-          now,
-          isHeadless,
-          sink: { save: (recording) => library.save(recording) },
-        },
-        sessionRequest(draft, request.browser),
-      );
+      plan = await this.deps.planner.forRecording(request.browser);
+      live = await this.launch(draft, plan);
     } catch (error) {
+      if (plan !== null) await releaseQuietly(plan);
       await library.remove(draft.slug).catch(() => undefined);
       throw new Error(this.explainLaunchFailure(describe(error)));
     }
+    return this.present(live, draft, plan);
+  }
+
+  private launch(draft: Recording, plan: LaunchPlan): Promise<LiveRecording> {
+    const { library, launcher, clock, now, isHeadless } = this.deps;
+    return startRecording(
+      {
+        launcher,
+        clock,
+        now,
+        isHeadless,
+        sink: { save: (recording) => library.save(recording) },
+      },
+      sessionRequest(draft, plan),
+    );
+  }
+
+  private present(live: LiveRecording, draft: Recording, plan: LaunchPlan) {
+    const { library } = this.deps;
     this.active = live;
     live.subscribe((update) => {
-      if (update.isClosed && this.active === live) this.active = null;
+      if (!update.isClosed) return;
+      if (this.active === live) this.active = null;
+      void releaseQuietly(plan);
     });
-    return toLiveRecordingView(live, {
-      stop: async () => {
-        await live.stop();
+    return toLiveRecordingView(
+      live,
+      {
+        stop: async () => {
+          try {
+            await live.stop();
+          } finally {
+            await releaseQuietly(plan);
+          }
+        },
+        discard: async () => {
+          try {
+            await live.discard();
+            await library.remove(draft.slug);
+          } finally {
+            await releaseQuietly(plan);
+          }
+        },
       },
-      discard: async () => {
-        await live.discard();
-        await library.remove(draft.slug);
-      },
-    });
+      plan.warnings,
+    );
   }
 
   private explainLaunchFailure(message: string): string {
@@ -204,8 +226,10 @@ class Composition {
   }
 
   private async startReplay(slug: string) {
-    const { library, replay, isHeadless } = this.deps;
-    const recording = await library.load(slug);
+    const { library, replay, isHeadless, planner } = this.deps;
+    // A script written before Patchright imports a package that is gone.
+    const recording = await library.regenerateScript(slug);
+    const plan = await planner.forReplay(recording.browser);
     const live = startReplay(
       {
         spawner: replay.spawner,
@@ -216,11 +240,13 @@ class Composition {
         scriptPath: replay.scriptPathOf(slug),
         cwd: replay.cwd,
         isHeadless,
-        launchEnv: {},
+        launchEnv: toReplayEnvironment(plan.target),
         stepOffsetsMs: recording.events.map((event) => event.offsetMs),
       },
     );
-    return toLiveReplayView(live);
+    const release = () => releaseQuietly(plan);
+    void live.finished.then(release, release);
+    return toLiveReplayView(live, plan.warnings);
   }
 
   private async persistActiveRecording(): Promise<void> {

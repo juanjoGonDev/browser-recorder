@@ -1,20 +1,27 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { appDataRootFor } from '../browser-profiles/domain/profile-layout.ts';
 
 export interface PathDeps {
   readText(file: string): string;
   exists(file: string): boolean;
   /** Locates the Patchright CLI script; throws when it cannot. */
   resolveCli(): string;
+  /** `process.platform`, `process.env` and the home directory, injected. */
+  readonly platform: string;
+  readonly environment: Readonly<Record<string, string | undefined>>;
+  readonly homeDirectory: string;
 }
 
 export interface AppPaths {
   readonly packageRoot: string;
   /** `<packageRoot>/recordings`, git-ignored. */
   readonly recordingsRoot: string;
-  /** The bundled capture script the Playwright adapter injects. */
+  /** The bundled capture script the Patchright adapter injects. */
   readonly inPageScriptPath: string;
-  readonly playwrightCliPath: string;
+  readonly patchrightCliPath: string;
+  /** Where the tool keeps its managed profiles and profile copies. */
+  readonly appDataRoot: string;
 }
 
 const PACKAGE_NAME = 'browser-recorder';
@@ -60,6 +67,11 @@ export function resolveAppPaths(moduleUrl: string, deps: PathDeps): AppPaths {
       'in-page',
       'capture-script.js',
     ),
-    playwrightCliPath: deps.resolveCli(),
+    patchrightCliPath: deps.resolveCli(),
+    appDataRoot: appDataRootFor(
+      deps.platform,
+      deps.environment,
+      deps.homeDirectory,
+    ),
   };
 }
