@@ -33,7 +33,7 @@ When missing, the system MUST run the Playwright CLI install for Chromium, strea
 #### Scenario: Offline
 - GIVEN no network
 - WHEN install fails
-- THEN the failure is shown without a crash and the library remains usable for listing and deleting
+- THEN the failure is shown without a crash, and the library remains usable for listing, renaming, deleting and viewing a timeline, while recording and replay stay disabled with the reason shown
 
 ### Requirement: Linux system dependencies
 

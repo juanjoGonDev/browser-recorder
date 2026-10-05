@@ -12,7 +12,11 @@ replay, rename and delete recordings from a library.
 - [pnpm](https://pnpm.io) 10.16 or newer.
 - An interactive terminal (the UI refuses to start through a pipe).
 - Chromium: installed for you on first start (about 150 MB, one time) through
-  Playwright.
+  Playwright. If that install fails (for example offline), the screen shows
+  the installer's exit code and the manual command
+  (`pnpm exec playwright install chromium`); press `l` to keep using the
+  library (list, rename, delete, timeline) while recording and replay stay
+  disabled, or `enter` to retry.
 
 On Linux, Chromium also needs system libraries. If the browser fails to launch
 for missing libraries, the app prints the command and leaves running it to you:

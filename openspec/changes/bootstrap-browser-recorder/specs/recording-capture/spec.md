@@ -64,6 +64,11 @@ Consecutive fills on the same locator MUST merge into one event keeping the last
 - WHEN capture finishes
 - THEN three fill events exist
 
+#### Scenario: Hover on the acted-on element
+- GIVEN a hover on target T immediately followed by a click, dblclick, check, fill or select on T (the label of a control counts as the control)
+- WHEN capture finishes
+- THEN only the action is stored, no hover
+
 ### Requirement: Locator selection
 
 The system MUST choose the first unique locator in order: testid, role+name, label, placeholder, non-dynamic `#id`, exact text, stable CSS path. Uniqueness MUST be verified in-page at capture time.

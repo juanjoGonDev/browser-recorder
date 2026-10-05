@@ -231,7 +231,7 @@ try {
 - Dialogs: a per-page queue registered at page creation answers dialogs in recorded order and marks their step.
 - File choosers: a per-page queue sets files from `recordings/<slug>/files/<name>`; a missing file fails with a clear `::error`.
 - Pages: a `context.on('page')` queue; `cause: 'user'` → `context.newPage()`.
-- Frames: `page1.frameLocator(sel)…` chain. Scroll: `scrollTo` via `page.evaluate` or `locator.evaluate`. Drag: `source.dragTo(target)`.
+- Frames: `page1.frameLocator(sel)…` chain. Scroll: `rt.scrollTo(page, chain, [x, y])` through a CDP isolated world (`Page.createIsolatedWorld` + `Runtime.callFunctionOn`), never `evaluate` (see the addendum). Drag: `source.dragTo(target)`.
 - stdin `abort` line or stdin end → close the browser and exit 130.
 
 ## Replay, Install, Storage
@@ -407,3 +407,27 @@ code uses and the specs were reconciled to them.
   window.
 - **Linux hint.** The printed command is `sudo pnpm exec playwright install-deps
   chromium`, with `playwright install --with-deps chromium` as the alternative.
+
+## Addendum: verify remediation (2026-10-05)
+
+- **Replay scrolls from an isolated world.** The generated runtime has no code
+  in the page's main world either. `rt.scrollTo(page, chain, [x, y])` receives
+  one locator per nesting level (each iframe element, then the target). Playwright
+  itself (utility world) proves the element is attached and yields its child-index
+  path per document (`xpath=ancestor-or-self::*[n]/preceding-sibling::*` counts);
+  a CDP session of the page, or of the deepest out-of-process frame on the
+  chain, creates an isolated world for the root frame and a single
+  `Runtime.callFunctionOn` walks the index paths (through `contentDocument` for
+  same-process iframes) and calls `scrollTo({ left, top, behavior: 'instant' })`.
+  Elements inside a shadow tree are refused with a clear error (an XPath never
+  crosses a shadow boundary). The element wait defaults to 10 s.
+- **Setup failure keeps the library.** `EnsureBrowserResult` `failed` gained
+  `exitCode: number | null` (additive). After a failed setup the app state has
+  `isBrowserAvailable: false`: the setup screen offers `l` for the library, the
+  main menu greys out New recording, and replay and new recording from the
+  library are refused inline with the reason; list, rename, delete and timeline
+  work as usual. A successful retry restores everything.
+- **Hover coalescing.** A hover directly before a click, dblclick, check, fill
+  or select-option on the same target is dropped. In the page, the label of the
+  control being used counts as the same target (hovering the label is hovering
+  the control), so `getByLabel(...).check()` records only the check.

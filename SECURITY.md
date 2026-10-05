@@ -30,6 +30,8 @@ prefer otherwise.
 - **Nothing runs in the recorded page's own context.** The capture script runs
   in a separate Chromium isolated world: page scripts cannot see it, its channel
   or its globals, and the page's Content-Security-Policy does not apply to it.
+  The same holds for replay: generated scripts set scroll positions through a
+  DevTools isolated world and never call `evaluate` in the page.
 - **No network service and no telemetry.** The app listens on no port and sends
   nothing anywhere. The only network access is Playwright downloading Chromium
   on first use.
