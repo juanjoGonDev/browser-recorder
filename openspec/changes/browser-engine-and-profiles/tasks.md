@@ -116,3 +116,13 @@ Decision already given: user accepted one large PR, `size:exception`, unlimited 
 - [x] 7.3 RED->GREEN: e2e roundtrip headless: v2 recording and migrated v1; managed login survives second recording and replay.
 - [x] 7.4 RED->GREEN: opt-in `describe.runIf(BROWSER_RECORDER_REAL_BROWSER_TESTS === '1')` copy-of-real, lock error, replay from `tests/fixtures/profiles/brave-like` (assert path under `tests/fixtures/`; headless).
 - [x] 7.5 GREEN: README (Patchright, profiles, opt-in env vars); full `pnpm quality`, coverage, depcruise, knip.
+
+## Verify remediation (R)
+
+- [x] R.1 RED->GREEN (CRITICAL): `forRecording` falls back to the bundled Chromium with a warning when the chosen browser is missing (managed stays managed, copy-of-real -> ephemeral "with a clean profile"); the refusal test was replaced; the warning shows on the live recording.
+- [x] R.2 (CRITICAL): consolidated "TDD Cycle Evidence" table in `apply-progress.md` and in engram `sdd/browser-engine-and-profiles/apply-progress`.
+- [x] R.3 (WARNING): `browser-profiles` spec says `-shm` is not copied (rationale and a scenario added); the test asserting it is kept.
+- [x] R.4 (WARNING): post-launch cookie detection judged not cheap or reliable (needs a SQLite reader, and zero cookies can be legitimate); spec amended to the pre-launch warning-only behaviour.
+- [x] R.5 (WARNING): `tui-controller-pickers.test.ts` picks Chrome and `Profile 2` end to end.
+- [x] R.6 (SUGGESTION): `.dependency-cruiser.tests.json` + `deps:check` forbid Playwright in `tests/**` (ESLint ban already covered tests); stale `node_modules/.pnpm/playwright*` removed via `pnpm store prune` + frozen install, lockfile untouched.
+
