@@ -17,6 +17,8 @@ export interface StepProgress {
 /** A snapshot of a replay, rebuilt from the script's progress markers. */
 export interface ReplayProgress {
   readonly status: ReplayStatus;
+  /** `false` in human timing, where offsets mean nothing and drift stays null. */
+  readonly isDriftTracked: boolean;
   readonly steps: readonly StepProgress[];
   /** Highest `::step` index seen, `null` before the first marker. */
   readonly lastStepIndex: number | null;
@@ -28,11 +30,17 @@ export interface ReplayProgress {
 export const STDERR_TAIL_LINES = 10;
 const EXIT_SUCCESS = 0;
 
+export interface ReplayProgressOptions {
+  readonly isDriftTracked: boolean;
+}
+
 export function createReplayProgress(
   stepOffsetsMs: readonly number[],
+  options: ReplayProgressOptions = { isDriftTracked: true },
 ): ReplayProgress {
   return {
     status: 'running',
+    isDriftTracked: options.isDriftTracked,
     steps: stepOffsetsMs.map((offsetMs, index) => ({
       index,
       status: 'pending',
@@ -47,18 +55,22 @@ export function createReplayProgress(
   };
 }
 
+type StepMessage = Extract<ProgressMessage, { kind: 'step' }>;
+
 function reachStep(
   step: StepProgress,
-  reached: number,
-  elapsedMs: number | null,
+  reached: StepMessage,
+  isDriftTracked: boolean,
 ): StepProgress {
-  if (step.index < reached) return { ...step, status: 'done' };
-  if (step.index > reached) return step;
+  if (step.index < reached.index) return { ...step, status: 'done' };
+  if (step.index > reached.index) return step;
+  const { elapsedMs } = reached;
   return {
     ...step,
     status: 'running',
     elapsedMs,
-    driftMs: elapsedMs === null ? null : elapsedMs - step.offsetMs,
+    driftMs:
+      elapsedMs === null || !isDriftTracked ? null : elapsedMs - step.offsetMs,
   };
 }
 
@@ -73,7 +85,7 @@ export function applyMessage(
         ...progress,
         lastStepIndex: message.index,
         steps: progress.steps.map((step) =>
-          reachStep(step, message.index, message.elapsedMs),
+          reachStep(step, message, progress.isDriftTracked),
         ),
       };
     case 'done':

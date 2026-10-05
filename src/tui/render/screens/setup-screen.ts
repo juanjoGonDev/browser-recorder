@@ -1,6 +1,6 @@
 import type { SetupScreen } from '../../domain/app-state.ts';
 import { spinnerFrame } from '../format.ts';
-import { sanitize } from '../layout.ts';
+import { sanitize } from '../../../shared/domain/terminal-text.ts';
 import type { RenderContext, ScreenView } from '../screen-view.ts';
 import type { KeyHint } from '../status-bar.ts';
 

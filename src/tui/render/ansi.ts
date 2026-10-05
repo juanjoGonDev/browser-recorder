@@ -60,12 +60,3 @@ const plainStyle: Style = {
 export function createStyle(hasColor: boolean): Style {
   return hasColor ? colorStyle : plainStyle;
 }
-
-/** https://no-color.org: any non-empty `NO_COLOR` turns color off. */
-export function isColorEnabled(
-  env: Readonly<Record<string, string | undefined>>,
-): boolean {
-  const noColor = env['NO_COLOR'];
-  if (noColor !== undefined && noColor !== '') return false;
-  return env['TERM'] !== 'dumb';
-}

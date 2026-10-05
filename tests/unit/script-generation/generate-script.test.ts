@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { generateScript } from '../../../src/script-generation/domain/generate-script.ts';
 import type { RecordingEvent } from '../../../src/shared/domain/recording-event.ts';
@@ -105,14 +105,106 @@ describe('src/script-generation/domain/generate-script.ts', () => {
     },
   );
 
+  it.each(['recorded', 'human', 'banana'])(
+    'is byte-identical whatever the timing environment says (%s)',
+    (mode) => {
+      const before = generateScript(BASIC_RECORDING);
+      vi.stubEnv('BROWSER_RECORDER_TIMING', mode);
+      vi.stubEnv('BROWSER_RECORDER_HUMAN_DELAY', '1-2');
+      vi.stubEnv('BROWSER_RECORDER_SEED', '9');
+      try {
+        expect(generateScript(BASIC_RECORDING)).toBe(before);
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    },
+  );
+
   it('schedules every step at its recorded absolute offset', () => {
     const script = generateScript(BASIC_RECORDING);
     const offsets = [
-      ...script.matchAll(/await rt\.at\((\d+)\); rt\.mark\((\d+)\);/gu),
+      ...script.matchAll(
+        /await rt\.at\((\d+)(?:, \{ isFollowUp: true \})?\); rt\.mark\((\d+)\);/gu,
+      ),
     ].map((match) => [Number(match[1]), Number(match[2])]);
     expect(offsets).toStrictEqual(
       BASIC_RECORDING.events.map((event, index) => [event.offsetMs, index]),
     );
+  });
+
+  it('marks only the steps that observe a consequence as follow-ups', () => {
+    const base = { pageId: 'page1' } as const;
+    const script = generateScript(
+      recordingOf([
+        {
+          ...base,
+          kind: 'page-opened',
+          offsetMs: 0,
+          openerPageId: null,
+          cause: 'user',
+          url: 'about:blank',
+        },
+        { ...base, kind: 'goto', offsetMs: 0, url: 'https://example.com/' },
+        {
+          ...base,
+          kind: 'wait-for-url',
+          offsetMs: 100,
+          url: 'https://example.com/a',
+        },
+        {
+          ...base,
+          kind: 'dialog',
+          offsetMs: 200,
+          dialogType: 'alert',
+          message: 'hi',
+          action: 'accept',
+          promptText: null,
+        },
+        {
+          ...base,
+          kind: 'set-input-files',
+          offsetMs: 300,
+          fileNames: ['a.txt'],
+        },
+        { ...base, kind: 'reload', offsetMs: 400 },
+        {
+          ...base,
+          pageId: 'page2',
+          kind: 'page-opened',
+          offsetMs: 500,
+          openerPageId: 'page1',
+          cause: 'action',
+          url: 'https://example.com/b',
+        },
+        {
+          ...base,
+          pageId: 'page3',
+          kind: 'page-opened',
+          offsetMs: 600,
+          openerPageId: 'page1',
+          cause: 'user',
+          url: 'https://example.com/c',
+        },
+      ] as never),
+    );
+    const follow = [
+      ...script.matchAll(
+        /await rt\.at\((\d+)(?<followUp>, \{ isFollowUp: true \})?\);/gu,
+      ),
+    ].map((match) => [
+      Number(match[1]),
+      match.groups?.['followUp'] !== undefined,
+    ]);
+    expect(follow).toStrictEqual([
+      [0, true],
+      [0, false],
+      [100, true],
+      [200, true],
+      [300, true],
+      [400, false],
+      [500, true],
+      [600, false],
+    ]);
   });
 
   it('starts the clock after the first page exists and finishes with done', () => {

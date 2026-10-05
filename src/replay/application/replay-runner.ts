@@ -5,8 +5,14 @@ import {
   applyStderrLine,
   createReplayProgress,
   type ReplayProgress,
+  type ReplayProgressOptions,
 } from '../domain/replay-progress.ts';
 import { createLineSplitter } from '../domain/split-lines.ts';
+import { timingEnvironment } from '../domain/timing-environment.ts';
+import {
+  RECORDED_TIMING,
+  type ReplayTiming,
+} from '../../shared/domain/replay-timing.ts';
 import type {
   ProcessSpawner,
   SpawnedProcess,
@@ -22,6 +28,8 @@ export interface StartReplayDeps {
   readonly spawner: ProcessSpawner;
   readonly nodePath: string;
   readonly cancelGraceMs: number;
+  /** The parent's environment; only the test seed is read from it. */
+  readonly parentEnv?: Readonly<Record<string, string | undefined>>;
 }
 
 export interface StartReplayRequest {
@@ -30,6 +38,8 @@ export interface StartReplayRequest {
   readonly isHeadless: boolean;
   /** Browser settings for the script, merged over the inherited environment. */
   readonly launchEnv: Readonly<Record<string, string>>;
+  /** How the script paces its steps; recorded when absent. */
+  readonly timing?: ReplayTiming;
   /** Recorded offset of every step, in order: drift is `elapsed - offset`. */
   readonly stepOffsetsMs: readonly number[];
 }
@@ -37,10 +47,20 @@ export interface StartReplayRequest {
 const HEADLESS_ENV = 'BROWSER_RECORDER_HEADLESS';
 const ABORT_LINE = 'abort\n';
 
-/** The headless flag comes last so the launch environment cannot undo it. */
-function spawnEnvironment(request: StartReplayRequest): Record<string, string> {
+/**
+ * Timing and the headless flag come last so the launch environment cannot
+ * undo them.
+ */
+function spawnEnvironment(
+  deps: StartReplayDeps,
+  request: StartReplayRequest,
+): Record<string, string> {
   return {
     ...request.launchEnv,
+    ...timingEnvironment(
+      request.timing ?? RECORDED_TIMING,
+      deps.parentEnv ?? {},
+    ),
     ...(request.isHeadless ? { [HEADLESS_ENV]: '1' } : {}),
   };
 }
@@ -51,13 +71,23 @@ function failedBeforeStart(
 ): LiveReplay {
   const message = reason instanceof Error ? reason.message : String(reason);
   const progress: ReplayProgress = {
-    ...applyExit(createReplayProgress(request.stepOffsetsMs), null, false),
+    ...applyExit(
+      createReplayProgress(request.stepOffsetsMs, progressOptions(request)),
+      null,
+      false,
+    ),
     errorMessage: message,
   };
   return {
     subscribe: () => () => undefined,
     cancel: () => Promise.resolve(),
     finished: Promise.resolve(progress),
+  };
+}
+
+function progressOptions(request: StartReplayRequest): ReplayProgressOptions {
+  return {
+    isDriftTracked: (request.timing ?? RECORDED_TIMING).kind === 'recorded',
   };
 }
 
@@ -72,12 +102,16 @@ export function startReplay(
       command: deps.nodePath,
       args: [request.scriptPath],
       cwd: request.cwd,
-      env: spawnEnvironment(request),
+      env: spawnEnvironment(deps, request),
     });
   } catch (error) {
     return failedBeforeStart(request, error);
   }
-  return new ReplayObserver(child, deps.cancelGraceMs, request.stepOffsetsMs);
+  return new ReplayObserver(
+    child,
+    deps.cancelGraceMs,
+    createReplayProgress(request.stepOffsetsMs, progressOptions(request)),
+  );
 }
 
 /** Tracks one running child: progress snapshots, listeners and cancel. */
@@ -95,11 +129,11 @@ class ReplayObserver implements LiveReplay {
   constructor(
     child: SpawnedProcess,
     cancelGraceMs: number,
-    stepOffsetsMs: readonly number[],
+    initialProgress: ReplayProgress,
   ) {
     this.child = child;
     this.cancelGraceMs = cancelGraceMs;
-    this.progress = createReplayProgress(stepOffsetsMs);
+    this.progress = initialProgress;
     child.onStdout((chunk) => {
       this.stdoutLines.push(chunk).forEach(this.onStdoutLine);
     });

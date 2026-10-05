@@ -6,6 +6,12 @@ import { scriptPrelude } from '../../../src/script-generation/domain/script-prel
 import { runNodeModule } from '../../support/run-node-module.ts';
 import type { NodeRunOptions } from '../../support/run-node-module.ts';
 
+const HUMAN_ENV = {
+  BROWSER_RECORDER_TIMING: 'human',
+  BROWSER_RECORDER_HUMAN_DELAY: '50-100',
+  BROWSER_RECORDER_SEED: '7',
+};
+
 const FAKES = String.raw`
 import { EventEmitter } from 'node:events';
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -83,6 +89,82 @@ describe('src/script-generation/domain/script-prelude.ts', () => {
       rt.done();`);
     const wait = lines(result.stdout).find((line) => line.startsWith('wait '));
     expect(Number((wait ?? '').split(' ')[1])).toBeLessThan(20);
+  });
+
+  it('waits a human delay between actions and ignores recorded offsets', async () => {
+    const result = await run(
+      `rt.start();
+       await rt.at(0); rt.mark(0);
+       await rt.at(90000); rt.mark(1);
+       await rt.at(90000); rt.mark(2);
+       rt.done();`,
+      { env: HUMAN_ENV },
+    );
+    const elapsed = lines(result.stdout)
+      .filter((line) => line.startsWith('::step '))
+      .map((line) => Number(line.split(' ')[2]));
+    expect(elapsed[0]).toBeLessThan(20);
+    expect(elapsed[1] - elapsed[0]).toBeGreaterThanOrEqual(40);
+    expect(elapsed[2] - elapsed[1]).toBeGreaterThanOrEqual(40);
+    expect(elapsed[2]).toBeLessThan(2000);
+    expect(result.exitCode).toBe(0);
+  });
+
+  it('does not wait before a follow-up step in human mode', async () => {
+    const result = await run(
+      `rt.start();
+       await rt.at(0); rt.mark(0);
+       await rt.at(90000, { isFollowUp: true }); rt.mark(1);
+       rt.done();`,
+      { env: HUMAN_ENV },
+    );
+    const [, second] = lines(result.stdout);
+    expect(Number(second.split(' ')[2])).toBeLessThan(40);
+  });
+
+  it('still waits for the recorded offset of a follow-up in recorded mode', async () => {
+    const result = await run(
+      `rt.start();
+       await rt.at(0); rt.mark(0);
+       await rt.at(120, { isFollowUp: true }); rt.mark(1);
+       rt.done();`,
+    );
+    const [, second] = lines(result.stdout);
+    expect(Number(second.split(' ')[2])).toBeGreaterThanOrEqual(120);
+  });
+
+  it('treats an unknown timing mode as recorded', async () => {
+    const result = await run(
+      `rt.start();
+       await rt.at(0); rt.mark(0);
+       await rt.at(120); rt.mark(1);
+       rt.done();`,
+      { env: { ...HUMAN_ENV, BROWSER_RECORDER_TIMING: 'banana' } },
+    );
+    const [, second] = lines(result.stdout);
+    const elapsed = Number(second.split(' ')[2]);
+    expect(elapsed).toBeGreaterThanOrEqual(120);
+    expect(elapsed).toBeLessThan(250);
+  });
+
+  it('draws the same human delays twice for the same seed', async () => {
+    const body = `rt.start();
+       await rt.at(0); rt.mark(0);
+       await rt.at(0); rt.mark(1);
+       await rt.at(0); rt.mark(2);
+       rt.done();`;
+    const gaps = async (): Promise<number[]> => {
+      const result = await run(body, { env: HUMAN_ENV });
+      const marks = lines(result.stdout)
+        .filter((line) => line.startsWith('::step '))
+        .map((line) => Number(line.split(' ')[2]));
+      return [marks[1] - marks[0], marks[2] - marks[1]];
+    };
+    const [first, second] = [await gaps(), await gaps()];
+    first.forEach((gap, index) => {
+      expect(Math.abs(gap - (second[index] ?? 0))).toBeLessThan(30);
+    });
+    expect(first.every((gap) => gap >= 40 && gap <= 120)).toBe(true);
   });
 
   it('reports a failure with the current step and exit code 1', async () => {
@@ -276,6 +358,8 @@ describe('openContext in the script prelude', () => {
     expect(options).toStrictEqual({
       headless: true,
       timeout: 30_000,
+      handleSIGINT: false,
+      handleSIGTERM: false,
       viewport: null,
       args: ['--window-size=1280,800', '--profile-directory=Profile 2'],
       ignoreDefaultArgs: ['--use-mock-keychain', '--password-store=basic'],

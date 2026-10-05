@@ -2,7 +2,7 @@ import type {
   BrowserChoice,
   BrowserId,
 } from '../../shared/domain/browser-choice.ts';
-import { sanitize } from './layout.ts';
+import { sanitize } from '../../shared/domain/terminal-text.ts';
 
 const BROWSER_LABELS: Readonly<Record<BrowserId, string>> = {
   brave: 'Brave',

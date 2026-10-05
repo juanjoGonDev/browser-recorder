@@ -7,7 +7,6 @@ import {
   center,
   clip,
   padEnd,
-  sanitize,
   spread,
   stripAnsi,
 } from '../../../src/tui/render/layout.ts';
@@ -50,11 +49,6 @@ describe('src/tui/render/layout.ts', () => {
     expect(center('ab', 6)).toBe('  ab  ');
     expect(spread('left', 'right', 14)).toBe('left     right');
     expect(spread('a very long left side', 'right', 12)).toBe('a ver… right');
-  });
-
-  it('replaces control characters so recorded text cannot move the cursor', () => {
-    expect(sanitize('a\u001b[2Jb\nc\u0007')).toBe('a·[2Jb·c·');
-    expect(sanitize('tab\there')).toBe('tab·here');
   });
 
   it('draws a titled box of exactly the requested size', () => {

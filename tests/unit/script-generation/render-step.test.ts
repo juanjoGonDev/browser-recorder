@@ -99,7 +99,7 @@ describe('src/script-generation/domain/render-step.ts', () => {
     [
       'fill',
       at({ kind: 'fill', target: FIELD, value: 'Ana', isSensitive: false }),
-      [`await ${FIELD_EXPR}.fill("Ana");`],
+      [`await rt.fill(${FIELD_EXPR}, "Ana");`],
     ],
     [
       'select-option',
@@ -218,7 +218,7 @@ describe('src/script-generation/domain/render-step.ts', () => {
       isSensitive: false,
     });
     expect(renderStep(event, 0)).toStrictEqual([
-      `await ${SAVE_EXPR}.fill("\\"); process.exit(1); (\\"");`,
+      `await rt.fill(${SAVE_EXPR}, "\\"); process.exit(1); (\\"");`,
     ]);
   });
 

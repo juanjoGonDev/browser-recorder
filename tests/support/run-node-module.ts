@@ -18,6 +18,11 @@ export interface NodeRunOptions {
   readonly shouldCloseStdin?: boolean;
   /** Extra environment variables. */
   readonly env?: Readonly<Record<string, string>>;
+  /** Sends `name` to the child once its stdout shows `afterOutput`. */
+  readonly signal?: {
+    readonly name: NodeJS.Signals;
+    readonly afterOutput: string;
+  };
   /** Directory holding the module, for specs that need real node_modules. */
   readonly directory?: string;
 }
@@ -68,7 +73,15 @@ function execute(
     const killer = setTimeout(() => child.kill('SIGKILL'), KILL_AFTER_MS);
     let stdout = '';
     let stderr = '';
-    child.stdout.on('data', (chunk: Buffer) => (stdout += chunk.toString()));
+    let wasSignalSent = false;
+    child.stdout.on('data', (chunk: Buffer) => {
+      stdout += chunk.toString();
+      const { signal } = options;
+      if (signal && !wasSignalSent && stdout.includes(signal.afterOutput)) {
+        wasSignalSent = true;
+        child.kill(signal.name);
+      }
+    });
     child.stderr.on('data', (chunk: Buffer) => (stderr += chunk.toString()));
     child.on('error', reject);
     child.on('close', (exitCode) => {

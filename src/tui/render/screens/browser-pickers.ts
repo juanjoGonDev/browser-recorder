@@ -1,5 +1,5 @@
 import type { NewRecordingScreen } from '../../domain/app-state.ts';
-import { sanitize } from '../layout.ts';
+import { sanitize } from '../../../shared/domain/terminal-text.ts';
 import type { RenderContext } from '../screen-view.ts';
 
 const LABEL_WIDTH = 9;

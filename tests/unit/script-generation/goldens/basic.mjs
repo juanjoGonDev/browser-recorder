@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ABORT_EXIT_CODE = 130;
+const ABORT_SIGNALS = process.platform === 'win32' ? ['SIGINT', 'SIGTERM', 'SIGBREAK'] : ['SIGINT', 'SIGTERM'];
 const DEFAULT_WAIT_MS = 10000;
 const SCROLL_WORLD = '__browser_recorder_replay';
 const LAUNCH_TIMEOUT_MS = 30000;
@@ -75,6 +76,10 @@ async function openContext(chromium, display, env = process.env) {
     .launchPersistentContext(target.userDataDir ?? temporaryDir, {
       headless: env.BROWSER_RECORDER_HEADLESS === '1',
       timeout: LAUNCH_TIMEOUT_MS,
+      // The script owns Ctrl+C and SIGTERM (see onAbort): the engine's own
+      // handlers would kill the browser without removing a temporary profile.
+      handleSIGINT: false,
+      handleSIGTERM: false,
       ...buildLaunchOptions(display, target),
     })
     .catch((error) => {
@@ -99,6 +104,78 @@ async function openContext(chromium, display, env = process.env) {
     }
   };
   return { context, close };
+}
+
+const DEFAULT_DELAY = { minMs: 250, maxMs: 900 };
+const MAX_DELAY_MS = 60000;
+const KEY_DELAY_DIVISOR = 10;
+const SEED_PATTERN = /^\d{1,10}$/u;
+const RANGE_PATTERN = /^(\d{1,5})-(\d{1,5})$/u;
+const UINT32_RANGE = 4294967296;
+
+// Small, fast and seedable: the same seed always gives the same sequence.
+function mulberry32(seed) {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let mixed = Math.imul(state ^ (state >>> 15), state | 1);
+    mixed ^= mixed + Math.imul(mixed ^ (mixed >>> 7), mixed | 61);
+    return ((mixed ^ (mixed >>> 14)) >>> 0) / UINT32_RANGE;
+  };
+}
+
+// A seed is data: only up to ten digits count, anything else is random.
+function readSeed(text) {
+  if (typeof text === 'string' && SEED_PATTERN.test(text)) return Number(text) >>> 0;
+  return globalThis.crypto.getRandomValues(new Uint32Array(1))[0];
+}
+
+function readDelayRange(text) {
+  const match = typeof text === 'string' ? RANGE_PATTERN.exec(text) : null;
+  if (!match) return DEFAULT_DELAY;
+  const minMs = Number(match[1]);
+  const maxMs = Number(match[2]);
+  return minMs <= maxMs && maxMs <= MAX_DELAY_MS ? { minMs, maxMs } : DEFAULT_DELAY;
+}
+
+// Any mode but "human" is recorded, so an unknown value never slows a replay.
+function createTiming(env, sleep) {
+  const isHuman = env.BROWSER_RECORDER_TIMING === 'human';
+  const delay = readDelayRange(env.BROWSER_RECORDER_HUMAN_DELAY);
+  const random = mulberry32(readSeed(env.BROWSER_RECORDER_SEED));
+  const draw = (minMs, maxMs) => minMs + Math.floor(random() * (maxMs - minMs + 1));
+  let hasStarted = false;
+  return {
+    isHuman,
+    delay,
+    // The first action starts at once; a follow-up only observes a
+    // consequence, so it neither waits nor counts as an action.
+    async beforeStep({ isFollowUp }) {
+      if (!isHuman || isFollowUp) return;
+      const isDue = hasStarted;
+      hasStarted = true;
+      if (isDue) await sleep(draw(delay.minMs, delay.maxMs));
+    },
+    async keyPause() {
+      const minMs = Math.floor(delay.minMs / KEY_DELAY_DIVISOR);
+      const maxMs = Math.floor(delay.maxMs / KEY_DELAY_DIVISOR);
+      await sleep(draw(minMs, maxMs));
+    },
+  };
+}
+
+// Recorded mode sets the value at once. Human mode types it key by key, one
+// code point at a time, and then makes sure the field holds the exact value:
+// masked, date and contenteditable fields may not take typed text as is.
+async function fillField(locator, value, timing) {
+  if (!timing.isHuman) return locator.fill(value);
+  await locator.fill('');
+  for (const key of Array.from(value)) {
+    await locator.pressSequentially(key);
+    await timing.keyPause();
+  }
+  const typed = await locator.inputValue().catch(() => null);
+  if (typed !== value) await locator.fill(value);
 }
 
 // The three functions below run inside an isolated world through the
@@ -159,6 +236,8 @@ function createRuntime(context, options = {}) {
   const nextPageTimeoutMs = options.nextPageTimeoutMs ?? DEFAULT_WAIT_MS;
   const fileChooserTimeoutMs = options.fileChooserTimeoutMs ?? DEFAULT_WAIT_MS;
   const elementTimeoutMs = options.elementTimeoutMs ?? DEFAULT_WAIT_MS;
+  const sleep = options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
+  const timing = createTiming(options.env ?? process.env, sleep);
   const filesDir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'files');
   const openedPages = [];
   const pageWaiters = [];
@@ -323,15 +402,18 @@ function createRuntime(context, options = {}) {
       startedAt = performance.now();
       context.on('page', handlePage);
     },
-    async at(offsetMs) {
+    async at(offsetMs, { isFollowUp = false } = {}) {
+      // Human pacing never reads the recorded offset.
+      if (timing.isHuman) return timing.beforeStep({ isFollowUp });
       // A timer may fire a little early: sleep again rather than run the step
       // before its offset.
       let remaining = startedAt + offsetMs - performance.now();
       while (remaining > 0) {
-        await new Promise((resolve) => setTimeout(resolve, remaining));
+        await sleep(remaining);
         remaining = startedAt + offsetMs - performance.now();
       }
     },
+    fill: (locator, value) => fillField(locator, value, timing),
     mark(index) {
       currentStep = index;
       print('::step ' + index + ' ' + elapsed());
@@ -382,6 +464,8 @@ function createRuntime(context, options = {}) {
         if (lines.some((line) => line.trim() === 'abort')) abort();
       });
       process.stdin.on('end', abort);
+      // Ctrl+C reaches this process as well as the parent: close the same way.
+      for (const name of ABORT_SIGNALS) process.on(name, abort);
     },
   };
 }
@@ -392,17 +476,17 @@ rt.onAbort(close);
 try {
   const page1 = context.pages()[0] ?? (await context.newPage());
   rt.start();
-  await rt.at(0); rt.mark(0);
+  await rt.at(0, { isFollowUp: true }); rt.mark(0);
   await rt.at(0); rt.mark(1);
   await page1.goto("https://example.com/");
   await rt.at(400); rt.mark(2);
   await page1.locator("nav > .menu").nth(2).hover();
   await rt.at(900); rt.mark(3);
   await page1.getByRole("button", { name: "Save", exact: true }).click();
-  await rt.at(1500); rt.mark(4);
+  await rt.at(1500, { isFollowUp: true }); rt.mark(4);
   await page1.waitForURL((url) => url.origin + url.pathname === "https://example.com/saved");
   await rt.at(2100); rt.mark(5);
-  await page1.getByLabel("Email", { exact: true }).fill("ana@example.com");
+  await rt.fill(page1.getByLabel("Email", { exact: true }), "ana@example.com");
   await rt.at(2600); rt.mark(6);
   await page1.getByLabel("Email", { exact: true }).press("Control+A");
   await rt.at(2900); rt.mark(7);

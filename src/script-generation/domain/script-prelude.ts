@@ -2,6 +2,7 @@
 // string because the script must run with `node` alone and import nothing from
 // this project. Keep it free of backticks and `${`: it is a raw template.
 import { launchPrelude } from './launch-prelude.ts';
+import { timingPrelude } from './timing-prelude.ts';
 
 const imports = String.raw`import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import os from 'node:os';
@@ -11,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 `;
 
 const constants = String.raw`const ABORT_EXIT_CODE = 130;
+const ABORT_SIGNALS = process.platform === 'win32' ? ['SIGINT', 'SIGTERM', 'SIGBREAK'] : ['SIGINT', 'SIGTERM'];
 const DEFAULT_WAIT_MS = 10000;
 const SCROLL_WORLD = '__browser_recorder_replay';
 `;
@@ -73,6 +75,8 @@ function createRuntime(context, options = {}) {
   const nextPageTimeoutMs = options.nextPageTimeoutMs ?? DEFAULT_WAIT_MS;
   const fileChooserTimeoutMs = options.fileChooserTimeoutMs ?? DEFAULT_WAIT_MS;
   const elementTimeoutMs = options.elementTimeoutMs ?? DEFAULT_WAIT_MS;
+  const sleep = options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
+  const timing = createTiming(options.env ?? process.env, sleep);
   const filesDir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'files');
   const openedPages = [];
   const pageWaiters = [];
@@ -237,15 +241,18 @@ function createRuntime(context, options = {}) {
       startedAt = performance.now();
       context.on('page', handlePage);
     },
-    async at(offsetMs) {
+    async at(offsetMs, { isFollowUp = false } = {}) {
+      // Human pacing never reads the recorded offset.
+      if (timing.isHuman) return timing.beforeStep({ isFollowUp });
       // A timer may fire a little early: sleep again rather than run the step
       // before its offset.
       let remaining = startedAt + offsetMs - performance.now();
       while (remaining > 0) {
-        await new Promise((resolve) => setTimeout(resolve, remaining));
+        await sleep(remaining);
         remaining = startedAt + offsetMs - performance.now();
       }
     },
+    fill: (locator, value) => fillField(locator, value, timing),
     mark(index) {
       currentStep = index;
       print('::step ' + index + ' ' + elapsed());
@@ -296,10 +303,13 @@ function createRuntime(context, options = {}) {
         if (lines.some((line) => line.trim() === 'abort')) abort();
       });
       process.stdin.on('end', abort);
+      // Ctrl+C reaches this process as well as the parent: close the same way.
+      for (const name of ABORT_SIGNALS) process.on(name, abort);
     },
   };
 }
 `;
 
 export const scriptPrelude = `${imports}${constants}${launchPrelude}
+${timingPrelude}
 ${runtime}`;

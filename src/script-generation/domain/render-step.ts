@@ -113,7 +113,7 @@ const RENDERERS: { readonly [K in RecordingEventKind]: Renderer<K> } = {
     `await ${on(context, event.target)}.setChecked(${String(event.checked)});`,
   ],
   fill: (event, context) => [
-    `await ${on(context, event.target)}.fill(${jsString(event.value)});`,
+    `await rt.fill(${on(context, event.target)}, ${jsString(event.value)});`,
   ],
   'select-option': (event, context) => [
     `await ${on(context, event.target)}.selectOption(${jsStringArray(event.values)});`,
@@ -149,4 +149,21 @@ export function renderStep(event: RecordingEvent, index: number): string[] {
   }
   assertPageVariable(event.pageId);
   return renderer(event, { index, page: event.pageId });
+}
+
+const FOLLOW_UP_KINDS: ReadonlySet<RecordingEventKind> = new Set([
+  'wait-for-url',
+  'dialog',
+  'set-input-files',
+]);
+
+/**
+ * A follow-up only observes what an earlier action caused, so human timing
+ * adds no pause before it. The first page exists before any step runs.
+ */
+export function isFollowUp(event: RecordingEvent): boolean {
+  if (event.kind === 'page-opened') {
+    return event.cause === 'action' || event.pageId === FIRST_PAGE;
+  }
+  return FOLLOW_UP_KINDS.has(event.kind);
 }

@@ -61,6 +61,28 @@ describe('replay-progress', () => {
     expect(progress.steps[2]?.driftMs).toBe(-100);
   });
 
+  it('leaves drift null when drift is not tracked, as in human timing', () => {
+    const progress = applyMessage(
+      createReplayProgress(OFFSETS, { isDriftTracked: false }),
+      { kind: 'step', index: 1, elapsedMs: 4000 },
+    );
+
+    expect(progress.steps[1]).toMatchObject({
+      status: 'running',
+      elapsedMs: 4000,
+      driftMs: null,
+    });
+  });
+
+  it('still computes drift when it is tracked explicitly', () => {
+    const progress = applyMessage(
+      createReplayProgress(OFFSETS, { isDriftTracked: true }),
+      { kind: 'step', index: 1, elapsedMs: 540 },
+    );
+
+    expect(progress.steps[1]?.driftMs).toBe(40);
+  });
+
   it('keeps drift null when the marker carries no elapsed time', () => {
     const progress = applyMessage(createReplayProgress(OFFSETS), {
       kind: 'step',

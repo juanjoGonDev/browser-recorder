@@ -3,7 +3,7 @@ import type {
   RecordingEvent,
   RecordingEventKind,
 } from '../../shared/domain/recording-event.ts';
-import { sanitize } from './layout.ts';
+import { sanitize } from '../../shared/domain/terminal-text.ts';
 
 /** Fixed length so a masked value never reveals how long the secret is. */
 export const MASKED_VALUE = '••••••••';

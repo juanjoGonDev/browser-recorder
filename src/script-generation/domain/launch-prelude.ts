@@ -66,6 +66,10 @@ async function openContext(chromium, display, env = process.env) {
     .launchPersistentContext(target.userDataDir ?? temporaryDir, {
       headless: env.BROWSER_RECORDER_HEADLESS === '1',
       timeout: LAUNCH_TIMEOUT_MS,
+      // The script owns Ctrl+C and SIGTERM (see onAbort): the engine's own
+      // handlers would kill the browser without removing a temporary profile.
+      handleSIGINT: false,
+      handleSIGTERM: false,
       ...buildLaunchOptions(display, target),
     })
     .catch((error) => {

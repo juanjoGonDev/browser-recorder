@@ -12,7 +12,7 @@ import {
 } from './tui/adapters/node-terminal.ts';
 import { createNodeTimers } from './tui/adapters/node-timers.ts';
 import { createFrameRenderer } from './tui/render/render-frame.ts';
-import { isColorEnabled } from './tui/render/ansi.ts';
+import { isColorEnabled } from './shared/domain/terminal-text.ts';
 
 const EXIT_FAILURE = 1;
 const EXIT_OK = 0;

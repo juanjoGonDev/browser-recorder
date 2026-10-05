@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createStyle, isColorEnabled } from '../../../src/tui/render/ansi.ts';
+import { createStyle } from '../../../src/tui/render/ansi.ts';
 import { stripAnsi } from '../../../src/tui/render/layout.ts';
 
 describe('src/tui/render/ansi.ts', () => {
@@ -33,13 +33,5 @@ describe('src/tui/render/ansi.ts', () => {
     expect(style.bold(style.accent('ab'))).toBe(
       '\u001b[1m\u001b[36mab\u001b[39m\u001b[22m',
     );
-  });
-
-  it('honours NO_COLOR and dumb terminals', () => {
-    expect(isColorEnabled({})).toBe(true);
-    expect(isColorEnabled({ NO_COLOR: '1' })).toBe(false);
-    expect(isColorEnabled({ NO_COLOR: '' })).toBe(true);
-    expect(isColorEnabled({ TERM: 'dumb' })).toBe(false);
-    expect(isColorEnabled({ TERM: 'xterm-256color' })).toBe(true);
   });
 });

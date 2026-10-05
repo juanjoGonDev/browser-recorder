@@ -4,7 +4,7 @@ import {
   MAIN_MENU_ITEMS,
   type MainMenuItem,
 } from '../../domain/main-menu-items.ts';
-import { sanitize } from '../layout.ts';
+import { sanitize } from '../../../shared/domain/terminal-text.ts';
 import type { RenderContext, ScreenView } from '../screen-view.ts';
 
 const TAGLINE = 'Record a browser session, replay it as a Patchright script.';

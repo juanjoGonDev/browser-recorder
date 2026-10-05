@@ -1,4 +1,4 @@
-import { sanitize } from './layout.ts';
+import { sanitize } from '../../shared/domain/terminal-text.ts';
 import type { RenderContext } from './screen-view.ts';
 
 /** One visible line per caution; the text may come from the file system. */

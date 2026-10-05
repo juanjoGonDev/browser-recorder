@@ -29,15 +29,15 @@ HARD RULES (all tasks): headless tests only; no main-world code; no `Runtime.ena
 
 ## WP1: Contracts and script runtime
 
-- [ ] 1.0 Spike: headless persistent context, `handleSIGINT/handleSIGTERM:false`, send SIGINT, confirm browser closes and temp profile removed. Record result in design Open Questions; Windows is CI-verified.
-- [ ] 1.1 RED/GREEN `src/shared/domain/replay-timing.ts` (`ReplayTiming`, `DEFAULT_HUMAN_DELAY`) and `terminal-text.ts` (move `isColorEnabled`, `sanitize`; fix TUI imports). Test: `tests/unit/shared/`.
-- [ ] 1.2 RED/GREEN `src/replay/domain/timing-environment.ts`: scenarios Human env, Default, Seed forwarded; env always overrides inherited. Test: `tests/unit/replay/`.
-- [ ] 1.3 RED/GREEN `replay-progress.ts` `{ isDriftTracked }` and `replay-runner.ts` timing field: No drift in human mode; recorded Timing check unchanged.
-- [ ] 1.4 RED/GREEN `src/script-generation/domain/timing-prelude.ts` (mulberry32, seed `^\d{1,10}$`, range parse, unknown mode = recorded): Unknown mode, Range respected, First step, Seeded determinism, with injected sleep.
-- [ ] 1.5 RED/GREEN `rt.at(offset, { isFollowUp })` in `script-prelude.ts`, `render-step.ts`: Offset wait, Late step; follow-ups never wait.
-- [ ] 1.6 RED/GREEN `rt.fill` (fill(''), `pressSequentially`, key pause = range/10, reconcile with `fill(value)`): Typed fill `a"b\n€`, Sensitive value.
-- [ ] 1.7 RED/GREEN `launch-prelude.ts` signals (SIGINT/SIGTERM run `onAbort`); `generate-script.ts` stays byte-identical regardless of env.
-- [ ] 1.8 REFACTOR: keep `script-prelude.ts` under 300 lines; `pnpm quality`.
+- [x] 1.0 Spike: headless persistent context, `handleSIGINT/handleSIGTERM:false`, send SIGINT, confirm browser closes and temp profile removed. Record result in design Open Questions; Windows is CI-verified.
+- [x] 1.1 RED/GREEN `src/shared/domain/replay-timing.ts` (`ReplayTiming`, `DEFAULT_HUMAN_DELAY`) and `terminal-text.ts` (move `isColorEnabled`, `sanitize`; fix TUI imports). Test: `tests/unit/shared/`.
+- [x] 1.2 RED/GREEN `src/replay/domain/timing-environment.ts`: scenarios Human env, Default, Seed forwarded; env always overrides inherited. Test: `tests/unit/replay/`.
+- [x] 1.3 RED/GREEN `replay-progress.ts` `{ isDriftTracked }` and `replay-runner.ts` timing field: No drift in human mode; recorded Timing check unchanged.
+- [x] 1.4 RED/GREEN `src/script-generation/domain/timing-prelude.ts` (mulberry32, seed `^\d{1,10}$`, range parse, unknown mode = recorded): Unknown mode, Range respected, First step, Seeded determinism, with injected sleep.
+- [x] 1.5 RED/GREEN `rt.at(offset, { isFollowUp })` in `script-prelude.ts`, `render-step.ts`: Offset wait, Late step; follow-ups never wait.
+- [x] 1.6 RED/GREEN `rt.fill` (fill(''), `pressSequentially`, key pause = range/10, reconcile with `fill(value)`): Typed fill `a"b\n€`, Sensitive value.
+- [x] 1.7 RED/GREEN `launch-prelude.ts` signals (SIGINT/SIGTERM run `onAbort`); `generate-script.ts` stays byte-identical regardless of env.
+- [x] 1.8 REFACTOR: keep `script-prelude.ts` under 300 lines; `pnpm quality`.
 
 ## WP2: Launch reuse and TUI
 

@@ -645,6 +645,8 @@ describe('src/composition/create-app-services.ts', () => {
           BROWSER_RECORDER_BROWSER_ARGS: '[]',
           BROWSER_RECORDER_REAL_KEYCHAIN: '',
           BROWSER_RECORDER_HEADLESS: '1',
+          BROWSER_RECORDER_TIMING: 'recorded',
+          BROWSER_RECORDER_HUMAN_DELAY: '',
         },
       });
     });
@@ -720,6 +722,8 @@ describe('src/composition/create-app-services.ts', () => {
         BROWSER_RECORDER_BROWSER_ARGS: '[]',
         BROWSER_RECORDER_REAL_KEYCHAIN: '',
         BROWSER_RECORDER_HEADLESS: '1',
+        BROWSER_RECORDER_TIMING: 'recorded',
+        BROWSER_RECORDER_HUMAN_DELAY: '',
       });
     });
 

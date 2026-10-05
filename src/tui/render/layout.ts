@@ -1,10 +1,6 @@
 const ESC = '\u001b';
 const ELLIPSIS = '…';
 const RESET = `${ESC}[0m`;
-const FIRST_PRINTABLE = 0x20;
-const DELETE = 0x7f;
-const LAST_C1 = 0x9f;
-const CONTROL_PLACEHOLDER = '·';
 const MIN_FINAL_BYTE = 0x40;
 const MAX_FINAL_BYTE = 0x7e;
 const BORDER_PADDING = 4;
@@ -132,18 +128,6 @@ export function spread(left: string, right: string, width: number): string {
     return padEnd(left, width - rightWidth) + right;
   }
   return room <= 0 ? clip(right, width) : `${clip(left, room)} ${right}`;
-}
-
-/** Recorded text is untrusted: no control character may reach the terminal. */
-export function sanitize(text: string): string {
-  return Array.from(text)
-    .map((character) => {
-      const code = character.codePointAt(0) ?? 0;
-      const isControl =
-        code < FIRST_PRINTABLE || (code >= DELETE && code <= LAST_C1);
-      return isControl ? CONTROL_PLACEHOLDER : character;
-    })
-    .join('');
 }
 
 export interface BoxSpec {

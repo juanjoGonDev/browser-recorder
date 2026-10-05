@@ -6,7 +6,7 @@ import type { Recording } from '../../shared/domain/recording.ts';
 import type { RecordingEvent } from '../../shared/domain/recording-event.ts';
 import { jsNumber, jsString } from './js-literal.ts';
 import { renderPageHooks } from './render-page-hooks.ts';
-import { renderStep } from './render-step.ts';
+import { isFollowUp, renderStep } from './render-step.ts';
 import { scriptPrelude } from './script-prelude.ts';
 
 const INDENT = '  ';
@@ -52,8 +52,11 @@ function renderStepBlock(
     event.kind === 'page-opened' && event.pageId !== FIRST_PAGE
       ? renderPageHooks(event.pageId, events)
       : [];
+  const wait = isFollowUp(event)
+    ? `rt.at(${jsNumber(event.offsetMs)}, { isFollowUp: true })`
+    : `rt.at(${jsNumber(event.offsetMs)})`;
   return [
-    `await rt.at(${jsNumber(event.offsetMs)}); rt.mark(${jsNumber(index)});`,
+    `await ${wait}; rt.mark(${jsNumber(index)});`,
     ...statements,
     ...hooks,
   ];

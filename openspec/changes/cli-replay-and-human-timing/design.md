@@ -96,4 +96,4 @@ WP1: shared timing contract, replay env, timing prelude, `rt.fill`, signals. WP2
 ## Open Questions
 
 - [ ] Version bump is deferred to the owner, and `release-impact-policy` may flag the change.
-- [ ] A spike must confirm that `handleSIGINT: false` with a persistent context closes cleanly on Windows.
+- [x] Spike 1.0 (macOS, Node 22, headless persistent context, `handleSIGINT/handleSIGTERM: false`): a SIGINT and a SIGTERM each ran the script handler, `context.close()` ended the browser, the temporary profile directory was removed and the process exited 130; no browser process was left behind. Windows stays CI-verified: `kill()` cannot deliver SIGINT/SIGTERM there, so the signal tests are skipped on win32.

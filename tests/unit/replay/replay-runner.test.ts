@@ -6,9 +6,14 @@ import type {
   SpawnedProcess,
   SpawnRequest,
 } from '../../../src/replay/application/ports/process-spawner.ts';
+import { humanTiming } from '../../../src/shared/domain/replay-timing.ts';
 import type { ReplayProgress } from '../../../src/replay/domain/replay-progress.ts';
 
 const GRACE_MS = 3000;
+const RECORDED_ENV = {
+  BROWSER_RECORDER_TIMING: 'recorded',
+  BROWSER_RECORDER_HUMAN_DELAY: '',
+};
 
 interface FakeProcess extends SpawnedProcess {
   stdout(chunk: string): void;
@@ -91,7 +96,7 @@ describe('startReplay', () => {
         command: '/usr/bin/node',
         args: ['/repo/recordings/a b/script.mjs'],
         cwd: '/repo',
-        env: {},
+        env: RECORDED_ENV,
       },
     ]);
   });
@@ -116,7 +121,10 @@ describe('startReplay', () => {
       },
     );
 
-    expect(requests[0]?.env).toEqual({ BROWSER_RECORDER_HEADLESS: '1' });
+    expect(requests[0]?.env).toEqual({
+      ...RECORDED_ENV,
+      BROWSER_RECORDER_HEADLESS: '1',
+    });
   });
 
   it('hands the launch environment to the script next to the headless flag', () => {
@@ -145,6 +153,7 @@ describe('startReplay', () => {
     expect(requests[0]?.env).toEqual({
       BROWSER_RECORDER_EXECUTABLE_PATH: '/fixture/Brave Browser',
       BROWSER_RECORDER_USER_DATA_DIR: '',
+      ...RECORDED_ENV,
       BROWSER_RECORDER_HEADLESS: '1',
     });
   });
@@ -175,7 +184,7 @@ describe('startReplay', () => {
       },
     );
 
-    expect(requests[0]?.env).toEqual(launchEnv);
+    expect(requests[0]?.env).toEqual({ ...launchEnv, ...RECORDED_ENV });
   });
 
   it('never lets the launch environment turn headless off', () => {
@@ -199,6 +208,88 @@ describe('startReplay', () => {
     );
 
     expect(requests[0]?.env['BROWSER_RECORDER_HEADLESS']).toBe('1');
+  });
+
+  it('hands human timing to the script and never lets the launch env undo it', () => {
+    const requests: SpawnRequest[] = [];
+    const spawner: ProcessSpawner = {
+      spawn: (request) => {
+        requests.push(request);
+        return fakeProcess();
+      },
+    };
+
+    startReplay(
+      { spawner, nodePath: 'node', cancelGraceMs: GRACE_MS },
+      {
+        scriptPath: 's',
+        cwd: 'c',
+        isHeadless: false,
+        launchEnv: { BROWSER_RECORDER_TIMING: 'recorded' },
+        timing: humanTiming({ minMs: 10, maxMs: 20 }),
+        stepOffsetsMs: [],
+      },
+    );
+
+    expect(requests[0]?.env).toEqual({
+      BROWSER_RECORDER_TIMING: 'human',
+      BROWSER_RECORDER_HUMAN_DELAY: '10-20',
+    });
+  });
+
+  it('forwards the seed of the parent environment', () => {
+    const requests: SpawnRequest[] = [];
+    const spawner: ProcessSpawner = {
+      spawn: (request) => {
+        requests.push(request);
+        return fakeProcess();
+      },
+    };
+
+    startReplay(
+      {
+        spawner,
+        nodePath: 'node',
+        cancelGraceMs: GRACE_MS,
+        parentEnv: { BROWSER_RECORDER_SEED: '42' },
+      },
+      {
+        scriptPath: 's',
+        cwd: 'c',
+        isHeadless: false,
+        launchEnv: {},
+        timing: humanTiming(),
+        stepOffsetsMs: [],
+      },
+    );
+
+    expect(requests[0]?.env['BROWSER_RECORDER_SEED']).toBe('42');
+  });
+
+  it('reports no drift in human mode but keeps it in recorded mode', () => {
+    const child = fakeProcess();
+    const spawner: ProcessSpawner = { spawn: () => child };
+    const run = startReplay(
+      { spawner, nodePath: 'node', cancelGraceMs: GRACE_MS },
+      {
+        scriptPath: 's',
+        cwd: 'c',
+        isHeadless: false,
+        launchEnv: {},
+        timing: humanTiming(),
+        stepOffsetsMs: [0, 400],
+      },
+    );
+    const seen: ReplayProgress[] = [];
+    run.subscribe((progress) => seen.push(progress));
+
+    child.stdout('::step 1 410\n');
+
+    expect(seen.at(-1)?.steps[1]).toMatchObject({
+      status: 'running',
+      elapsedMs: 410,
+      driftMs: null,
+    });
   });
 
   it('publishes progress as markers arrive, across chunk splits', () => {
