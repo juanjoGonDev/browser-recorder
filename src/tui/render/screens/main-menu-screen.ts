@@ -6,7 +6,7 @@ import {
 } from '../../domain/main-menu-items.ts';
 import type { RenderContext, ScreenView } from '../screen-view.ts';
 
-const TAGLINE = 'Record a browser session, replay it as a Playwright script.';
+const TAGLINE = 'Record a browser session, replay it as a Patchright script.';
 
 function menuLine(
   item: MainMenuItem,

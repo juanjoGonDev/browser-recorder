@@ -147,13 +147,13 @@ describe('src/tui/domain/app-reducer.ts', () => {
     it('shows the manual command when the install failed', () => {
       const state = reduce(initialState(), {
         type: 'setup-failed',
-        manualCommand: 'pnpm exec playwright install chromium',
+        manualCommand: 'pnpm exec patchright install chromium',
         exitCode: 7,
       });
       expect(state.screen).toMatchObject({
         kind: 'setup',
         phase: 'failed',
-        manualCommand: 'pnpm exec playwright install chromium',
+        manualCommand: 'pnpm exec patchright install chromium',
         exitCode: 7,
       });
     });

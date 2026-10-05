@@ -35,7 +35,7 @@ describe('src/tui/render/screens (main menu, setup, new recording)', () => {
     });
 
     it('shows the Linux dependency hint only when there is one', () => {
-      const hint = 'sudo pnpm exec playwright install-deps chromium';
+      const hint = 'sudo pnpm exec patchright install-deps chromium';
       const withHint = renderMainMenuScreen(
         screen(0),
         plainContext({ linuxHint: hint }),
@@ -104,7 +104,7 @@ describe('src/tui/render/screens (main menu, setup, new recording)', () => {
       const failed: SetupScreen = {
         ...base,
         phase: 'failed',
-        manualCommand: 'pnpm exec playwright install chromium',
+        manualCommand: 'pnpm exec patchright install chromium',
         exitCode: 1,
       };
       const view = renderSetupScreen(failed, plainContext());
@@ -112,7 +112,7 @@ describe('src/tui/render/screens (main menu, setup, new recording)', () => {
         'Chromium could not be installed.',
       );
       expect(view.body.join('\n')).toContain(
-        'pnpm exec playwright install chromium',
+        'pnpm exec patchright install chromium',
       );
       expect(view.hints.map((hint) => hint.key)).toEqual(['enter', 'l', 'q']);
     });
@@ -132,7 +132,7 @@ describe('src/tui/render/screens (main menu, setup, new recording)', () => {
           {
             ...base,
             phase: 'failed',
-            manualCommand: 'pnpm exec playwright install chromium',
+            manualCommand: 'pnpm exec patchright install chromium',
             exitCode,
           },
           plainContext(),

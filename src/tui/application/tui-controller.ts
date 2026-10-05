@@ -29,7 +29,7 @@ export interface TuiControllerDeps {
   readonly timers: Timers;
 }
 
-const MANUAL_INSTALL_COMMAND = 'pnpm exec playwright install chromium';
+const MANUAL_INSTALL_COMMAND = 'pnpm exec patchright install chromium';
 
 type Handler<K extends Intent['kind']> = (
   intent: Extract<Intent, { kind: K }>,

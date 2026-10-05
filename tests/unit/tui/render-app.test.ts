@@ -37,13 +37,30 @@ const everyScreen: Screen[] = [
 ];
 
 describe('src/tui/render/render-app.ts', () => {
+  it('never mentions the old engine name on any screen', () => {
+    const failedSetup: Screen = {
+      kind: 'setup',
+      phase: 'failed',
+      lines: [],
+      manualCommand: 'pnpm exec patchright install chromium',
+      exitCode: 1,
+    };
+    for (const screen of [...everyScreen, failedSetup]) {
+      const text = renderApp(on(screen), SIZE, false).join('\n');
+      expect(text.toLowerCase()).not.toContain('playwright');
+    }
+    expect(renderApp(on(failedSetup), SIZE, false).join('\n')).toContain(
+      'patchright install chromium',
+    );
+  });
+
   it('renders the main menu as an 80x24 frame', () => {
     expect(
       renderApp(on({ kind: 'main-menu', selected: 0 }), SIZE, false).join('\n'),
     ).toMatchInlineSnapshot(`
       "╭─ browser-recorder ───────────────────────────────────────────────────────────╮
       │                                                                              │
-      │   Record a browser session, replay it as a Playwright script.                │
+      │   Record a browser session, replay it as a Patchright script.                │
       │                                                                              │
       │   ❯ New recording                                                            │
       │     Library                                                                  │
