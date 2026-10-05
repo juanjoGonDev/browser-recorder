@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  assertSupportedNode,
-  MINIMUM_NODE,
-} from '../../../src/environment-setup/domain/assert-supported-node.ts';
+import { assertSupportedNode } from '../../../src/environment-setup/domain/assert-supported-node.ts';
+import { MINIMUM_NODE } from '../../../src/environment-setup/domain/minimum-node-version.ts';
 
 describe('assertSupportedNode', () => {
   it('rejects Node 20 and states the minimum version', () => {

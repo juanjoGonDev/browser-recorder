@@ -1,4 +1,5 @@
-export const MINIMUM_NODE = '22.13.0';
+import { MINIMUM_NODE } from './minimum-node-version.ts';
+
 const VERSION = /^v?(\d+)\.(\d+)\.(\d+)/;
 
 function parse(version: string): readonly number[] | null {
