@@ -100,13 +100,13 @@ Note: `size:exception` was explicitly accepted by the user, so no decision gate 
 
 ## WP4: Script library (parallel; depends on WP0)
 
-- [ ] 4.1 `slugify.ts`: NFKD, diacritics, `[^a-z0-9]+`, <= 60, fallback `recording`, reserved names like `CON` (SL Slug generation: Unsafe characters, Reserved name).
-- [ ] 4.2 `allocate-slug.ts`: `-2`, `-3` (SL Collision). `validate-name.ts` (1-80, no control chars), `validate-start-url.ts` (http/https or empty) (TUI Create flow: Invalid URL, Empty URL).
-- [ ] 4.3 `parse-recording.ts`: hand-written validation, unsupported `schemaVersion` yields a descriptive error without modifying the file (SL Schema version). `summarize-recording.ts`.
-- [ ] 4.4 `atomic-write-file.ts` (temp `<file>.<pid>.<rand>.tmp`, fsync, rename, 5x/20 ms retry on Windows EPERM/EBUSY via injected fs): rename failure keeps the old file (SL Crash-safe writes; SG Atomic generation: Write failure; RC Crash mid-write).
-- [ ] 4.5 `file-system-recording-repository.ts`: `reserve`, `read`, `write`, `move` (fails if the target exists), `remove`, `scriptPath`; slug `../x`, `a/b`, `C:\x`, spaces rejected and escape of the root throws; orphan `.tmp` ignored (SL Storage layout: Create; Orphan temp; threat matrix: replay subprocess).
-- [ ] 4.6 `library-service.ts`: `createDraft`, `list` (createdAt desc, corrupt listed `invalid`), `load`, `save` (per-slug serialisation, writes JSON plus script), `rename` (conflict error, same-slug name-only), `remove` (SL Listing: Corrupt entry; Rename: Collision, Same slug; Delete: Declined, Confirmed).
-- [ ] 4.7 REFACTOR: limits, lint, deps, coverage.
+- [x] 4.1 `slugify.ts`: NFKD, diacritics, `[^a-z0-9]+`, <= 60, fallback `recording`, reserved names like `CON` (SL Slug generation: Unsafe characters, Reserved name).
+- [x] 4.2 `allocate-slug.ts`: `-2`, `-3` (SL Collision). `validate-name.ts` (1-80, no control chars), `validate-start-url.ts` (http/https or empty) (TUI Create flow: Invalid URL, Empty URL).
+- [x] 4.3 `parse-recording.ts`: hand-written validation, unsupported `schemaVersion` yields a descriptive error without modifying the file (SL Schema version). `summarize-recording.ts`.
+- [x] 4.4 `atomic-write-file.ts` (temp `<file>.<pid>.<rand>.tmp`, fsync, rename, 5x/20 ms retry on Windows EPERM/EBUSY via injected fs): rename failure keeps the old file (SL Crash-safe writes; SG Atomic generation: Write failure; RC Crash mid-write).
+- [x] 4.5 `file-system-recording-repository.ts`: `reserve`, `read`, `write`, `move` (fails if the target exists), `remove`, `scriptPath`; slug `../x`, `a/b`, `C:\x`, spaces rejected and escape of the root throws; orphan `.tmp` ignored (SL Storage layout: Create; Orphan temp; threat matrix: replay subprocess).
+- [x] 4.6 `library-service.ts`: `createDraft`, `list` (createdAt desc, corrupt listed `invalid`), `load`, `save` (per-slug serialisation, writes JSON plus script), `rename` (conflict error, same-slug name-only), `remove` (SL Listing: Corrupt entry; Rename: Collision, Same slug; Delete: Declined, Confirmed).
+- [x] 4.7 REFACTOR: limits, lint, deps, coverage.
 
 ## WP5: Replay and environment setup (parallel; depends on WP0)
 
