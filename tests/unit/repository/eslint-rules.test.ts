@@ -20,7 +20,11 @@ async function lintRuleIds(fixture: string): Promise<string[]> {
   );
 }
 
-describe('eslint repository rules', () => {
+// Type-aware linting is CPU-bound; under parallel worktree load it can take
+// several times its idle duration, so this file gets a wider budget.
+const LINT_TIMEOUT_MS = 60_000;
+
+describe('eslint repository rules', { timeout: LINT_TIMEOUT_MS }, () => {
   it.each([
     ['long-function.ts', 'max-lines-per-function'],
     ['MyFile.ts', 'unicorn/filename-case'],
