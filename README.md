@@ -14,7 +14,8 @@ lets you replay, rename and delete recordings from a library.
 
 - Node.js 22.13 or newer.
 - [pnpm](https://pnpm.io) 10.16 or newer.
-- An interactive terminal (the UI refuses to start through a pipe).
+- An interactive terminal for the UI (it refuses to start through a pipe). The
+  `replay` command line below works without one.
 - Chromium: installed for you on first start (about 150 MB, one time) through
   Patchright. If that install fails (for example offline), the screen shows
   the installer's exit code and the manual command
@@ -53,7 +54,9 @@ node dist/main.js     # the same file the `browser-recorder` bin points to
 3. **Library**: pick a recording to replay, view its timeline, rename or delete
    it.
 4. A replay opens a browser, runs the script and shows each step with how far
-   it drifted from the recorded time.
+   it drifted from the recorded time. Press `h` in the library first to replay
+   with human-like pauses instead (see below); the choice is for that replay
+   only and is never remembered.
 
 Dialogs (`alert`, `confirm`, `prompt`) are answered from the recorder: press `a`
 to accept, `d` to dismiss, or type the text for a prompt and press Enter. Answers
@@ -75,11 +78,77 @@ role and name, label, placeholder, a stable id, exact text, a CSS path.
 | New recording     | `Tab` / `Up` / `Down` switch field, `Left` / `Right` change the browser or profile, `Enter` start, `Esc` back, `Ctrl+U` clear |
 | Recording         | `s` stop and save, `x` discard (then `y` / `n`)                                                                               |
 | Recording dialogs | `a` accept, `d` dismiss; prompt: type the text, `Enter` accept, `Esc` dismiss                                                 |
-| Library           | `Enter` / `p` replay, `t` timeline, `r` rename, `d` delete (`y` / `n`), `n` new                                               |
+| Library           | `Enter` / `p` replay, `h` human or recorded timing, `t` timeline, `r` rename, `d` delete (`y` / `n`), `n` new                 |
 | Timeline          | `Up` / `Down`, `PgUp` / `PgDn`, `Esc` back                                                                                    |
 | Replay            | `c` or `Esc` cancel while running, `Esc` back when finished                                                                   |
 
 `NO_COLOR` turns colors off.
+
+## Command line
+
+Replay one saved recording without opening the UI:
+
+```sh
+browser-recorder replay <name|slug> [options]
+pnpm replay <name|slug> [options]      # builds first, then the same command
+```
+
+The argument is matched against the recording's slug first, then against its
+name ignoring case. No match, or a name that two recordings share, exits with
+code 2 and (for a shared name) lists the slugs to choose from. Running
+`browser-recorder` with no argument still opens the terminal UI.
+
+| Option                  | What it does                                                                                    |
+| ----------------------- | ----------------------------------------------------------------------------------------------- |
+| `-r, --random`          | Human-like pauses between steps (see below), using the default range `250-900`.                 |
+| `-d, --delay <min-max>` | The pause range in milliseconds, whole numbers, `0 <= min <= max <= 60000`; implies `--random`. |
+| `--headless`            | Run without a visible browser window.                                                           |
+| `-h, --help`            | Print the usage and exit 0.                                                                     |
+| `-v, --version`         | Print the version of `package.json` and exit 0.                                                 |
+
+Without `-r` or `-d` the replay keeps the recorded timing, exactly as the UI
+does. Options go after the recording: `pnpm replay demo -r -d 100-300`.
+
+**Output.** Each step prints one line on stdout (`[3/12] click Save button
+(1.2s)`) and the run ends with `✔ <name> replayed in <s>`. Warnings, such as
+falling back to the bundled Chromium, errors and the usage after a mistake go
+to stderr. A failure prints `✖ <name> failed at step <n> (<kind>): <message>`
+and the last stderr lines of the script, also on stderr. Typed values, passwords
+included, are never printed: a step shows what it acts on, not what it types.
+Colors appear only on a terminal and never with `NO_COLOR`; a pipe gets plain
+text. The command never installs a browser: when Chromium is missing it prints
+the manual command (`pnpm exec patchright install chromium`) and exits 1.
+
+| Exit code | Meaning                                                           |
+| --------- | ----------------------------------------------------------------- |
+| 0         | The replay succeeded                                              |
+| 1         | The replay failed, could not start, or the recording is invalid   |
+| 2         | Usage error, recording not found or ambiguous                     |
+| 130       | Interrupted with Ctrl+C (143 when the process received `SIGTERM`) |
+
+Ctrl+C cancels cleanly: the script closes the browser, the temporary profile is
+deleted and the command prints `■ <name> cancelled` before it exits. On Windows
+Ctrl+C and Ctrl+Break take the same path; the automated Ctrl+C test is skipped
+there because Node cannot send `SIGINT` to a child process on that platform.
+
+### Human timing
+
+By default a replay waits until each step's recorded offset. In human mode it
+instead waits a random delay in the range after the previous step finished: no
+wait before the first step, and none before a step that only observes a
+consequence (a URL change, a dialog, a file chooser or a tab opened by an
+action). Typing is done key by key with a pause of a tenth of the range between
+keys, and the field always ends with the exact recorded value. Drift is not
+reported in human mode, because the recorded offsets no longer apply.
+
+The mode is chosen at replay time and is not saved in the recording. The script
+reads it from the environment, so you can also run it by hand:
+
+| Variable                       | Value                                                         |
+| ------------------------------ | ------------------------------------------------------------- |
+| `BROWSER_RECORDER_TIMING`      | `recorded` (default; any other value means recorded), `human` |
+| `BROWSER_RECORDER_HUMAN_DELAY` | `<min>-<max>` in milliseconds, default `250-900`              |
+| `BROWSER_RECORDER_SEED`        | Optional, up to ten digits: the same seed repeats the pauses  |
 
 ## Browsers and profiles
 
@@ -141,8 +210,9 @@ the browser through four environment variables
 own it uses the bundled Chromium on a temporary profile. A script written by an
 older version is regenerated before every replay. It prints
 `::step <index> <ms>` before each step, `::done <ms>` at the end and
-`::error ...` on failure, and sleeps until each step's recorded offset, so a
-slow step does not shift the ones after it. Run one yourself with
+`::error ...` on failure. In the default recorded mode it sleeps until each
+step's recorded offset, so a slow step does not shift the ones after it; see
+Human timing for the other mode. Run one yourself with
 `node recordings/<slug>/script.mjs`; set `BROWSER_RECORDER_HEADLESS=1` to run
 without a window.
 

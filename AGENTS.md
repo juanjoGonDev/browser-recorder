@@ -60,13 +60,20 @@ skipped unless `BROWSER_RECORDER_HEADED_TESTS=1` is set.
 
 Screaming and hexagonal. One top-level folder per capability under `src/`
 (`recording-capture`, `script-generation`, `replay`, `script-library`,
-`environment-setup`, `browser-selection`, `browser-profiles`, `tui`), each split into `domain/` (pure),
+`environment-setup`, `browser-selection`, `browser-profiles`, `tui`, `cli`), each split into `domain/` (pure),
 `application/` (use cases and `ports/`) and `adapters/` (Node and Patchright
 IO). `src/shared/domain/` is the shared kernel. Only `src/main.ts` and
 `src/composition/` wire features together; features never import each other.
 Patchright is the only runtime dependency and is imported only from adapters
 and the composition root; the previous engine must never come back. `pnpm deps:check` (dependency-cruiser) enforces all
 of this; do not weaken `.dependency-cruiser.json` to make a change pass.
+
+The `cli` feature (`browser-recorder replay <name|slug>`) follows the same
+rules: parsing, lookup and formatting are pure domain code, the use case reaches
+the replay only through the `ReplayCommandServices` port that
+`src/composition/` implements, and nothing in it touches `console` (output goes
+through the `CommandOutput` port). `src/main.ts` only dispatches: no argument
+opens the TUI, any argument runs the command.
 
 ## Naming and lint rules
 
