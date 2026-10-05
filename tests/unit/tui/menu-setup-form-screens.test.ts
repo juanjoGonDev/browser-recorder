@@ -11,7 +11,10 @@ import { renderMainMenuScreen } from '../../../src/tui/render/screens/main-menu-
 import { renderNewRecordingScreen } from '../../../src/tui/render/screens/new-recording-screen.ts';
 import { renderSetupScreen } from '../../../src/tui/render/screens/setup-screen.ts';
 import { plainContext } from '../../support/render-context.ts';
-import { newRecordingScreen } from '../../support/tui-fixtures.ts';
+import {
+  BROWSER_VIEWS,
+  newRecordingScreen,
+} from '../../support/tui-fixtures.ts';
 
 describe('src/tui/render/screens (main menu, setup, new recording)', () => {
   describe('main menu', () => {
@@ -171,6 +174,99 @@ describe('src/tui/render/screens (main menu, setup, new recording)', () => {
       const text = view.body.join('\n');
       expect(text).toContain('✖ URL must start with http:// or https://');
       expect(text).not.toContain('Leave the URL empty');
+    });
+
+    describe('pickers', () => {
+      const loaded = (
+        overrides: Partial<NewRecordingScreen> = {},
+      ): NewRecordingScreen =>
+        newRecordingScreen({ browsers: BROWSER_VIEWS, ...overrides });
+      const textOf = (screen: NewRecordingScreen): string =>
+        renderNewRecordingScreen(screen, plainContext()).body.join('\n');
+
+      it('says the browsers are still being detected', () => {
+        const text = textOf(newRecordingScreen());
+        expect(text).toContain('Detecting browsers…');
+        expect(textOf(loaded())).not.toContain('Detecting browsers…');
+      });
+
+      it('shows the chosen browser and profile with their position', () => {
+        const text = textOf(loaded());
+        expect(text).toContain('Brave');
+        expect(text).toContain('Managed (keeps logins)');
+        expect(text).toContain('1/2');
+        expect(text).toContain('1/3');
+        const second = textOf(loaded({ browserIndex: 1 }));
+        expect(second).toContain('Chromium (bundled)');
+        expect(second).toContain('Ephemeral (clean each time)');
+        expect(second).not.toContain('Managed (keeps logins)');
+      });
+
+      it('marks the focused picker with arrows that survive NO_COLOR', () => {
+        const browserFocus = textOf(loaded({ focus: 'browser' }));
+        expect(browserFocus).toContain('◂ Brave ▸');
+        expect(browserFocus).not.toContain('◂ Managed');
+        const profileFocus = textOf(loaded({ focus: 'profile' }));
+        expect(profileFocus).toContain('◂ Managed (keeps logins) ▸');
+        expect(profileFocus).not.toContain('◂ Brave');
+      });
+
+      it('shows the note of the chosen profile and none for a clean one', () => {
+        const copy = textOf(loaded({ profileIndex: 1 }));
+        expect(copy).toContain('Copy of Person 1 (Default)');
+        expect(copy).toContain(
+          '! Brave is running: the copy may miss its latest changes',
+        );
+        expect(textOf(loaded())).not.toContain('Brave is running');
+      });
+
+      it('offers only the bundled browser, preselected, when nothing else is detected', () => {
+        const text = textOf(
+          loaded({ browsers: BROWSER_VIEWS.slice(1), focus: 'browser' }),
+        );
+        expect(text).toContain('◂ Chromium (bundled) ▸');
+        expect(text).toContain('1/1');
+        expect(text).not.toContain('Brave');
+      });
+
+      it('shows nothing to pick when detection found no browser', () => {
+        const text = textOf(loaded({ browsers: [] }));
+        expect(text).toContain('No browser detected');
+        expect(text).not.toContain('Detecting browsers…');
+      });
+
+      it('strips control characters from profile names read from the disk', () => {
+        const hostile = [
+          {
+            browserId: 'brave' as const,
+            label: 'Brave',
+            profiles: [
+              {
+                choice: BROWSER_VIEWS[0]?.profiles[0]?.choice ?? {
+                  browserId: 'brave' as const,
+                  profileMode: 'managed' as const,
+                  sourceProfile: null,
+                },
+                label: 'Copy of \u001b[2JEvil',
+                note: null,
+              },
+            ],
+          },
+        ];
+        const text = textOf(loaded({ browsers: hostile }));
+        expect(text).toContain('Copy of ·[2JEvil');
+        expect(text).not.toContain('\u001b');
+      });
+
+      it('advertises the arrow keys only when a picker has the focus', () => {
+        const keys = (focus: NewRecordingScreen['focus']): string[] =>
+          renderNewRecordingScreen(loaded({ focus }), plainContext()).hints.map(
+            (hint) => hint.key,
+          );
+        expect(keys('browser')).toContain('←→');
+        expect(keys('profile')).toContain('←→');
+        expect(keys('name')).not.toContain('←→');
+      });
     });
 
     it('colors the error when color is on', () => {
