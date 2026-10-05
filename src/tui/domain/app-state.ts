@@ -86,6 +86,8 @@ export interface AppState {
   readonly screen: Screen;
   /** Last tick of the injected timers, so renderers stay pure. */
   readonly nowMs: number;
+  /** Rows a scrollable list may use; follows the terminal size. */
+  readonly listRows: number;
   /** Shown on the setup screen and the main menu when relevant. */
   readonly linuxHint: string | null;
   readonly isQuitting: boolean;
