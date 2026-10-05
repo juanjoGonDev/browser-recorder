@@ -24,7 +24,7 @@ const REQUIRED_SECTIONS: readonly (readonly [string, RegExp])[] = [
     /min\(floor\(\(freeRAM_GB - 2\) \/ 1\.5\), cpuCores - 2\)/,
   ],
   ['## Branching and pull requests', /squash \+ merge/i],
-  ['## Never push', /never push/i],
+  ['## Pushing and pull requests', /only when the owner asks/i],
   ['## Recordings are plaintext', /plaintext/i],
   ['## Quality gate', /pnpm quality/],
 ];

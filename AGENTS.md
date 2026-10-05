@@ -130,11 +130,11 @@ worktree, in their own commit, before the worktrees merge them in.
   requests.
 - Never work on `main`.
 
-## Never push
+## Pushing and pull requests
 
-Agents never push, never add remotes and never open pull requests. Work stays
-on the local branch until the owner publishes it. No script or product code in
-this repo runs `git push`.
+Agents push branches and open pull requests only when the owner asks. Never
+push to `main` directly: every change reaches `main` through a pull request.
+No script or product code in this repo runs `git push`.
 
 ## Real browser profiles
 
