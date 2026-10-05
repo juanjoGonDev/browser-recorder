@@ -1,12 +1,13 @@
-import { chromium } from 'patchright';
-import type { Browser, BrowserContext, Frame, Page } from 'patchright';
+import type { BrowserContext, Frame, Page } from 'patchright';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createPerformanceClock } from '../../../src/recording-capture/adapters/performance-clock.ts';
-import { startPlaywrightSession } from '../../../src/recording-capture/adapters/playwright-browser-session.ts';
+import { startPatchrightSession } from '../../../src/recording-capture/adapters/patchright-browser-session.ts';
 import type { SessionSignal } from '../../../src/recording-capture/application/ports/browser-launcher.ts';
 import { IN_PAGE_BUNDLE_PATH } from '../../support/build-in-page-bundle.ts';
 import type { FixtureServer } from '../../support/fixture-server.ts';
 import { startFixtureServer } from '../../support/fixture-server.ts';
+import { launchPersistent } from '../../support/persistent-context.ts';
+import type { PersistentBrowser } from '../../support/persistent-context.ts';
 
 type DomSignal = Extract<SessionSignal, { kind: 'dom' }>;
 
@@ -62,7 +63,7 @@ async function isOutOfProcess(
 describe('cross-origin iframes (out-of-process frames)', () => {
   let outer: FixtureServer;
   let inner: FixtureServer;
-  let browser: Browser;
+  let browser: PersistentBrowser;
 
   beforeAll(async () => {
     outer = await startFixtureServer();
@@ -70,11 +71,11 @@ describe('cross-origin iframes (out-of-process frames)', () => {
     // The headless shell does not isolate sites by default; the inner server
     // is reached as `localhost`, another site than the outer `127.0.0.1`, so
     // its frames get a renderer process of their own, as in a real browser.
-    browser = await chromium.launch({ args: ['--site-per-process'] });
+    browser = await launchPersistent({ args: ['--site-per-process'] });
   });
 
   afterAll(async () => {
-    await browser.close();
+    await browser.dispose();
     await outer.close();
     await inner.close();
   });
@@ -84,12 +85,11 @@ describe('cross-origin iframes (out-of-process frames)', () => {
     signals: SessionSignal[];
     context: BrowserContext;
   }> {
-    const context = await browser.newContext();
+    const { context } = browser;
     const innerPage = inner
       .urlFor('iframe-inner.html')
       .replace(LOOPBACK, 'localhost');
-    const session = await startPlaywrightSession({
-      browser,
+    const session = await startPatchrightSession({
       context,
       clock: createPerformanceClock(),
       inPageScriptPath: IN_PAGE_BUNDLE_PATH,

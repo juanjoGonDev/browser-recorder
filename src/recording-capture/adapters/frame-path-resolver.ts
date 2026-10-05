@@ -1,6 +1,6 @@
 import type { CDPSession } from 'patchright';
 import { PAGE_API_KEY } from '../domain/in-page-message.ts';
-import type { CaptureWorld } from './isolated-world-capture.ts';
+import type { CaptureWorld } from '../application/ports/capture-world.ts';
 
 const FALLBACK_SELECTOR = 'iframe';
 
@@ -83,7 +83,7 @@ async function selectorOfFrame(
   parentId: string,
 ): Promise<string> {
   const { cdp, world } = host;
-  const contextId = world.isolatedContextOf(parentId);
+  const contextId = await world.contextOf(parentId);
   if (contextId === undefined) return FALLBACK_SELECTOR;
   const owner = await cdp.send('DOM.getFrameOwner', { frameId });
   const { object } = await cdp.send('DOM.resolveNode', {

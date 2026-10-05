@@ -1,7 +1,6 @@
-import { chromium } from 'patchright';
-import type { Browser, BrowserContext, Page } from 'patchright';
+import type { BrowserContext, Page } from 'patchright';
 import { afterAll, beforeAll, vi } from 'vitest';
-import { startPlaywrightSession } from '../../src/recording-capture/adapters/playwright-browser-session.ts';
+import { startPatchrightSession } from '../../src/recording-capture/adapters/patchright-browser-session.ts';
 import type {
   BrowserSession,
   SessionSignal,
@@ -11,11 +10,12 @@ import type { FakeClock } from './fake-clock.ts';
 import { createFakeClock } from './fake-clock.ts';
 import type { FixtureServer } from './fixture-server.ts';
 import { startFixtureServer } from './fixture-server.ts';
+import { launchPersistent } from './persistent-context.ts';
+import type { PersistentBrowser } from './persistent-context.ts';
 
 export interface SessionRig {
   readonly session: BrowserSession;
   readonly context: BrowserContext;
-  readonly browser: Browser;
   readonly clock: FakeClock;
   readonly signals: SessionSignal[];
   /** The first page the session opened. */
@@ -30,7 +30,7 @@ export interface SessionRig {
 }
 
 export interface SessionRigFactory {
-  /** Starts a session on a fresh headless browser, subscribed from the start. */
+  /** Starts a session on a fresh headless persistent browser, subscribed from the start. */
   start(startUrl: string | null): Promise<SessionRig>;
   /** Like `start`, but subscribes only after the page has finished loading. */
   startAndSubscribeLate(startUrl: string): Promise<SessionRig>;
@@ -39,14 +39,14 @@ export interface SessionRigFactory {
 /** A fixture server and a headless Chromium shared by one test file. */
 export function useSessionRig(): SessionRigFactory {
   let server: FixtureServer;
-  const browsers: Browser[] = [];
+  const browsers: PersistentBrowser[] = [];
 
   beforeAll(async () => {
     server = await startFixtureServer();
   });
 
   afterAll(async () => {
-    await Promise.all(browsers.map((browser) => browser.close()));
+    await Promise.all(browsers.map((browser) => browser.dispose()));
     await server.close();
   });
 
@@ -54,15 +54,12 @@ export function useSessionRig(): SessionRigFactory {
     startUrl: string | null,
     isSubscribedFirst: boolean,
   ): Promise<SessionRig> {
-    const browser = await chromium.launch();
+    const browser = await launchPersistent();
     browsers.push(browser);
-    const context = await browser.newContext({
-      viewport: { width: 1280, height: 800 },
-    });
+    const { context } = browser;
     const clock = createFakeClock(1000);
     const signals: SessionSignal[] = [];
-    const session = await startPlaywrightSession({
-      browser,
+    const session = await startPatchrightSession({
       context,
       clock,
       inPageScriptPath: IN_PAGE_BUNDLE_PATH,
@@ -89,7 +86,6 @@ export function useSessionRig(): SessionRigFactory {
     const rig: SessionRig = {
       session,
       context,
-      browser,
       clock,
       signals,
       firstPage: () => {

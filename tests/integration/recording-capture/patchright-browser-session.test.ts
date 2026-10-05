@@ -19,7 +19,7 @@ async function waitForNavigations(rig: SessionRig, count: number) {
   return navigations(rig);
 }
 
-describe('src/recording-capture/adapters/playwright-browser-session.ts', () => {
+describe('src/recording-capture/adapters/patchright-browser-session.ts', () => {
   const factory = useSessionRig();
 
   describe('signals', () => {
@@ -317,8 +317,24 @@ describe('src/recording-capture/adapters/playwright-browser-session.ts', () => {
       const rig = await factory.start('button.html');
       await rig.session.close();
       await rig.session.close();
-      expect(rig.browser.isConnected()).toBe(false);
+      await expect(rig.context.newPage()).rejects.toThrow(/closed/i);
       expect(rig.signalsOfKind('browser-closed')).toHaveLength(0);
+    });
+
+    it('reports the browser closed when the persistent context closes under it', async () => {
+      const rig = await factory.start('button.html');
+      await rig.context.close();
+      await rig.waitForSignal('browser-closed');
+      expect(rig.signalsOfKind('browser-closed')).toHaveLength(1);
+    });
+
+    it('works in the page the persistent context opened instead of opening a second one', async () => {
+      const rig = await factory.start('button.html');
+      expect(rig.context.pages()).toHaveLength(1);
+      expect(rig.signalsOfKind('page-opened')).toHaveLength(0);
+      await rig.firstPage().getByTestId('save-button').click();
+      const signal = await rig.waitForSignal('dom');
+      expect(signal).toMatchObject({ pageId: 'page1' });
     });
   });
 });

@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 import { createPatchrightBrowserInstallation } from '../environment-setup/adapters/patchright-browser-installation.ts';
 import { resolvePatchrightCli } from '../environment-setup/adapters/resolve-patchright-cli.ts';
 import { createPerformanceClock } from '../recording-capture/adapters/performance-clock.ts';
-import { createPlaywrightBrowserLauncher } from '../recording-capture/adapters/playwright-browser-launcher.ts';
+import { createPatchrightBrowserLauncher } from '../recording-capture/adapters/patchright-browser-launcher.ts';
 import type { BrowserLauncher } from '../recording-capture/application/ports/browser-launcher.ts';
 import { nodeProcessSpawner } from '../replay/adapters/node-process-spawner.ts';
 import { withScriptCheck } from '../replay/adapters/script-checking-spawner.ts';
@@ -60,7 +60,7 @@ export function createProductionDeps(
     }),
     launcher:
       options.launcher ??
-      createPlaywrightBrowserLauncher({
+      createPatchrightBrowserLauncher({
         clock,
         inPageScriptPath: paths.inPageScriptPath,
       }),

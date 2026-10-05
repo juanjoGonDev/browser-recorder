@@ -10,6 +10,7 @@ import type {
 } from '../../../src/recording-capture/application/recording-session.ts';
 import { startRecording } from '../../../src/recording-capture/application/recording-session.ts';
 import type { Recording } from '../../../src/shared/domain/recording.ts';
+import { ProfileLockedAtLaunchError } from '../../../src/recording-capture/domain/is-profile-in-use-error.ts';
 import { BRAVE_CHOICE, BRAVE_TARGET } from '../../support/browser-fixtures.ts';
 import { createFakeClock } from '../../support/fake-clock.ts';
 import type { FakeClock } from '../../support/fake-clock.ts';
@@ -141,6 +142,94 @@ describe('src/recording-capture/application/recording-session.ts', () => {
     it('launches with no start URL when there is none', async () => {
       const harness = await begin();
       expect(harness.launches[0]?.startUrl).toBeNull();
+    });
+  });
+
+  describe('starting on a locked profile', () => {
+    const lockError = new ProfileLockedAtLaunchError(new Error('locked'));
+
+    async function startLocked(saves: Recording[]): Promise<unknown> {
+      return startRecording(
+        {
+          launcher: { launch: () => Promise.reject(lockError) },
+          clock: createFakeClock(START_MS),
+          sink: {
+            save: (recording) => {
+              saves.push(recording);
+              return Promise.resolve();
+            },
+          },
+          now: () => new Date('2026-03-04T05:06:07.000Z'),
+        },
+        {
+          name: 'Locked',
+          slug: 'locked',
+          startUrl: null,
+          browser: BRAVE_CHOICE,
+          target: BRAVE_TARGET,
+        },
+      ).catch((error: unknown) => error);
+    }
+
+    it('creates no recording and reports the lock error itself', async () => {
+      const saves: Recording[] = [];
+      await expect(startLocked(saves)).resolves.toBe(lockError);
+      await vi.advanceTimersByTimeAsync(DEBOUNCE_MS * 2);
+      expect(saves).toEqual([]);
+    });
+  });
+
+  describe('what a saved recording says about its browser', () => {
+    const chromeCopy = {
+      browserId: 'chrome',
+      profileMode: 'copy-of-real',
+      sourceProfile: 'Profile 2',
+    } as const;
+
+    async function savedWith(choice: typeof chromeCopy | typeof BRAVE_CHOICE) {
+      const saves: Recording[] = [];
+      const live = await startRecording(
+        {
+          launcher: { launch: () => Promise.resolve(createFakeBrowser()) },
+          clock: createFakeClock(START_MS),
+          sink: {
+            save: (recording) => {
+              saves.push(recording);
+              return Promise.resolve();
+            },
+          },
+          now: () => new Date('2026-03-04T05:06:07.000Z'),
+        },
+        {
+          name: 'Saved',
+          slug: 'saved',
+          startUrl: null,
+          browser: choice,
+          target: {
+            ...BRAVE_TARGET,
+            userDataDir: '/secret/profile/copy',
+            browserArgs: ['--profile-directory=Profile 2'],
+          },
+        },
+      );
+      return live.stop();
+    }
+
+    it('holds the browser and the profile mode of the choice', async () => {
+      const recording = await savedWith(chromeCopy);
+      expect(recording.browser).toEqual(chromeCopy);
+    });
+
+    it('keeps every other choice as chosen too', async () => {
+      const recording = await savedWith(BRAVE_CHOICE);
+      expect(recording.browser).toEqual(BRAVE_CHOICE);
+    });
+
+    it('never stores a path, an argument or any profile content', async () => {
+      const text = JSON.stringify(await savedWith(chromeCopy));
+      expect(text).not.toContain('/secret/profile/copy');
+      expect(text).not.toContain('--profile-directory');
+      expect(text).not.toContain('Brave Browser');
     });
   });
 
