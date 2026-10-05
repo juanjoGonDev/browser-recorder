@@ -13,11 +13,38 @@ type DomSignal = Extract<SessionSignal, { kind: 'dom' }>;
 const LOOPBACK = '127.0.0.1';
 const WAIT = { timeout: 8000, interval: 25 };
 
+function isClick(signal: SessionSignal): signal is DomSignal {
+  return signal.kind === 'dom' && signal.payload.kind === 'click';
+}
+
+function isOuter(signal: DomSignal): boolean {
+  return signal.framePath.length === 0;
+}
+
+/** Clicks on a button: what the tests do, apart from the readiness probes. */
 function domClicks(signals: readonly SessionSignal[]): DomSignal[] {
-  return signals.filter(
-    (signal): signal is DomSignal =>
-      signal.kind === 'dom' && signal.payload.kind === 'click',
-  );
+  return signals
+    .filter(isClick)
+    .filter((signal) =>
+      signal.candidates.some(
+        (candidate) => candidate.kind === 'role' && candidate.role === 'button',
+      ),
+    );
+}
+
+/**
+ * The capture is installed asynchronously once a frame exists; a person never
+ * outpaces it, a test can. Probes the inner frame until a click is reported.
+ */
+async function waitUntilCaptured(
+  page: Page,
+  signals: readonly SessionSignal[],
+): Promise<void> {
+  const known = signals.filter(isClick).length;
+  await vi.waitFor(async () => {
+    await page.frameLocator('#inner').locator('#inner-status').click();
+    expect(signals.filter(isClick).length).toBeGreaterThan(known);
+  }, WAIT);
 }
 
 async function isOutOfProcess(
@@ -74,6 +101,7 @@ describe('cross-origin iframes (out-of-process frames)', () => {
     await vi.waitFor(() => {
       expect(page.frames()).toHaveLength(2);
     }, WAIT);
+    await waitUntilCaptured(page, signals);
     return { page, signals, context };
   }
 
@@ -106,6 +134,7 @@ describe('cross-origin iframes (out-of-process frames)', () => {
     await vi.waitFor(() => {
       expect(page.frames()).toHaveLength(2);
     }, WAIT);
+    await waitUntilCaptured(page, signals);
     await page.frameLocator('#inner').getByRole('button').click();
     await vi.waitFor(() => {
       expect(domClicks(signals)).toHaveLength(1);
@@ -143,6 +172,7 @@ describe('cross-origin iframes (out-of-process frames)', () => {
     await vi.waitFor(() => {
       expect(page.frames()[1]?.url()).toBe(elsewhere);
     }, WAIT);
+    await waitUntilCaptured(page, signals);
     await page.frameLocator('#inner').getByRole('button').click();
     await vi.waitFor(() => {
       expect(domClicks(signals)).toHaveLength(1);
@@ -154,8 +184,7 @@ describe('cross-origin iframes (out-of-process frames)', () => {
     const { page, signals } = await open();
     await page.locator('#outer-status').click();
     await vi.waitFor(() => {
-      expect(domClicks(signals)).toHaveLength(1);
+      expect(signals.filter(isClick).filter(isOuter)).toHaveLength(1);
     }, WAIT);
-    expect(domClicks(signals)[0]?.framePath).toEqual([]);
   });
 });

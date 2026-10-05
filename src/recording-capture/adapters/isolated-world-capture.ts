@@ -93,6 +93,9 @@ export async function attachCapture(
     const message = parseInPageText(event.payload);
     if (message !== null) options.onMessage({ message, frameId, receivedAt });
   });
+  // Scripts registered for new documents only run while the Page domain is
+  // enabled in the session; a frame's own session is not enabled by anyone else.
+  await cdp.send('Page.enable');
   await cdp.send('Runtime.enable');
   // Added before the world exists: Chromium puts it into the world on creation.
   await cdp.send('Runtime.addBinding', {
