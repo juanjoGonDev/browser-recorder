@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { scriptPrelude } from '../../../src/script-generation/domain/script-prelude.ts';
@@ -222,5 +224,223 @@ describe('src/script-generation/domain/script-prelude.ts', () => {
       rt.start();
       try { await rt.filesSet(9); } catch (error) { rt.fail(error); }`);
     expect(result.stdout).toMatch(/::error - ".*file chooser.*"/iu);
+  });
+});
+
+const FORBIDDEN_CDP_DOMAINS = ['Runtime', 'Console'];
+const TEMP_PROFILE_PREFIX = 'browser-recorder-profile-';
+const WINDOW = '{ kind: "window", width: 1280, height: 800 }';
+
+const LAUNCH_FAKES = String.raw`
+import { existsSync as exists } from 'node:fs';
+const calls = [];
+const chromium = {
+  launchPersistentContext: async (dir, options) => {
+    calls.push({ dir, options });
+    if (globalThis.launchFails) throw new Error('launch failed');
+    return { close: async () => { calls.push('closed'); } };
+  },
+};
+const report = () => console.log(JSON.stringify(calls[0], (key, value) => value === undefined ? null : value));
+`;
+
+function launchProgram(body: string): string {
+  return `${scriptPrelude}\n${LAUNCH_FAKES}\n${body}\n`;
+}
+
+function runLaunch(body: string, options?: NodeRunOptions) {
+  return runNodeModule(launchProgram(body), options);
+}
+
+function launched(stdout: string) {
+  return JSON.parse(lines(stdout)[0] ?? 'null') as {
+    dir: string;
+    options: Record<string, unknown>;
+  };
+}
+
+describe('openContext in the script prelude', () => {
+  it('launches a persistent context from the four environment variables', async () => {
+    const result = await runLaunch(`
+      const env = {
+        BROWSER_RECORDER_EXECUTABLE_PATH: process.execPath,
+        BROWSER_RECORDER_USER_DATA_DIR: '/profiles/brave/managed',
+        BROWSER_RECORDER_BROWSER_ARGS: JSON.stringify(['--profile-directory=Profile 2']),
+        BROWSER_RECORDER_REAL_KEYCHAIN: '1',
+        BROWSER_RECORDER_HEADLESS: '1',
+      };
+      await openContext(chromium, ${WINDOW}, env);
+      report();`);
+    const { dir, options } = launched(result.stdout);
+    expect(dir).toBe('/profiles/brave/managed');
+    expect(options).toStrictEqual({
+      headless: true,
+      timeout: 30_000,
+      viewport: null,
+      args: ['--window-size=1280,800', '--profile-directory=Profile 2'],
+      ignoreDefaultArgs: ['--use-mock-keychain', '--password-store=basic'],
+      executablePath: process.execPath,
+    });
+  });
+
+  it('treats empty variables as unset and runs headed by default', async () => {
+    const result = await runLaunch(`
+      const env = {
+        BROWSER_RECORDER_EXECUTABLE_PATH: '',
+        BROWSER_RECORDER_USER_DATA_DIR: '',
+        BROWSER_RECORDER_BROWSER_ARGS: '',
+        BROWSER_RECORDER_REAL_KEYCHAIN: '',
+      };
+      const { close } = await openContext(chromium, ${WINDOW}, env);
+      report();
+      console.log(exists(calls[0].dir));
+      await close();
+      console.log(exists(calls[0].dir));`);
+    const { dir, options } = launched(result.stdout);
+    expect(dir).toContain(TEMP_PROFILE_PREFIX);
+    expect(options['headless']).toBe(false);
+    expect(options).toMatchObject({
+      ignoreDefaultArgs: null,
+      executablePath: null,
+    });
+    expect(lines(result.stdout).slice(1)).toStrictEqual(['true', 'false']);
+  });
+
+  it('keeps a profile directory it was given when the context closes', async () => {
+    const result = await runLaunch(
+      `
+      const env = { BROWSER_RECORDER_USER_DATA_DIR: process.cwd() + '/given' };
+      const { close } = await openContext(chromium, ${WINDOW}, env);
+      await close();
+      console.log(exists(process.cwd() + '/given'), calls.at(-1));`,
+      { files: { 'given/Local State': '{}' } },
+    );
+    expect(lines(result.stdout)[0]).toBe('true closed');
+  });
+
+  it('closes the context once even when close is called twice', async () => {
+    const result = await runLaunch(`
+      const { close } = await openContext(chromium, ${WINDOW}, {});
+      await close();
+      await close();
+      console.log(calls.filter((call) => call === 'closed').length);`);
+    expect(lines(result.stdout)[0]).toBe('1');
+  });
+
+  it('removes the temporary profile when the launch fails', async () => {
+    const result = await runLaunch(`
+      globalThis.launchFails = true;
+      try { await openContext(chromium, ${WINDOW}, {}); } catch (error) { console.log(error.message); }
+      console.log(exists(calls[0].dir));`);
+    expect(lines(result.stdout)).toStrictEqual(['launch failed', 'false']);
+  });
+
+  it.each([
+    [['--remote-debugging-port=1'], []],
+    [
+      ['--remote-debugging-port=1', '--profile-directory=Default'],
+      ['--profile-directory=Default'],
+    ],
+    [['--profile-directory=../x'], []],
+    [['--profile-directory=Profile 2/../..'], []],
+    [['--profile-directory=C:\\\\x'], []],
+    [['--profile-directory=Guest Profile'], []],
+    [[7, null, '--user-data-dir=/tmp/x'], []],
+  ])(
+    'accepts only profile directory arguments from %j',
+    async (given, kept) => {
+      const result = await runLaunch(`
+      const env = { BROWSER_RECORDER_BROWSER_ARGS: ${JSON.stringify(JSON.stringify(given))} };
+      await openContext(chromium, ${WINDOW}, env);
+      report();`);
+      expect(launched(result.stdout).options['args']).toStrictEqual([
+        '--window-size=1280,800',
+        ...kept,
+      ]);
+    },
+  );
+
+  it.each(['not json', '{"a":1}', '"--profile-directory=Default"'])(
+    'ignores browser arguments that are not a JSON array: %s',
+    async (text) => {
+      const result = await runLaunch(`
+        const env = { BROWSER_RECORDER_BROWSER_ARGS: ${JSON.stringify(text)} };
+        await openContext(chromium, ${WINDOW}, env);
+        report();`);
+      expect(launched(result.stdout).options['args']).toStrictEqual([
+        '--window-size=1280,800',
+      ]);
+    },
+  );
+
+  it('falls back to the bundled browser with a warning when the executable is missing', async () => {
+    const result = await runLaunch(`
+      const env = { BROWSER_RECORDER_EXECUTABLE_PATH: '/nowhere/brave' };
+      await openContext(chromium, ${WINDOW}, env);
+      report();`);
+    expect(launched(result.stdout).options['executablePath']).toBeNull();
+    expect(result.stderr).toContain('Browser not found: /nowhere/brave');
+    expect(result.stdout).not.toContain('::');
+  });
+
+  it('reads only a literal 1 as the real keychain switch', async () => {
+    const result = await runLaunch(`
+      const env = { BROWSER_RECORDER_REAL_KEYCHAIN: 'true' };
+      await openContext(chromium, ${WINDOW}, env);
+      report();`);
+    expect(launched(result.stdout).options['ignoreDefaultArgs']).toBeNull();
+  });
+
+  it('uses the process environment when none is passed', async () => {
+    const result = await runLaunch(
+      `await openContext(chromium, ${WINDOW}); report();`,
+      { env: { BROWSER_RECORDER_USER_DATA_DIR: '/from/process' } },
+    );
+    expect(launched(result.stdout).dir).toBe('/from/process');
+  });
+});
+
+describe('launch rules shared with the recorder', () => {
+  const cases = JSON.parse(
+    readFileSync(
+      path.join(
+        import.meta.dirname,
+        '..',
+        '..',
+        'fixtures',
+        'launch-parity',
+        'cases.json',
+      ),
+      'utf8',
+    ),
+  ) as {
+    name: string;
+    display: unknown;
+    target: unknown;
+    expected: unknown;
+  }[];
+
+  it.each(cases.map((entry) => [entry.name, entry] as const))(
+    'builds the golden options for %s',
+    async (_name, entry) => {
+      const result = await runLaunch(`
+        const options = buildLaunchOptions(${JSON.stringify(entry.display)}, ${JSON.stringify(entry.target)});
+        console.log(JSON.stringify(options, (key, value) => value === undefined ? null : value));`);
+      expect(JSON.parse(lines(result.stdout)[0] ?? 'null')).toStrictEqual(
+        entry.expected,
+      );
+    },
+  );
+});
+
+describe('script prelude CDP surface', () => {
+  const forbidden = new RegExp(
+    FORBIDDEN_CDP_DOMAINS.map((domain) => `${domain}\\.enable`).join('|'),
+    'u',
+  );
+
+  it('never sends the enable calls that make the browser detectable', () => {
+    expect(scriptPrelude).toContain('Runtime.callFunctionOn');
+    expect(scriptPrelude).not.toMatch(forbidden);
   });
 });

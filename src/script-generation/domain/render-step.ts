@@ -134,7 +134,7 @@ const RENDERERS: { readonly [K in RecordingEventKind]: Renderer<K> } = {
 
 /**
  * The statements that perform one recorded event. Scheduling and the progress
- * marker are added by the caller; this only maps the event to Playwright code.
+ * marker are added by the caller; this only maps the event to Patchright code.
  */
 export function renderStep(event: RecordingEvent, index: number): string[] {
   const renderer = (

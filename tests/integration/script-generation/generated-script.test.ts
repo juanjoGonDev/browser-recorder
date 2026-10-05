@@ -42,7 +42,7 @@ describe('generated script against the fixture site', () => {
 
   beforeAll(async () => {
     server = await startFixtureServer();
-    // Inside the repository so `import 'playwright'` resolves like a replay.
+    // Inside the repository so `import 'patchright'` resolves like a replay.
     mkdirSync(SCRATCH_PARENT, { recursive: true });
     scratch = mkdtempSync(path.join(SCRATCH_PARENT, 'script-generation-'));
   });

@@ -1,0 +1,47 @@
+[
+  {
+    "name": "window display on a stored browser",
+    "display": { "kind": "window", "width": 1280, "height": 800 },
+    "target": {
+      "executablePath": "/fixture/Brave Browser",
+      "browserArgs": [],
+      "shouldUseRealKeychain": false
+    },
+    "expected": {
+      "viewport": null,
+      "args": ["--window-size=1280,800"],
+      "ignoreDefaultArgs": null,
+      "executablePath": "/fixture/Brave Browser"
+    }
+  },
+  {
+    "name": "emulated display on the bundled browser",
+    "display": { "kind": "emulated", "width": 800, "height": 600 },
+    "target": {
+      "executablePath": null,
+      "browserArgs": [],
+      "shouldUseRealKeychain": false
+    },
+    "expected": {
+      "viewport": { "width": 800, "height": 600 },
+      "args": [],
+      "ignoreDefaultArgs": null,
+      "executablePath": null
+    }
+  },
+  {
+    "name": "copy of a real profile keeps the real keychain",
+    "display": { "kind": "window", "width": 1024, "height": 768 },
+    "target": {
+      "executablePath": "/fixture/Chrome",
+      "browserArgs": ["--profile-directory=Profile 2"],
+      "shouldUseRealKeychain": true
+    },
+    "expected": {
+      "viewport": null,
+      "args": ["--window-size=1024,768", "--profile-directory=Profile 2"],
+      "ignoreDefaultArgs": ["--use-mock-keychain", "--password-store=basic"],
+      "executablePath": "/fixture/Chrome"
+    }
+  }
+]

@@ -24,8 +24,17 @@ function importedModules(script: string): string[] {
   return [...script.matchAll(IMPORT_SOURCE)].map((match) => match[1]);
 }
 
+const BRAVE_MANAGED = recordingOf(BASIC_RECORDING.events, {
+  browser: { browserId: 'brave', profileMode: 'managed', sourceProfile: null },
+});
+const LEGACY_EMULATED = recordingOf(BASIC_RECORDING.events, {
+  display: { kind: 'emulated', width: 800, height: 600 },
+});
+
 const CASES = [
   ['basic.mjs', BASIC_RECORDING],
+  ['brave-managed.mjs', BRAVE_MANAGED],
+  ['legacy-emulated.mjs', LEGACY_EMULATED],
   ['multi-tab.mjs', MULTI_TAB_RECORDING],
   ['hostile.mjs', HOSTILE_RECORDING],
 ] as const;
@@ -45,6 +54,17 @@ describe('src/script-generation/domain/generate-script.ts', () => {
       expect(script).not.toMatch(
         /\.(?:evaluate|evaluateHandle|evaluateAll|\$eval|\$\$eval|waitForFunction|addInitScript|addScriptTag|exposeFunction|exposeBinding)\(/u,
       );
+    },
+  );
+
+  it.each(CASES)(
+    'sends no enable call of the Runtime or Console domains in %s',
+    (_name, recording) => {
+      const forbidden = new RegExp(
+        ['Runtime', 'Console'].map((domain) => `${domain}\\.enable`).join('|'),
+        'u',
+      );
+      expect(generateScript(recording)).not.toMatch(forbidden);
     },
   );
 
@@ -99,21 +119,98 @@ describe('src/script-generation/domain/generate-script.ts', () => {
     const script = generateScript(BASIC_RECORDING);
     const lines = script.split('\n').map((line) => line.trim());
     expect(
-      lines.indexOf('const page1 = await context.newPage();'),
+      lines.indexOf(
+        'const page1 = context.pages()[0] ?? (await context.newPage());',
+      ),
     ).toBeLessThan(lines.indexOf('rt.start();'));
     expect(lines).toContain('rt.done();');
     expect(lines).toContain(
-      '} catch (error) { rt.fail(error); } finally { await browser.close(); }',
+      '} catch (error) { rt.fail(error); } finally { await close(); }',
     );
   });
 
-  it('uses the recorded display size', () => {
+  it('reuses the page the persistent context opens instead of a second tab', () => {
+    const script = generateScript(BASIC_RECORDING);
+    expect(script).toContain('context.pages()[0] ?? (await context.newPage())');
+    expect(script).not.toContain('const page1 = await context.newPage();');
+  });
+
+  it('opens the context from the recorded window display', () => {
+    const script = generateScript(BASIC_RECORDING);
+    expect(script).toContain(
+      'await openContext(chromium, { kind: "window", width: 1280, height: 800 })',
+    );
+  });
+
+  it('opens the context from the recorded emulated display', () => {
     const script = generateScript(
       recordingOf([], {
         display: { kind: 'emulated', width: 800, height: 600 },
       }),
     );
-    expect(script).toContain('viewport: { width: 800, height: 600 }');
+    expect(script).toContain(
+      'await openContext(chromium, { kind: "emulated", width: 800, height: 600 })',
+    );
+  });
+
+  it('launches through the persistent context and no throwaway browser', () => {
+    const script = generateScript(BASIC_RECORDING);
+    expect(script).toContain('launchPersistentContext(');
+    expect(script).not.toContain('chromium.launch(');
+    expect(script).not.toContain('browser.newContext');
+    expect(script).not.toContain('browser.close');
+  });
+
+  it.each([
+    [
+      { browserId: 'brave', profileMode: 'managed', sourceProfile: null },
+      'brave, managed profile',
+    ],
+    [
+      {
+        browserId: 'chrome',
+        profileMode: 'copy-of-real',
+        sourceProfile: 'Profile 2',
+      },
+      'chrome, copy-of-real profile',
+    ],
+    [
+      { browserId: 'bundled', profileMode: 'ephemeral', sourceProfile: null },
+      'bundled, ephemeral profile',
+    ],
+  ] as const)(
+    'names the recorded browser and mode in the header for %j',
+    (browser, text) => {
+      const script = generateScript(recordingOf([], { browser }));
+      expect(script.split('\n')[1]).toBe(`// Recorded with: ${text}.`);
+    },
+  );
+
+  it('never lets a hand-edited browser id break out of the header comment', () => {
+    const script = generateScript(
+      recordingOf([], {
+        browser: {
+          browserId: 'x\nprocess.exit(1)' as never,
+          profileMode: 'managed',
+          sourceProfile: null,
+        },
+      }),
+    );
+    expect(script).not.toContain('process.exit(1)');
+    expect(script.split('\n')[1]).toBe(
+      '// Recorded with: unknown browser, managed profile.',
+    );
+  });
+
+  it('reads as bundled and ephemeral for a recording migrated from version 1', () => {
+    const script = generateScript(
+      recordingOf([], {
+        display: { kind: 'emulated', width: 1280, height: 800 },
+      }),
+    );
+    expect(script.split('\n')[1]).toBe(
+      '// Recorded with: bundled, ephemeral profile.',
+    );
   });
 
   it('registers dialog and file queues on the page that owns them', () => {

@@ -1,22 +1,28 @@
 // The runtime every generated script carries. It is plain JavaScript inside a
 // string because the script must run with `node` alone and import nothing from
 // this project. Keep it free of backticks and `${`: it is a raw template.
-export const scriptPrelude = String.raw`import { existsSync } from 'node:fs';
+import { launchPrelude } from './launch-prelude.ts';
+
+const imports = String.raw`import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const ABORT_EXIT_CODE = 130;
+`;
+
+const constants = String.raw`const ABORT_EXIT_CODE = 130;
 const DEFAULT_WAIT_MS = 10000;
 const SCROLL_WORLD = '__browser_recorder_replay';
+`;
 
-// The three functions below run inside an isolated world through the
+const runtime = String.raw`// The three functions below run inside an isolated world through the
 // DevTools protocol, never in the page's own: they are serialized with
 // toString(), so they may not use this file's bindings.
 function scrollWindowInIsolatedWorld(left, top) {
   window.scrollTo({ left, top, behavior: 'instant' });
 }
 
-// Waits, on the window, for one event that Playwright dispatches at the
+// Waits, on the window, for one event that Patchright dispatches at the
 // element to scroll. A composed event reaches the window from inside any open
 // shadow root, and its path names the real element, so no path of child
 // indexes, which cannot cross a shadow boundary, is needed.
@@ -294,3 +300,6 @@ function createRuntime(context, options = {}) {
   };
 }
 `;
+
+export const scriptPrelude = `${imports}${constants}${launchPrelude}
+${runtime}`;

@@ -50,7 +50,7 @@ export function renderTargetChain(
 }
 
 /**
- * A Playwright expression that resolves the target on the given page variable:
+ * A Patchright expression that resolves the target on the given page variable:
  * frame chain first, then the locator, then `nth` when it was ambiguous.
  */
 export function renderTarget(pageVariable: string, target: Target): string {

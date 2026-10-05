@@ -386,7 +386,7 @@ function createRuntime(context, options = {}) {
   };
 }
 
-const { context, close } = await openContext(chromium, { kind: "window", width: 1280, height: 800 });
+const { context, close } = await openContext(chromium, { kind: "emulated", width: 800, height: 600 });
 const rt = createRuntime(context);
 rt.onAbort(close);
 try {
