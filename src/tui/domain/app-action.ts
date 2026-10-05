@@ -1,3 +1,4 @@
+import type { BrowserChoice } from '../../shared/domain/browser-choice.ts';
 import type { Recording } from '../../shared/domain/recording.ts';
 import type {
   BrowserOptionView,
@@ -13,11 +14,17 @@ export type AppAction =
   | { readonly type: 'resize'; readonly listRows: number }
   | { readonly type: 'setup-output'; readonly line: string }
   | { readonly type: 'setup-installing' }
-  | { readonly type: 'setup-ready'; readonly linuxHint: string | null }
+  | {
+      readonly type: 'setup-ready';
+      readonly linuxHint: string | null;
+      readonly browsers: readonly string[];
+    }
   | {
       readonly type: 'setup-failed';
       readonly manualCommand: string;
       readonly exitCode: number | null;
+      /** Labels of the non-bundled browsers that can still record. */
+      readonly browsers: readonly string[];
     }
   | { readonly type: 'navigate'; readonly target: MenuTarget }
   | { readonly type: 'move-selection'; readonly delta: number }
@@ -31,7 +38,12 @@ export type AppAction =
   | { readonly type: 'browsers-failed'; readonly message: string }
   | { readonly type: 'edit-text'; readonly edit: TextEdit }
   | { readonly type: 'form-error'; readonly message: string | null }
-  | { readonly type: 'recording-started'; readonly name: string }
+  | {
+      readonly type: 'recording-started';
+      readonly name: string;
+      readonly browser: BrowserChoice;
+      readonly warnings: readonly string[];
+    }
   | { readonly type: 'recording-updated'; readonly update: RecordingUpdateView }
   | { readonly type: 'recording-stopping' }
   | { readonly type: 'request-discard' }
@@ -49,6 +61,7 @@ export type AppAction =
       readonly type: 'replay-started';
       readonly recording: Recording;
       readonly view: ReplayView;
+      readonly warnings: readonly string[];
     }
   | { readonly type: 'replay-updated'; readonly view: ReplayView }
   | { readonly type: 'quit' };

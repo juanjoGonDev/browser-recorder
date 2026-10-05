@@ -12,6 +12,7 @@ export function plainContext(
     nowMs: 0,
     linuxHint: null,
     isBrowserAvailable: true,
+    detectedBrowsers: [],
     ...overrides,
   };
 }

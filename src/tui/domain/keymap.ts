@@ -1,4 +1,9 @@
-import type { AppState, RecordingScreen, Screen } from './app-state.ts';
+import type {
+  AppState,
+  NewRecordingScreen,
+  RecordingScreen,
+  Screen,
+} from './app-state.ts';
 import type { Intent } from './intent.ts';
 import { keyId, typedCharacter, type KeyInput } from './key-input.ts';
 
@@ -10,6 +15,7 @@ const SUBMIT: Intent = { kind: 'submit' };
 const NO: Intent = { kind: 'answer-confirm', isYes: false };
 const UP: Intent = { kind: 'move-selection', delta: -1 };
 const DOWN: Intent = { kind: 'move-selection', delta: 1 };
+const OPEN_MENU: Intent = { kind: 'open', target: 'main-menu' };
 const OPEN_LIBRARY: Intent = { kind: 'open', target: 'library' };
 const SWITCH_FIELD: Intent = { kind: 'switch-field' };
 const ACCEPT: Intent = { kind: 'respond-dialog', action: 'accept' };
@@ -36,6 +42,12 @@ const FORM_KEYS: KeyTable = {
   down: SWITCH_FIELD,
   return: SUBMIT,
   escape: BACK,
+};
+
+const PICKER_KEYS: KeyTable = {
+  ...FORM_KEYS,
+  left: { kind: 'cycle-option', delta: -1 },
+  right: { kind: 'cycle-option', delta: 1 },
 };
 
 const LIBRARY_KEYS: KeyTable = {
@@ -103,7 +115,15 @@ function forSetup(screen: Screen, key: KeyInput): Intent | null {
   const isRetry = screen.kind === 'setup' && screen.phase === 'failed';
   if (isRetry && keyId(key) === 'return') return { kind: 'retry-setup' };
   if (isRetry && keyId(key) === 'l') return OPEN_LIBRARY;
+  const canRecord = isRetry && screen.browsers.length > 0;
+  if (canRecord && keyId(key) === 'm') return OPEN_MENU;
   return keyId(key) === 'q' ? QUIT : null;
+}
+
+/** Text fields edit; the two pickers only cycle their options. */
+function forForm(screen: NewRecordingScreen, key: KeyInput): Intent | null {
+  const isPicker = screen.focus === 'browser' || screen.focus === 'profile';
+  return isPicker ? lookup(PICKER_KEYS, key) : textOr(FORM_KEYS, key);
 }
 
 function forRecording(screen: RecordingScreen, key: KeyInput): Intent | null {
@@ -135,7 +155,7 @@ function forScreen(screen: Screen, key: KeyInput): Intent | null {
     case 'main-menu':
       return lookup(MENU_KEYS, key);
     case 'new-recording':
-      return textOr(FORM_KEYS, key);
+      return forForm(screen, key);
     case 'recording':
       return forRecording(screen, key);
     case 'library':

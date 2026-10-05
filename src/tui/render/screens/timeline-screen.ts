@@ -1,5 +1,6 @@
 import type { TimelineScreen } from '../../domain/app-state.ts';
 import { visibleRange } from '../../domain/list-window.ts';
+import { describeBrowser } from '../browser-summary.ts';
 import { formatDuration, pluralize } from '../format.ts';
 import { sanitize, spread } from '../layout.ts';
 import type { RenderContext, ScreenView } from '../screen-view.ts';
@@ -23,7 +24,12 @@ function summaryLine(screen: TimelineScreen, context: RenderContext): string {
   const count = pluralize(recording.events.length, 'event');
   const left = `${count} · ${formatDuration(recording.durationMs)}`;
   const url = sanitize(recording.startUrl ?? 'blank page');
-  return spread(left, context.style.muted(url), context.width);
+  const browser = describeBrowser(recording.browser);
+  return spread(
+    left,
+    context.style.muted(`${browser} · ${url}`),
+    context.width,
+  );
 }
 
 function eventRows(screen: TimelineScreen, context: RenderContext): string[] {

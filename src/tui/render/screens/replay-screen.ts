@@ -3,13 +3,16 @@ import type { ReplayScreen } from '../../domain/app-state.ts';
 import type { ReplayStepView, ReplayView } from '../../domain/app-views.ts';
 import { followRange } from '../../domain/list-window.ts';
 import type { Style } from '../ansi.ts';
+import { describeBrowser } from '../browser-summary.ts';
 import { formatDrift } from '../format.ts';
 import { sanitize, spread } from '../layout.ts';
 import type { RenderContext, ScreenView } from '../screen-view.ts';
 import { rule } from '../screen-view.ts';
 import { timelineRow, type RowDecoration } from '../timeline-list.ts';
+import { warningLines } from '../warning-lines.ts';
 
-const HEADER_ROWS = 2;
+/** Status row, browser row and the closing rule; warnings come on top. */
+const HEADER_ROWS = 3;
 /** Replay timing is considered good up to this much drift. */
 const DRIFT_TOLERANCE_MS = 100;
 
@@ -64,11 +67,16 @@ function header(screen: ReplayScreen, context: RenderContext): string[] {
       ? `${formatOffset(nowMs - screen.startedAtMs)}  `
       : '';
   const status = style.bold(STATUS_LABELS[view.status]);
-  const second =
+  const closing =
     view.errorMessage === null
       ? rule(context)
       : `${style.danger('✖')} ${style.danger(sanitize(view.errorMessage))}`;
-  return [spread(status, `${elapsed}${progress(screen)}`, width), second];
+  return [
+    spread(status, `${elapsed}${progress(screen)}`, width),
+    style.muted(sanitize(describeBrowser(screen.browser))),
+    ...warningLines(screen.warnings, context),
+    closing,
+  ];
 }
 
 export function renderReplayScreen(
@@ -76,7 +84,10 @@ export function renderReplayScreen(
   context: RenderContext,
 ): ScreenView {
   const { events, view } = screen;
-  const rows = Math.max(1, context.height - HEADER_ROWS);
+  const rows = Math.max(
+    1,
+    context.height - HEADER_ROWS - screen.warnings.length,
+  );
   const range = followRange(focusIndex(view.steps), {
     count: events.length,
     rows,

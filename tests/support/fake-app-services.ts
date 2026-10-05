@@ -18,7 +18,7 @@ import { validateStartUrl } from '../../src/script-library/domain/validate-start
 import { BROWSER_VIEWS, recordingWith, clicks } from './tui-fixtures.ts';
 
 export class FakeLiveRecording implements LiveRecordingView {
-  readonly warnings: readonly string[] = [];
+  warnings: readonly string[] = [];
   readonly responses: {
     action: 'accept' | 'dismiss';
     promptText: string | null;
@@ -59,7 +59,7 @@ export class FakeLiveRecording implements LiveRecordingView {
 }
 
 export class FakeLiveReplay implements LiveReplayView {
-  readonly warnings: readonly string[] = [];
+  warnings: readonly string[] = [];
   cancelCount = 0;
   readonly finished: Promise<ReplayView>;
   private readonly listeners: ((view: ReplayView) => void)[] = [];
@@ -106,6 +106,10 @@ export interface FakeServicesHandle {
   renameError: Error | null;
   removeError: Error | null;
   startError: Error | null;
+  /** Makes `browsers.list()` reject, as when detection fails. */
+  browsersError: Error | null;
+  /** While set, `browsers.list()` waits for it: detection in progress. */
+  browsersGate: Promise<void> | null;
   listCount: number;
 }
 
@@ -127,6 +131,8 @@ export function createFakeServices(): FakeServicesHandle {
     renameError: null,
     removeError: null,
     startError: null,
+    browsersError: null,
+    browsersGate: null,
     listCount: 0,
     services: {
       environment: {
@@ -156,7 +162,13 @@ export function createFakeServices(): FakeServicesHandle {
           return Promise.resolve();
         },
       },
-      browsers: { list: () => Promise.resolve(handle.browsers) },
+      browsers: {
+        list: async () => {
+          await handle.browsersGate;
+          if (handle.browsersError !== null) throw handle.browsersError;
+          return handle.browsers;
+        },
+      },
       recording: {
         start: (request) => {
           handle.startRequests.push(request);

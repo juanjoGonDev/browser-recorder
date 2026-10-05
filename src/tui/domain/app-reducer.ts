@@ -55,11 +55,14 @@ export function initialState(): AppState {
       lines: [],
       manualCommand: null,
       exitCode: null,
+      browsers: [],
     },
     nowMs: 0,
     listRows: listRowsFor(INITIAL_TERMINAL_ROWS),
     linuxHint: null,
     isBrowserAvailable: true,
+    isBundledMissing: false,
+    detectedBrowsers: [],
     isQuitting: false,
   };
 }
@@ -87,6 +90,16 @@ function moveSelection(state: AppState, delta: number): AppState {
     selected: Math.min(Math.max(screen.selected + delta, 0), LAST_MENU_INDEX),
   }));
   return moveListSelection(menu, delta);
+}
+
+const FOCUS_ORDER = ['name', 'url', 'browser', 'profile'] as const;
+
+function nextFocus(screen: NewRecordingScreen): NewRecordingScreen {
+  const at = FOCUS_ORDER.indexOf(screen.focus);
+  return {
+    ...screen,
+    focus: FOCUS_ORDER[(at + 1) % FOCUS_ORDER.length] ?? 'name',
+  };
 }
 
 function editLibrary(screen: LibraryScreen, edit: TextEdit): LibraryScreen {
@@ -130,25 +143,21 @@ const handlers: Handlers = {
   resize: (state, action) => resizeLists(state, action.listRows),
   'setup-output': (state, action) => setupOutput(state, action.line),
   'setup-installing': setupInstalling,
-  'setup-ready': (state, action) => setupReady(state, action.linuxHint),
-  'setup-failed': (state, action) =>
-    setupFailed(state, action.manualCommand, action.exitCode),
+  'setup-ready': (state, action) =>
+    setupReady(state, action.linuxHint, action.browsers),
+  'setup-failed': (state, action) => setupFailed(state, action),
   navigate: (state, action) => ({ ...state, screen: screenFor(action.target) }),
   'move-selection': (state, action) => moveSelection(state, action.delta),
   'page-selection': (state, action) =>
     pageListSelection(state, action.direction),
-  'switch-field': (state) =>
-    onForm(state, (screen) => ({
-      ...screen,
-      focus: screen.focus === 'name' ? 'url' : 'name',
-    })),
+  'switch-field': (state) => onForm(state, nextFocus),
   'cycle-option': (state, action) => cycleOption(state, action.delta),
   'browsers-loaded': (state, action) => browsersLoaded(state, action.browsers),
   'browsers-failed': (state, action) => browsersFailed(state, action.message),
   'edit-text': (state, action) => editText(state, action.edit),
   'form-error': (state, action) =>
     onForm(state, (screen) => ({ ...screen, error: action.message })),
-  'recording-started': (state, action) => recordingStarted(state, action.name),
+  'recording-started': (state, action) => recordingStarted(state, action),
   'recording-updated': (state, action) =>
     recordingUpdated(state, action.update),
   'recording-stopping': setStopping,
@@ -165,6 +174,8 @@ const handlers: Handlers = {
     screen: {
       kind: 'replay',
       name: action.recording.name,
+      browser: action.recording.browser,
+      warnings: action.warnings,
       events: action.recording.events,
       view: action.view,
       startedAtMs: state.nowMs,

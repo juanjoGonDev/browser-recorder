@@ -12,6 +12,8 @@ export interface RenderContext {
   readonly linuxHint: string | null;
   /** False after a failed install: recording and replay are disabled. */
   readonly isBrowserAvailable: boolean;
+  /** Labels of the browsers found on this machine. */
+  readonly detectedBrowsers: readonly string[];
 }
 
 /** A screen's contribution to a frame: the box content and its key hints. */

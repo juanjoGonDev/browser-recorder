@@ -1,3 +1,4 @@
+import type { AppAction } from './app-action.ts';
 import type { AppState, SetupScreen } from './app-state.ts';
 import { updateScreen } from './screen-update.ts';
 
@@ -24,25 +25,35 @@ export function setupOutput(state: AppState, line: string): AppState {
 export function setupReady(
   state: AppState,
   linuxHint: string | null,
+  browsers: readonly string[],
 ): AppState {
   return {
     ...state,
     linuxHint,
     isBrowserAvailable: true,
+    isBundledMissing: false,
+    detectedBrowsers: browsers,
     screen: { kind: 'main-menu', selected: 0 },
   };
 }
 
 export function setupFailed(
   state: AppState,
-  manualCommand: string,
-  exitCode: number | null,
+  failure: Extract<AppAction, { type: 'setup-failed' }>,
 ): AppState {
+  const { manualCommand, exitCode, browsers } = failure;
   const failed = onSetup(state, (screen) => ({
     ...screen,
     phase: 'failed',
     manualCommand,
     exitCode,
+    browsers,
   }));
-  return { ...failed, isBrowserAvailable: false };
+  return {
+    ...failed,
+    // Another detected browser can still record, so only the bundled one is lost.
+    isBrowserAvailable: browsers.length > 0,
+    isBundledMissing: true,
+    detectedBrowsers: browsers,
+  };
 }

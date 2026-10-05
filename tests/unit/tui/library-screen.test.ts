@@ -7,6 +7,7 @@ import { createStyle } from '../../../src/tui/render/ansi.ts';
 import { cellWidth } from '../../../src/tui/render/layout.ts';
 import { renderLibraryScreen } from '../../../src/tui/render/screens/library-screen.ts';
 import { plainContext } from '../../support/render-context.ts';
+import { BRAVE_CHOICE } from '../../support/browser-fixtures.ts';
 import { validEntry } from '../../support/tui-fixtures.ts';
 
 function screen(
@@ -60,6 +61,38 @@ describe('src/tui/render/screens/library-screen.ts', () => {
     expect(row).toContain('1:05');
     expect(row).toContain('7');
     expect(view.body.join('\n')).toContain('Name');
+  });
+
+  it('lists the browser and profile mode of each recording', () => {
+    const view = renderLibraryScreen(
+      screen([
+        validEntry('a', 'Alpha', { browser: BRAVE_CHOICE }),
+        validEntry('b', 'Beta', {
+          browser: {
+            browserId: 'chrome',
+            profileMode: 'copy-of-real',
+            sourceProfile: 'Profile 2',
+          },
+        }),
+        validEntry('c', 'Gamma'),
+      ]),
+      plainContext(),
+    );
+    const row = (name: string): string =>
+      view.body.find((line) => line.includes(name)) ?? '';
+    expect(view.body.join('\n')).toContain('Browser');
+    expect(row('Alpha')).toContain('Brave · managed');
+    expect(row('Beta')).toContain('Chrome · copy o…');
+    expect(row('Gamma')).not.toContain('·');
+  });
+
+  it('drops the browser column on a narrow terminal so names keep room', () => {
+    const view = renderLibraryScreen(
+      screen([validEntry('a', 'Alpha', { browser: BRAVE_CHOICE })]),
+      plainContext({ width: 60 }),
+    );
+    expect(view.body.join('\n')).not.toContain('Brave');
+    expect(view.body.join('\n')).toContain('Alpha');
   });
 
   it('marks the selected row', () => {

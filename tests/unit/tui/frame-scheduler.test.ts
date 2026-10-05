@@ -5,6 +5,7 @@ import { createFrameScheduler } from '../../../src/tui/application/frame-schedul
 import type { Screen } from '../../../src/tui/domain/app-state.ts';
 import { initialState } from '../../../src/tui/domain/app-reducer.ts';
 import { createFakeClock, createFakeTimers } from '../../support/fake-clock.ts';
+import { BRAVE_CHOICE } from '../../support/browser-fixtures.ts';
 
 function setup(screen: Screen) {
   const clock = createFakeClock(1000);
@@ -23,6 +24,8 @@ function setup(screen: Screen) {
 
 const recording: Screen = {
   kind: 'recording',
+  browser: BRAVE_CHOICE,
+  warnings: [],
   name: 'Demo',
   startedAtMs: 1000,
   events: [],
@@ -83,6 +86,8 @@ describe('src/tui/application/frame-scheduler.ts', () => {
   it('ticks while a replay runs and while the setup spins', () => {
     const replay: Screen = {
       kind: 'replay',
+      browser: BRAVE_CHOICE,
+      warnings: [],
       name: 'n',
       events: [],
       startedAtMs: 0,

@@ -1,3 +1,4 @@
+import type { BrowserChoice } from '../../shared/domain/browser-choice.ts';
 import type { Recording } from '../../shared/domain/recording.ts';
 import type { RecordingEvent } from '../../shared/domain/recording-event.ts';
 import type {
@@ -26,6 +27,8 @@ export interface SetupScreen {
   readonly manualCommand: string | null;
   /** The installer's exit code after a failed install, when it had one. */
   readonly exitCode: number | null;
+  /** Labels of the other browsers found, which can still record. */
+  readonly browsers: readonly string[];
 }
 
 export interface MainMenuScreen {
@@ -49,6 +52,9 @@ export interface NewRecordingScreen {
 export interface RecordingScreen {
   readonly kind: 'recording';
   readonly name: string;
+  readonly browser: BrowserChoice;
+  /** Cautions raised while preparing the browser, shown for the whole run. */
+  readonly warnings: readonly string[];
   readonly startedAtMs: number;
   readonly events: readonly RecordingEvent[];
   readonly pendingDialog: DialogView | null;
@@ -80,6 +86,9 @@ export interface TimelineScreen {
 export interface ReplayScreen {
   readonly kind: 'replay';
   readonly name: string;
+  readonly browser: BrowserChoice;
+  /** For example the fallback to the bundled browser. */
+  readonly warnings: readonly string[];
   readonly events: readonly RecordingEvent[];
   readonly view: ReplayView;
   readonly startedAtMs: number;
@@ -102,7 +111,14 @@ export interface AppState {
   readonly listRows: number;
   /** Shown on the setup screen and the main menu when relevant. */
   readonly linuxHint: string | null;
-  /** False after a failed install: only the library stays usable. */
+  /**
+   * False after a failed install with no other browser found: only the
+   * library stays usable.
+   */
   readonly isBrowserAvailable: boolean;
+  /** True after a failed install: the bundled browser is not offered. */
+  readonly isBundledMissing: boolean;
+  /** Labels of the browsers found on this machine, for the main menu. */
+  readonly detectedBrowsers: readonly string[];
   readonly isQuitting: boolean;
 }

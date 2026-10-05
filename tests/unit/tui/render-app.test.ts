@@ -10,6 +10,7 @@ import {
   newRecordingScreen,
   validEntry,
 } from '../../support/tui-fixtures.ts';
+import { BRAVE_CHOICE } from '../../support/browser-fixtures.ts';
 
 const SIZE = { columns: 80, rows: 24 };
 
@@ -36,13 +37,31 @@ const everyScreen: Screen[] = [
 ];
 
 describe('src/tui/render/render-app.ts', () => {
+  it('never mentions the old engine name on any screen', () => {
+    const failedSetup: Screen = {
+      kind: 'setup',
+      phase: 'failed',
+      lines: [],
+      manualCommand: 'pnpm exec patchright install chromium',
+      exitCode: 1,
+      browsers: [],
+    };
+    for (const screen of [...everyScreen, failedSetup]) {
+      const text = renderApp(on(screen), SIZE, false).join('\n');
+      expect(text.toLowerCase()).not.toContain('playwright');
+    }
+    expect(renderApp(on(failedSetup), SIZE, false).join('\n')).toContain(
+      'patchright install chromium',
+    );
+  });
+
   it('renders the main menu as an 80x24 frame', () => {
     expect(
       renderApp(on({ kind: 'main-menu', selected: 0 }), SIZE, false).join('\n'),
     ).toMatchInlineSnapshot(`
       "╭─ browser-recorder ───────────────────────────────────────────────────────────╮
       │                                                                              │
-      │   Record a browser session, replay it as a Playwright script.                │
+      │   Record a browser session, replay it as a Patchright script.                │
       │                                                                              │
       │   ❯ New recording                                                            │
       │     Library                                                                  │
@@ -70,31 +89,31 @@ describe('src/tui/render/render-app.ts', () => {
   it('renders the library as an 80x24 frame', () => {
     expect(renderApp(on(library), SIZE, false).join('\n'))
       .toMatchInlineSnapshot(`
-      "╭─ Library ────────────────────────────────────────────────────────────────────╮
-      │   Name                                       Created          Duration Steps │
-      │                                                                          1/2 │
-      │ ❯ Checkout flow                              2026-10-05 12:30     1:05     7 │
-      │   Login                                      2026-10-05 12:30     0:12     3 │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      ╰──────────────────────────────────────────────────────────────────────────────╯
-       ↑↓ move  enter replay  t timeline  r rename  d delete  n new  esc back         "
-    `);
+        "╭─ Library ────────────────────────────────────────────────────────────────────╮
+        │   Name                      Created          Browser          Duration Steps │
+        │                                                                          1/2 │
+        │ ❯ Checkout flow             2026-10-05 12:30                      1:05     7 │
+        │   Login                     2026-10-05 12:30                      0:12     3 │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        ╰──────────────────────────────────────────────────────────────────────────────╯
+         ↑↓ move  enter replay  t timeline  r rename  d delete  n new  esc back         "
+      `);
   });
 
   it('renders an empty library with the new hint', () => {
@@ -107,6 +126,8 @@ describe('src/tui/render/render-app.ts', () => {
   it('renders a replay with the running step highlighted at 80x24', () => {
     const screen: Screen = {
       kind: 'replay',
+      browser: BRAVE_CHOICE,
+      warnings: [],
       name: 'Checkout flow',
       events: clicks(6),
       startedAtMs: 0,
@@ -123,31 +144,31 @@ describe('src/tui/render/render-app.ts', () => {
     };
     expect(renderApp(on(screen, 4200), SIZE, false).join('\n'))
       .toMatchInlineSnapshot(`
-      "╭─ Replay · Checkout flow ─────────────────────────────────────────────────────╮
-      │ ▶ Running                                                00:04.200  step 3/6 │
-      │ ──────────────────────────────────────────────────────────────────────────── │
-      │ ✓ +00:00.000        click         Step 0                                +2ms │
-      │ ✓ +00:01.000 ━━━    click         Step 1                                +5ms │
-      │ ▶ +00:02.000 ━━━    click         Step 2                                     │
-      │ · +00:03.000 ━━━    click         Step 3                                     │
-      │ · +00:04.000 ━━━    click         Step 4                                     │
-      │ · +00:05.000 ━━━    click         Step 5                                     │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      ╰──────────────────────────────────────────────────────────────────────────────╯
-       c cancel                                                                       "
-    `);
+        "╭─ Replay · Checkout flow ─────────────────────────────────────────────────────╮
+        │ ▶ Running                                                00:04.200  step 3/6 │
+        │ Brave · managed                                                              │
+        │ ──────────────────────────────────────────────────────────────────────────── │
+        │ ✓ +00:00.000        click         Step 0                                +2ms │
+        │ ✓ +00:01.000 ━━━    click         Step 1                                +5ms │
+        │ ▶ +00:02.000 ━━━    click         Step 2                                     │
+        │ · +00:03.000 ━━━    click         Step 3                                     │
+        │ · +00:04.000 ━━━    click         Step 4                                     │
+        │ · +00:05.000 ━━━    click         Step 5                                     │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        ╰──────────────────────────────────────────────────────────────────────────────╯
+         c cancel                                                                       "
+      `);
   });
 
   it('is a pure function of state and size', () => {

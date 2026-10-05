@@ -12,6 +12,7 @@ import { initialState } from '../../../src/tui/domain/app-reducer.ts';
 import { keymap } from '../../../src/tui/domain/keymap.ts';
 import { emptyField } from '../../../src/tui/domain/text-input.ts';
 import {
+  BRAVE_CHOICE,
   BUNDLED_CHOICE,
   WINDOW_DISPLAY,
 } from '../../support/browser-fixtures.ts';
@@ -38,6 +39,8 @@ function on(screen: Screen): AppState {
 
 const recording: RecordingScreen = {
   kind: 'recording',
+  browser: BRAVE_CHOICE,
+  warnings: [],
   name: 'Demo',
   startedAtMs: 0,
   events: [],
@@ -74,12 +77,29 @@ describe('src/tui/domain/keymap.ts', () => {
       lines: [],
       manualCommand: 'x',
       exitCode: 1,
+      browsers: [],
     });
 
     it('retries on Enter only after a failure and quits on q', () => {
       expect(press(failed, named('return'))).toEqual({ kind: 'retry-setup' });
       expect(press(initialState(), named('return'))).toBeNull();
       expect(press(failed, char('q'))).toEqual({ kind: 'quit' });
+    });
+
+    it('opens the main menu from a failed setup only when another browser exists', () => {
+      const withBrave = on({
+        kind: 'setup',
+        phase: 'failed',
+        lines: [],
+        manualCommand: 'x',
+        exitCode: 1,
+        browsers: ['Brave'],
+      });
+      expect(press(withBrave, char('m'))).toEqual({
+        kind: 'open',
+        target: 'main-menu',
+      });
+      expect(press(failed, char('m'))).toBeNull();
     });
 
     it('opens the library from a failed setup only', () => {
@@ -149,6 +169,28 @@ describe('src/tui/domain/keymap.ts', () => {
       expect(press(form, named('up'))).toEqual({ kind: 'switch-field' });
       expect(press(form, named('return'))).toEqual({ kind: 'submit' });
       expect(press(form, named('escape'))).toEqual({ kind: 'cancel' });
+    });
+
+    it('cycles the option with the arrow keys on a picker', () => {
+      for (const focus of ['browser', 'profile'] as const) {
+        const picker = on(newRecordingScreen({ focus }));
+        expect(press(picker, named('right'))).toEqual({
+          kind: 'cycle-option',
+          delta: 1,
+        });
+        expect(press(picker, named('left'))).toEqual({
+          kind: 'cycle-option',
+          delta: -1,
+        });
+        expect(press(picker, named('tab'))).toEqual({ kind: 'switch-field' });
+        expect(press(picker, named('return'))).toEqual({ kind: 'submit' });
+      }
+    });
+
+    it('does not turn typed characters into text on a picker', () => {
+      const picker = on(newRecordingScreen({ focus: 'browser' }));
+      expect(press(picker, char('x'))).toBeNull();
+      expect(press(picker, named('backspace'))).toBeNull();
     });
 
     it('does not insert modified keys or named keys as text', () => {
@@ -328,6 +370,8 @@ describe('src/tui/domain/keymap.ts', () => {
     const replay = (status: 'running' | 'succeeded'): AppState =>
       on({
         kind: 'replay',
+        browser: BRAVE_CHOICE,
+        warnings: [],
         name: 'n',
         events: [],
         startedAtMs: 0,

@@ -10,6 +10,7 @@ import { renderTimelineScreen } from '../../../src/tui/render/screens/timeline-s
 import { createStyle } from '../../../src/tui/render/ansi.ts';
 import { plainContext } from '../../support/render-context.ts';
 import { clicks, recordingWith } from '../../support/tui-fixtures.ts';
+import { BRAVE_CHOICE } from '../../support/browser-fixtures.ts';
 
 function timeline(count: number, selected = 0): TimelineScreen {
   return {
@@ -22,6 +23,8 @@ function timeline(count: number, selected = 0): TimelineScreen {
 function replay(view: ReplayView, count = 5): ReplayScreen {
   return {
     kind: 'replay',
+    browser: BRAVE_CHOICE,
+    warnings: [],
     name: 'Checkout flow',
     events: clicks(count),
     view,
@@ -41,7 +44,45 @@ const running: ReplayView = {
   ],
 };
 
+describe('src/tui/render/screens/replay-screen.ts (browser)', () => {
+  it('names the browser and profile the replay runs on', () => {
+    const text = renderReplayScreen(replay(running), plainContext()).body.join(
+      '\n',
+    );
+    expect(text).toContain('Brave · managed');
+  });
+
+  it('shows the fallback warning with the missing browser name', () => {
+    const text = renderReplayScreen(
+      {
+        ...replay(running),
+        browser: { ...BRAVE_CHOICE, browserId: 'bundled' },
+        warnings: ['Brave is not installed: replaying on bundled Chromium'],
+      },
+      plainContext(),
+    ).body.join('\n');
+    expect(text).toContain(
+      '! Brave is not installed: replaying on bundled Chromium',
+    );
+    expect(text).toContain('Chromium (bundled) · managed');
+  });
+
+  it('keeps the running step visible below the warnings', () => {
+    const text = renderReplayScreen(
+      { ...replay(running, 40), warnings: ['one', 'two'] },
+      plainContext({ height: 8 }),
+    ).body.join('\n');
+    expect(text).toContain('! two');
+    expect(text).toContain('Step 2');
+  });
+});
+
 describe('src/tui/render/screens/timeline-screen.ts', () => {
+  it('shows the recorded browser and profile', () => {
+    const view = renderTimelineScreen(timeline(3), plainContext());
+    expect(view.body.join('\n')).toContain('Chromium (bundled) · ephemeral');
+  });
+
   it('summarises the recording and lists events with offsets', () => {
     const view = renderTimelineScreen(timeline(3), plainContext());
     const text = view.body.join('\n');

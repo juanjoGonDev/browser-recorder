@@ -22,6 +22,7 @@ import {
   initialState,
 } from '../../../src/tui/domain/app-reducer.ts';
 import {
+  BRAVE_CHOICE,
   BUNDLED_CHOICE,
   WINDOW_DISPLAY,
 } from '../../support/browser-fixtures.ts';
@@ -138,7 +139,9 @@ describe('src/tui/domain/app-reducer.ts', () => {
       const state = reduce(initialState(), {
         type: 'setup-ready',
         linuxHint: 'sudo x',
+        browsers: ['Brave', 'Chrome'],
       });
+      expect(state.detectedBrowsers).toEqual(['Brave', 'Chrome']);
       expect(state.screen).toEqual({ kind: 'main-menu', selected: 0 });
       expect(state.linuxHint).toBe('sudo x');
     });
@@ -146,13 +149,14 @@ describe('src/tui/domain/app-reducer.ts', () => {
     it('shows the manual command when the install failed', () => {
       const state = reduce(initialState(), {
         type: 'setup-failed',
-        manualCommand: 'pnpm exec playwright install chromium',
+        manualCommand: 'pnpm exec patchright install chromium',
         exitCode: 7,
+        browsers: [],
       });
       expect(state.screen).toMatchObject({
         kind: 'setup',
         phase: 'failed',
-        manualCommand: 'pnpm exec playwright install chromium',
+        manualCommand: 'pnpm exec patchright install chromium',
         exitCode: 7,
       });
     });
@@ -164,13 +168,33 @@ describe('src/tui/domain/app-reducer.ts', () => {
         type: 'setup-failed',
         manualCommand: 'cmd',
         exitCode: null,
+        browsers: [],
       });
       expect(initialState().isBrowserAvailable).toBe(true);
       expect(failed.isBrowserAvailable).toBe(false);
-      expect(
-        reduce(failed, { type: 'setup-ready', linuxHint: null })
-          .isBrowserAvailable,
-      ).toBe(true);
+      const ready = reduce(failed, {
+        type: 'setup-ready',
+        linuxHint: null,
+        browsers: [],
+      });
+      expect(ready.isBrowserAvailable).toBe(true);
+      expect(ready.isBundledMissing).toBe(false);
+    });
+
+    it('stays available after a failed install when another browser was detected', () => {
+      const failed = reduce(initialState(), {
+        type: 'setup-failed',
+        manualCommand: 'cmd',
+        exitCode: 1,
+        browsers: ['Brave'],
+      });
+      expect(failed.isBrowserAvailable).toBe(true);
+      expect(failed.isBundledMissing).toBe(true);
+      expect(failed.screen).toMatchObject({
+        kind: 'setup',
+        phase: 'failed',
+        browsers: ['Brave'],
+      });
     });
   });
 
@@ -376,10 +400,22 @@ describe('src/tui/domain/app-reducer.ts', () => {
       expect(screen.name.value).toBe('D');
       expect(screen.startUrl.value).toBe('h');
       expect(screen.focus).toBe('url');
-      expect(
-        (reduce(typed, { type: 'switch-field' }).screen as NewRecordingScreen)
-          .focus,
-      ).toBe('name');
+    });
+
+    it('walks the focus name, url, browser, profile and back to name', () => {
+      const focusAfter = (count: number): string => {
+        const actions = Array.from({ length: count }, () => ({
+          type: 'switch-field' as const,
+        }));
+        return (reduce(on(newForm), ...actions).screen as NewRecordingScreen)
+          .focus;
+      };
+      expect([1, 2, 3, 4].map(focusAfter)).toEqual([
+        'url',
+        'browser',
+        'profile',
+        'name',
+      ]);
     });
 
     it('shows an inline error and clears it when the user edits again', () => {
@@ -402,6 +438,8 @@ describe('src/tui/domain/app-reducer.ts', () => {
     const started = reduce(on(newForm, 5000), {
       type: 'recording-started',
       name: 'Demo',
+      browser: BRAVE_CHOICE,
+      warnings: ['Brave is running: the copy may miss its latest changes'],
     });
 
     it('starts the clock at the last tick and tracks events', () => {
@@ -411,6 +449,8 @@ describe('src/tui/domain/app-reducer.ts', () => {
         name: 'Demo',
         startedAtMs: 5000,
         events: [],
+        browser: BRAVE_CHOICE,
+        warnings: ['Brave is running: the copy may miss its latest changes'],
       });
       const updated = reduce(started, {
         type: 'recording-updated',
@@ -536,6 +576,7 @@ describe('src/tui/domain/app-reducer.ts', () => {
         type: 'replay-started',
         recording,
         view: idleReplay,
+        warnings: ['Brave was not found: replaying on bundled Chromium'],
       });
       const screen = started.screen as ReplayScreen;
       expect(screen).toMatchObject({
@@ -543,6 +584,8 @@ describe('src/tui/domain/app-reducer.ts', () => {
         name: 'Demo',
         startedAtMs: 900,
         events: recording.events,
+        browser: recording.browser,
+        warnings: ['Brave was not found: replaying on bundled Chromium'],
       });
       const done: ReplayView = {
         status: 'succeeded',

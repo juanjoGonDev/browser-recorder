@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createAppStore } from '../../../src/tui/application/app-store.ts';
 import { createTuiController } from '../../../src/tui/application/tui-controller.ts';
@@ -12,8 +12,15 @@ import type { KeyPress } from '../../../src/tui/application/ports/terminal.ts';
 import { createFakeClock, createFakeTimers } from '../../support/fake-clock.ts';
 import { createFakeServices } from '../../support/fake-app-services.ts';
 import { char, named } from '../../support/keys.ts';
-import { BUNDLED_CHOICE } from '../../support/browser-fixtures.ts';
-import { clickAt, validEntry } from '../../support/tui-fixtures.ts';
+import {
+  BRAVE_CHOICE,
+  BUNDLED_CHOICE,
+} from '../../support/browser-fixtures.ts';
+import {
+  BROWSER_VIEWS,
+  clickAt,
+  validEntry,
+} from '../../support/tui-fixtures.ts';
 
 function setup() {
   const fake = createFakeServices();
@@ -55,8 +62,13 @@ describe('src/tui/application/tui-controller.ts', () => {
     it('opens the main menu once Chromium is ready and keeps the Linux hint', async () => {
       const harness = setup();
       harness.fake.environment = () =>
-        Promise.resolve({ kind: 'ready', linuxHint: 'sudo x', browsers: [] });
+        Promise.resolve({
+          kind: 'ready',
+          linuxHint: 'sudo x',
+          browsers: ['Brave'],
+        });
       await harness.controller.start();
+      expect(harness.store.getState().detectedBrowsers).toEqual(['Brave']);
       expect(harness.store.getState().screen).toEqual({
         kind: 'main-menu',
         selected: 0,
@@ -70,7 +82,7 @@ describe('src/tui/application/tui-controller.ts', () => {
         onLine('Downloading Chromium');
         return Promise.resolve({
           kind: 'failed',
-          manualCommand: 'pnpm exec playwright install chromium',
+          manualCommand: 'pnpm exec patchright install chromium',
           exitCode: 2,
         });
       };
@@ -79,8 +91,19 @@ describe('src/tui/application/tui-controller.ts', () => {
         kind: 'setup',
         phase: 'failed',
         lines: ['Downloading Chromium'],
-        manualCommand: 'pnpm exec playwright install chromium',
+        manualCommand: 'pnpm exec patchright install chromium',
         exitCode: 2,
+      });
+    });
+
+    it('names patchright in the manual command when the check itself throws', async () => {
+      const harness = setup();
+      harness.fake.environment = () => Promise.reject(new Error('boom'));
+      await harness.controller.start();
+      expect(harness.store.getState().screen).toMatchObject({
+        kind: 'setup',
+        phase: 'failed',
+        manualCommand: 'pnpm exec patchright install chromium',
       });
     });
 
@@ -115,6 +138,47 @@ describe('src/tui/application/tui-controller.ts', () => {
       expect(harness.store.getState().screen.kind).toBe('main-menu');
     });
 
+    describe('after the bundled browser failed but Brave was detected', () => {
+      async function withBrave(): Promise<Harness> {
+        const harness = setup();
+        harness.fake.environment = () =>
+          Promise.resolve({
+            kind: 'failed',
+            manualCommand: 'cmd',
+            exitCode: 1,
+          });
+        await harness.controller.start();
+        return harness;
+      }
+
+      it('lists the detected browsers on the setup screen and opens the menu with m', async () => {
+        const harness = await withBrave();
+        expect(harness.store.getState().screen).toMatchObject({
+          kind: 'setup',
+          phase: 'failed',
+          browsers: ['Brave'],
+        });
+        await harness.press(char('m'));
+        expect(harness.store.getState().screen.kind).toBe('main-menu');
+        expect(harness.store.getState().isBrowserAvailable).toBe(true);
+      });
+
+      it('records with Brave and never offers the bundled browser', async () => {
+        const harness = await withBrave();
+        await harness.press(char('m'), named('return'));
+        await vi.waitFor(() => {
+          expect(
+            (harness.store.getState().screen as NewRecordingScreen).browsers,
+          ).not.toBeNull();
+        });
+        const form = harness.store.getState().screen as NewRecordingScreen;
+        expect(form.browsers?.map((view) => view.browserId)).toEqual(['brave']);
+        await harness.type('Demo');
+        await harness.press(named('return'));
+        expect(harness.fake.startRequests[0]?.browser).toEqual(BRAVE_CHOICE);
+      });
+    });
+
     describe('after a failed install (offline)', () => {
       async function offline(): Promise<Harness> {
         const harness = setup();
@@ -122,6 +186,7 @@ describe('src/tui/application/tui-controller.ts', () => {
           validEntry('a', 'Alpha'),
           validEntry('b', 'Beta'),
         ];
+        harness.fake.browsers = BROWSER_VIEWS.slice(1);
         harness.fake.environment = () =>
           Promise.resolve({
             kind: 'failed',
@@ -252,7 +317,7 @@ describe('src/tui/application/tui-controller.ts', () => {
       const harness = setup();
       await startRecording(harness);
       expect(harness.fake.startRequests).toEqual([
-        { name: 'Demo', startUrl: null, browser: BUNDLED_CHOICE },
+        { name: 'Demo', startUrl: null, browser: BRAVE_CHOICE },
       ]);
       expect(harness.store.getState().screen).toMatchObject({
         kind: 'recording',
@@ -271,7 +336,7 @@ describe('src/tui/application/tui-controller.ts', () => {
         {
           name: 'Shop',
           startUrl: 'https://shop.test/',
-          browser: BUNDLED_CHOICE,
+          browser: BRAVE_CHOICE,
         },
       ]);
     });
@@ -285,6 +350,36 @@ describe('src/tui/application/tui-controller.ts', () => {
       ).toBe(5000);
     });
 
+    it('carries the browser and the profile warnings to the recording screen', async () => {
+      const harness = setup();
+      harness.fake.live.warnings = ['The copy may miss its latest changes'];
+      await startRecording(harness);
+      expect(harness.store.getState().screen).toMatchObject({
+        kind: 'recording',
+        browser: BRAVE_CHOICE,
+        warnings: ['The copy may miss its latest changes'],
+      });
+    });
+
+    it('shows a locked profile inline and keeps the library usable', async () => {
+      const harness = setup();
+      harness.fake.entries = [validEntry('alpha', 'Alpha')];
+      harness.fake.startError = new Error(
+        'Brave is already using this profile. Close it and try again.',
+      );
+      await startRecording(harness);
+      const form = harness.store.getState().screen as NewRecordingScreen;
+      expect(form.error).toBe(
+        'Brave is already using this profile. Close it and try again.',
+      );
+      expect(form.name.value).toBe('Demo');
+      await harness.press(named('escape'), named('down'), named('return'));
+      expect(harness.store.getState().screen).toMatchObject({
+        kind: 'library',
+        entries: [expect.objectContaining({ slug: 'alpha' })],
+      });
+    });
+
     it('keeps the form and shows the error when the browser cannot start', async () => {
       const harness = setup();
       harness.fake.startError = new Error('Could not launch Chromium');
@@ -292,6 +387,88 @@ describe('src/tui/application/tui-controller.ts', () => {
       const form = harness.store.getState().screen as NewRecordingScreen;
       expect(form.kind).toBe('new-recording');
       expect(form.error).toBe('Could not launch Chromium');
+    });
+  });
+
+  describe('browser pickers', () => {
+    function form(harness: Harness): NewRecordingScreen {
+      return harness.store.getState().screen as NewRecordingScreen;
+    }
+
+    it('loads the detected browsers when the form opens', async () => {
+      const harness = setup();
+      await openForm(harness);
+      expect(form(harness).browsers).toEqual(BROWSER_VIEWS);
+    });
+
+    it('explains the failure and refuses to start when detection fails', async () => {
+      const harness = setup();
+      harness.fake.browsersError = new Error('Detection broke');
+      await openForm(harness);
+      await harness.type('Demo');
+      await harness.press(named('return'));
+      expect(form(harness).browsers).toEqual([]);
+      expect(form(harness).error).toBe(
+        'No browser is available to record with.',
+      );
+      expect(harness.fake.startRequests).toEqual([]);
+    });
+
+    it('refuses Enter with "Detecting browsers…" until the list arrives', async () => {
+      const harness = setup();
+      let open: () => void = () => undefined;
+      harness.fake.browsersGate = new Promise((resolve) => {
+        open = resolve;
+      });
+      await openForm(harness);
+      await harness.type('Demo');
+      await harness.press(named('return'));
+      expect(form(harness).error).toBe('Detecting browsers…');
+      expect(harness.fake.startRequests).toEqual([]);
+      open();
+      await vi.waitFor(() => {
+        expect(form(harness).browsers).toEqual(BROWSER_VIEWS);
+      });
+      await harness.press(named('return'));
+      expect(harness.fake.startRequests).toHaveLength(1);
+    });
+
+    it('starts with the browser and profile the user picked', async () => {
+      const harness = setup();
+      await openForm(harness);
+      await harness.type('Demo');
+      await harness.press(named('tab'), named('tab'), named('tab'));
+      await harness.press(named('right'));
+      expect(form(harness).focus).toBe('profile');
+      await harness.press(named('return'));
+      expect(harness.fake.startRequests).toEqual([
+        {
+          name: 'Demo',
+          startUrl: null,
+          browser: {
+            browserId: 'brave',
+            profileMode: 'copy-of-real',
+            sourceProfile: 'Default',
+          },
+        },
+      ]);
+    });
+
+    it('restarts the profile choice when another browser is picked', async () => {
+      const harness = setup();
+      await openForm(harness);
+      await harness.type('Demo');
+      await harness.press(named('tab'), named('tab'));
+      await harness.press(named('right'));
+      await harness.press(named('return'));
+      expect(harness.fake.startRequests[0]?.browser).toEqual(BUNDLED_CHOICE);
+    });
+
+    it('preselects the bundled browser when it is the only one', async () => {
+      const harness = setup();
+      harness.fake.browsers = BROWSER_VIEWS.slice(1);
+      await startRecording(harness);
+      expect(harness.fake.startRequests[0]?.browser).toEqual(BUNDLED_CHOICE);
     });
   });
 
@@ -564,6 +741,19 @@ describe('src/tui/application/tui-controller.ts', () => {
       await ready(harness);
       await harness.press(named('down'), named('return'), named('return'));
     }
+
+    it('shows the recorded browser and the fallback warning', async () => {
+      const harness = setup();
+      harness.fake.replay.warnings = [
+        'Brave is not installed: replaying on bundled Chromium',
+      ];
+      await startReplay(harness);
+      expect(harness.store.getState().screen).toMatchObject({
+        kind: 'replay',
+        browser: BUNDLED_CHOICE,
+        warnings: ['Brave is not installed: replaying on bundled Chromium'],
+      });
+    });
 
     it('starts the replay of the selected recording', async () => {
       const harness = setup();

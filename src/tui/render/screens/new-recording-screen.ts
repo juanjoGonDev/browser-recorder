@@ -1,6 +1,8 @@
 import type { NewRecordingScreen } from '../../domain/app-state.ts';
 import { renderField } from '../field-view.ts';
 import type { RenderContext, ScreenView } from '../screen-view.ts';
+import type { KeyHint } from '../status-bar.ts';
+import { renderPickers } from './browser-pickers.ts';
 
 const FIELD_INDENT = 4;
 const URL_HELP = 'Leave the URL empty to start on a blank page.';
@@ -54,12 +56,20 @@ export function renderNewRecordingScreen(
       label('Start URL (optional)', screen.focus === 'url', context),
       fieldLine(screen, 'url', context),
       '',
+      ...renderPickers(screen, context),
+      '',
       `  ${message}`,
     ],
-    hints: [
-      { key: 'tab', label: 'next field' },
-      { key: 'enter', label: 'start recording' },
-      { key: 'esc', label: 'back' },
-    ],
+    hints: hintsFor(screen),
   };
+}
+
+function hintsFor(screen: NewRecordingScreen): KeyHint[] {
+  const isPicker = screen.focus === 'browser' || screen.focus === 'profile';
+  return [
+    { key: 'tab', label: 'next field' },
+    ...(isPicker ? [{ key: '←→', label: 'change' }] : []),
+    { key: 'enter', label: 'start recording' },
+    { key: 'esc', label: 'back' },
+  ];
 }
