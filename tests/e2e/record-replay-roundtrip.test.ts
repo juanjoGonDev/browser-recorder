@@ -12,7 +12,10 @@ import {
 import { createPerformanceClock } from '../../src/recording-capture/adapters/performance-clock.ts';
 import { startPlaywrightSession } from '../../src/recording-capture/adapters/playwright-browser-session.ts';
 import type { BrowserLauncher } from '../../src/recording-capture/application/ports/browser-launcher.ts';
-import type { ReplayView } from '../../src/tui/domain/app-views.ts';
+import type {
+  LiveRecordingView,
+  ReplayView,
+} from '../../src/tui/domain/app-views.ts';
 import { IN_PAGE_BUNDLE_PATH } from '../support/build-in-page-bundle.ts';
 import type { FixtureServer } from '../support/fixture-server.ts';
 import { startFixtureServer } from '../support/fixture-server.ts';
@@ -78,7 +81,11 @@ describe('record, generate and replay round trip', () => {
     return page;
   }
 
-  async function userSession(): Promise<void> {
+  async function userSession(live: LiveRecordingView): Promise<void> {
+    let recordedKinds: readonly string[] = [];
+    live.subscribe((update) => {
+      recordedKinds = update.events.map((event) => event.kind);
+    });
     const page = recordingPage();
     await page.waitForLoadState('load');
     await page.waitForTimeout(THINK_TIME_MS);
@@ -89,6 +96,11 @@ describe('record, generate and replay round trip', () => {
     await page.getByRole('button', { name: 'Send' }).click();
     await vi.waitFor(() => {
       expect(server.reports().at(-1)).toBe(FINAL_STATE);
+    }, WAIT);
+    // The page's own report can outrun the capture channel: stopping before
+    // the click has arrived would lose it.
+    await vi.waitFor(() => {
+      expect(recordedKinds.at(-1)).toBe('click');
     }, WAIT);
   }
 
@@ -118,7 +130,7 @@ describe('record, generate and replay round trip', () => {
       name: 'Round trip',
       startUrl: server.urlFor('roundtrip.html'),
     });
-    await userSession();
+    await userSession(live);
     await live.stop();
     const recordedStates = server.reports();
     expect(recordedStates).toEqual([
@@ -131,7 +143,6 @@ describe('record, generate and replay round trip', () => {
     expect(recording.status).toBe('complete');
     // Exactly what the user did, in order: the pointer resting on a control
     // before it is used leaves no hover of its own.
-    console.log(JSON.stringify(recording.events));
     expect(recording.events.map((event) => event.kind)).toEqual([
       'goto',
       'fill',
