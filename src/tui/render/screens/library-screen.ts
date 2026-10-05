@@ -3,6 +3,7 @@ import type { LibraryEntryView } from '../../domain/app-views.ts';
 import { BROWSER_REQUIRED_REASON } from '../../domain/browser-required.ts';
 import { visibleRange } from '../../domain/list-window.ts';
 import type { Style } from '../ansi.ts';
+import { describeBrowser } from '../browser-summary.ts';
 import { renderField } from '../field-view.ts';
 import { formatCreated, formatDuration } from '../format.ts';
 import { padEnd, sanitize, spread } from '../layout.ts';
@@ -14,6 +15,9 @@ const MARKER_WIDTH = 2;
 const CREATED_WIDTH = 16;
 const DURATION_WIDTH = 8;
 const STEPS_WIDTH = 5;
+const BROWSER_WIDTH = 16;
+/** The browser column goes before the date column does. */
+const MIN_WIDTH_FOR_BROWSER = 72;
 /** Below this the date column goes first, so names keep room. */
 const MIN_WIDTH_FOR_CREATED = 60;
 const RENAME_LABEL = 'Rename: ';
@@ -21,22 +25,26 @@ const RENAME_LABEL = 'Rename: ';
 interface Columns {
   readonly name: number;
   readonly hasCreated: boolean;
+  readonly hasBrowser: boolean;
 }
 
 function planColumns(width: number): Columns {
   const hasCreated = width >= MIN_WIDTH_FOR_CREATED;
+  const hasBrowser = width >= MIN_WIDTH_FOR_BROWSER;
   const fixed =
     MARKER_WIDTH +
     DURATION_WIDTH +
     STEPS_WIDTH +
     2 +
-    (hasCreated ? CREATED_WIDTH + 1 : 0);
-  return { name: Math.max(1, width - fixed), hasCreated };
+    (hasCreated ? CREATED_WIDTH + 1 : 0) +
+    (hasBrowser ? BROWSER_WIDTH + 1 : 0);
+  return { name: Math.max(1, width - fixed), hasCreated, hasBrowser };
 }
 
 interface RowText {
   readonly name: string;
   readonly created: string;
+  readonly browser: string;
   readonly duration: string;
   readonly steps: string;
 }
@@ -45,6 +53,7 @@ function cells(text: RowText, plan: Columns): string {
   return [
     padEnd(text.name, plan.name),
     ...(plan.hasCreated ? [padEnd(text.created, CREATED_WIDTH)] : []),
+    ...(plan.hasBrowser ? [padEnd(text.browser, BROWSER_WIDTH)] : []),
     text.duration.padStart(DURATION_WIDTH),
     text.steps.padStart(STEPS_WIDTH),
   ].join(' ');
@@ -64,6 +73,10 @@ function entryRow(
           {
             name: sanitize(entry.name),
             created: formatCreated(entry.createdAt),
+            browser:
+              entry.browser === undefined
+                ? ''
+                : sanitize(describeBrowser(entry.browser)),
             duration: formatDuration(entry.durationMs),
             steps: String(entry.stepCount),
           },
@@ -82,7 +95,13 @@ function entryRow(
 function columnHeader(context: RenderContext): string {
   const plan = planColumns(context.width);
   const text = cells(
-    { name: 'Name', created: 'Created', duration: 'Duration', steps: 'Steps' },
+    {
+      name: 'Name',
+      created: 'Created',
+      browser: 'Browser',
+      duration: 'Duration',
+      steps: 'Steps',
+    },
     plan,
   );
   return context.style.muted(

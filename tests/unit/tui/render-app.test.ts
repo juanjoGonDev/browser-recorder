@@ -88,31 +88,31 @@ describe('src/tui/render/render-app.ts', () => {
   it('renders the library as an 80x24 frame', () => {
     expect(renderApp(on(library), SIZE, false).join('\n'))
       .toMatchInlineSnapshot(`
-      "╭─ Library ────────────────────────────────────────────────────────────────────╮
-      │   Name                                       Created          Duration Steps │
-      │                                                                          1/2 │
-      │ ❯ Checkout flow                              2026-10-05 12:30     1:05     7 │
-      │   Login                                      2026-10-05 12:30     0:12     3 │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      ╰──────────────────────────────────────────────────────────────────────────────╯
-       ↑↓ move  enter replay  t timeline  r rename  d delete  n new  esc back         "
-    `);
+        "╭─ Library ────────────────────────────────────────────────────────────────────╮
+        │   Name                      Created          Browser          Duration Steps │
+        │                                                                          1/2 │
+        │ ❯ Checkout flow             2026-10-05 12:30                      1:05     7 │
+        │   Login                     2026-10-05 12:30                      0:12     3 │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        ╰──────────────────────────────────────────────────────────────────────────────╯
+         ↑↓ move  enter replay  t timeline  r rename  d delete  n new  esc back         "
+      `);
   });
 
   it('renders an empty library with the new hint', () => {

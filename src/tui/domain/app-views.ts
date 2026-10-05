@@ -16,6 +16,8 @@ export type LibraryEntryView =
       readonly createdAt: string;
       readonly durationMs: number;
       readonly stepCount: number;
+      /** What the recording ran on; absent when the source cannot tell. */
+      readonly browser?: BrowserChoice;
     }
   | {
       readonly kind: 'invalid';
