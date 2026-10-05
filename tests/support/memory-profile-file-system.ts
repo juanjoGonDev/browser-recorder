@@ -16,8 +16,10 @@ export function errorWithCode(code: string): Error {
   return Object.assign(new Error(code), { code });
 }
 
+/** Understands both separators so Windows-style paths work too. */
 function parentOf(path: string): string {
-  return path.slice(0, path.lastIndexOf('/')) || '/';
+  const index = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+  return index <= 0 ? '' : path.slice(0, index);
 }
 
 /**
@@ -31,11 +33,13 @@ export class MemoryProfileFileSystem implements ProfileFileSystem {
   readonly copied: Array<readonly [string, string]> = [];
   /** Runs before every `copyFile`; may mutate the source or throw. */
   onCopy: (from: string, to: string) => void = () => undefined;
+  /** Runs before every `remove`; may throw to simulate a busy directory. */
+  onRemove: (path: string) => void = () => undefined;
   private counter = 0;
 
   addDirectory(path: string): void {
     if (path === '' || this.nodes.has(path)) return;
-    this.addDirectory(parentOf(path) === path ? '' : parentOf(path));
+    this.addDirectory(parentOf(path));
     this.nodes.set(path, { kind: 'directory' });
   }
 
@@ -127,11 +131,14 @@ export class MemoryProfileFileSystem implements ProfileFileSystem {
   }
 
   remove(path: string): Promise<void> {
-    this.removed.push(path);
-    for (const key of [...this.nodes.keys()]) {
-      if (key === path || key.startsWith(`${path}/`)) this.nodes.delete(key);
-    }
-    return Promise.resolve();
+    return Promise.resolve().then(() => {
+      this.onRemove(path);
+      this.removed.push(path);
+      for (const key of [...this.nodes.keys()]) {
+        if (key === path || key.startsWith(`${path}/`)) this.nodes.delete(key);
+        if (key.startsWith(`${path}\\`)) this.nodes.delete(key);
+      }
+    });
   }
 
   randomName(): string {
