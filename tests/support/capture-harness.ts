@@ -1,15 +1,13 @@
 import type { Browser, BrowserContext, CDPSession, Page } from 'patchright';
 import { vi } from 'vitest';
 import { readFileSync } from 'node:fs';
-import {
-  WORLD_NAME,
-  attachCapture,
-} from '../../src/recording-capture/adapters/isolated-world-capture.ts';
+import { attachCapture } from '../../src/recording-capture/adapters/isolated-world-capture.ts';
 import { createPerformanceClock } from '../../src/recording-capture/adapters/performance-clock.ts';
 import type { InPageMessage } from '../../src/recording-capture/domain/in-page-message.ts';
-import type { CaptureWorld } from '../../src/recording-capture/adapters/isolated-world-capture.ts';
+import type { CaptureWorld } from '../../src/recording-capture/application/ports/capture-world.ts';
 import type { Locator } from '../../src/shared/domain/locator.ts';
 import type { CapturedEvent } from '../../src/recording-capture/domain/captured-event.ts';
+import { INSTALL_FLAG_KEY } from '../../src/recording-capture/domain/in-page-message.ts';
 import { IN_PAGE_BUNDLE_PATH } from './build-in-page-bundle.ts';
 import type { FixtureServer } from './fixture-server.ts';
 
@@ -34,7 +32,7 @@ export interface CaptureHarness {
   /** Every well formed message the in-page script sent, in arrival order. */
   readonly received: ReceivedMessage[];
   open(pageName: string): Promise<void>;
-  /** Injects the capture script into the current document a second time. */
+  /** Injects the capture script into the main frame's world a second time. */
   injectAgain(): Promise<void>;
   /** The dom messages whose payload has the given kind. */
   domMessages(kind?: string): ReceivedMessage[];
@@ -90,6 +88,16 @@ export async function createCaptureHarness(
     received.filter(
       ({ message }) => kind === undefined || message.payload.kind === kind,
     );
+  const isInstalledInMainFrame = async (): Promise<boolean> => {
+    const contextId = await world.contextOf(mainFrameId);
+    if (contextId === undefined) return false;
+    const { result } = await cdp.send('Runtime.evaluate', {
+      contextId,
+      expression: `Symbol.for('${INSTALL_FLAG_KEY}') in window`,
+      returnByValue: true,
+    });
+    return result.value === true;
+  };
   const waitFor = (condition: () => boolean): Promise<void> =>
     vi.waitFor(
       () => {
@@ -105,12 +113,21 @@ export async function createCaptureHarness(
     received,
     async open(pageName) {
       await page.goto(server.urlFor(pageName));
+      // The script is put into a document right after it commits, so a test
+      // that acts at once would outrun it; a person never does.
+      await vi.waitFor(
+        async () => {
+          if (!(await isInstalledInMainFrame()))
+            throw new Error('the capture script is not installed yet');
+        },
+        { timeout: 3000, interval: 25 },
+      );
     },
     async injectAgain() {
-      await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
-        source: scriptSource,
-        worldName: WORLD_NAME,
-        runImmediately: true,
+      const contextId = await world.contextOf(mainFrameId);
+      await cdp.send('Runtime.evaluate', {
+        contextId,
+        expression: scriptSource,
       });
     },
     domMessages,

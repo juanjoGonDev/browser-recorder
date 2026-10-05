@@ -1,5 +1,6 @@
 import type { BrowserContext, Frame, Page } from 'patchright';
 import type { FrameHosts } from './frame-path-resolver.ts';
+import { openGuardedSession } from './guarded-session.ts';
 import { attachCapture } from './isolated-world-capture.ts';
 import type { CaptureOptions } from './isolated-world-capture.ts';
 
@@ -26,7 +27,7 @@ async function attach(
   onClosed: () => void,
 ): Promise<boolean> {
   try {
-    const cdp = await deps.context.newCDPSession(frame);
+    const cdp = await openGuardedSession(deps.context, frame);
     const world = await attachCapture(cdp, deps.capture);
     const remove = deps.hosts.add({ cdp, world });
     cdp.on('close', () => {

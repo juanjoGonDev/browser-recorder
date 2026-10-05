@@ -26,6 +26,12 @@ function frameIdsOf(tree: FrameTree): string[] {
   ];
 }
 
+/** Every frame the session's page currently holds, the top frame first. */
+export async function listFrameIds(cdp: CDPSession): Promise<string[]> {
+  const { frameTree } = await cdp.send('Page.getFrameTree');
+  return frameIdsOf(frameTree);
+}
+
 /** Both directions of the frame to context relation, kept consistent. */
 function createRelation() {
   const contextByFrame = new Map<string, number>();
@@ -82,8 +88,7 @@ export function createWorldContexts(
     contextOf,
     frameOf: relation.frameOf,
     async refresh() {
-      const { frameTree } = await cdp.send('Page.getFrameTree');
-      for (const frameId of frameIdsOf(frameTree)) {
+      for (const frameId of await listFrameIds(cdp)) {
         relation.drop(frameId);
         await contextOf(frameId);
       }

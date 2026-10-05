@@ -58,9 +58,13 @@ export class FakeCdp extends EventEmitter {
     this.emit('Page.frameNavigated', { frame: { id: frameId, url: 'x' } });
   }
 
-  /** The document changed and no event told anyone (a missed event). */
-  renewSilently(frameId: string): void {
+  /**
+   * The document changed and no event told anyone (a missed event). Returns
+   * the context id the page now runs the world in.
+   */
+  renewSilently(frameId: string): number {
     this.contextByFrame.delete(frameId);
+    return this.createWorld(frameId).executionContextId;
   }
 
   detach(frameId: string): void {

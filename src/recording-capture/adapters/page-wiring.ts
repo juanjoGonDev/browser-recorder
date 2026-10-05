@@ -9,6 +9,7 @@ import {
   createFrameHosts,
   createFramePathResolver,
 } from './frame-path-resolver.ts';
+import { openGuardedSession } from './guarded-session.ts';
 import { attachCapture } from './isolated-world-capture.ts';
 import type {
   CaptureOptions,
@@ -144,7 +145,7 @@ function watchNativeAnswers(
  */
 export async function wirePage(page: Page, deps: WiringDeps): Promise<void> {
   const pageId = deps.ids.idOf(page);
-  const cdp = await deps.context.newCDPSession(page);
+  const cdp = await openGuardedSession(deps.context, page);
   const hosts = createFrameHosts();
   const resolver = createFramePathResolver(hosts);
   const capture: CaptureOptions = {
