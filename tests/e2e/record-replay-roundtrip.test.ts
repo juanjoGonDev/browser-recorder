@@ -129,13 +129,15 @@ describe('record, generate and replay round trip', () => {
 
     const recording = await services.library.load('round-trip');
     expect(recording.status).toBe('complete');
-    // The pointer resting on a control before it is used is recorded as a
-    // hover; what the user did must be there, in order.
-    expect(
-      recording.events
-        .map((event) => event.kind)
-        .filter((kind) => kind !== 'hover'),
-    ).toEqual(['goto', 'fill', 'check', 'click']);
+    // Exactly what the user did, in order: the pointer resting on a control
+    // before it is used leaves no hover of its own.
+    console.log(JSON.stringify(recording.events));
+    expect(recording.events.map((event) => event.kind)).toEqual([
+      'goto',
+      'fill',
+      'check',
+      'click',
+    ]);
 
     server.clearReports();
     const { final, startedOrder } = await replayAndObserve();

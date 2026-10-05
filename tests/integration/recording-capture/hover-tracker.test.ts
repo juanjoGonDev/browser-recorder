@@ -61,6 +61,38 @@ describe('src/recording-capture/in-page/hover-tracker.ts', () => {
     expect(harness.domMessages('hover')).toHaveLength(1);
   });
 
+  it('records no hover for the label that wraps the control being used', async () => {
+    const harness = await site.open('checkbox.html');
+    await harness.page.getByLabel('Subscribe').check();
+    await harness.waitForDom('check');
+    expect(harness.payloads().map((payload) => payload.kind)).toEqual([
+      'check',
+    ]);
+  });
+
+  it('applies the same to a radio inside its label, and to another one after it', async () => {
+    const harness = await site.open('checkbox.html');
+    await harness.page.getByLabel('Free').check();
+    await harness.waitForDom('check');
+    await harness.page.getByLabel('Pro').check();
+    await harness.waitForDom('check', 2);
+    expect(harness.payloads().map((payload) => payload.kind)).toEqual([
+      'check',
+      'check',
+    ]);
+  });
+
+  it('still records a hover on an ancestor that is not the control label', async () => {
+    const harness = await site.open('hover-menu.html');
+    await harness.page.locator('#products-menu').hover();
+    await harness.page.locator('#reports-link').click();
+    await harness.waitForDom('click');
+    expect(harness.payloads().map((payload) => payload.kind)).toEqual([
+      'hover',
+      'click',
+    ]);
+  });
+
   it('clears the trace once another action is recorded', async () => {
     const harness = await site.open('hover-menu.html');
     await harness.page.locator('#popover-anchor').hover();

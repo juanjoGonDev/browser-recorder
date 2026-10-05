@@ -50,12 +50,18 @@ function onMutation(): void {
   }
 }
 
+/** A label and its control are one target: using one is hovering the other. */
+function isLabelOf(element: Element, target: Element): boolean {
+  return element instanceof HTMLLabelElement && element.control === target;
+}
+
 function toHoverEntries(target: Element): HoverEntry<Element>[] {
   return trace
     .filter(
       ({ element }) =>
         element.isConnected &&
         element !== target &&
+        !isLabelOf(element, target) &&
         !deepContains(target, element),
     )
     .map((entry) => ({

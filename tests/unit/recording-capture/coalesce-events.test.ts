@@ -241,5 +241,59 @@ describe('src/recording-capture/domain/coalesce-events.ts', () => {
       };
       expect(appendAll([hover(1, inputA), dblclick])).toEqual([dblclick]);
     });
+
+    it('drops a hover right before a check on the same target', () => {
+      const check: RecordingEvent = {
+        kind: 'check',
+        offsetMs: 4,
+        pageId: 'page1',
+        target: inputA,
+        checked: true,
+      };
+      expect(appendAll([hover(1, inputA), check])).toEqual([check]);
+    });
+
+    it('drops a hover right before a fill on the same target', () => {
+      expect(appendAll([hover(1, inputA), fill(3, 'x')])).toEqual([
+        fill(3, 'x'),
+      ]);
+    });
+
+    it('drops a hover right before a select on the same target', () => {
+      const select: RecordingEvent = {
+        kind: 'select-option',
+        offsetMs: 6,
+        pageId: 'page1',
+        target: inputA,
+        values: ['a'],
+      };
+      expect(appendAll([hover(1, inputA), select])).toEqual([select]);
+    });
+
+    it('keeps a hover before a fill, check or select on another target', () => {
+      const check: RecordingEvent = {
+        kind: 'check',
+        offsetMs: 4,
+        pageId: 'page1',
+        target: inputB,
+        checked: false,
+      };
+      for (const next of [fill(3, 'x', inputB), check]) {
+        const events = [hover(1, inputA), next];
+        expect(appendAll(events)).toEqual(events);
+      }
+    });
+
+    it('keeps a hover before an action that does not act on the hovered element', () => {
+      const press: RecordingEvent = {
+        kind: 'press',
+        offsetMs: 4,
+        pageId: 'page1',
+        target: inputA,
+        key: 'Enter',
+      };
+      const events = [hover(1, inputA), press];
+      expect(appendAll(events)).toEqual(events);
+    });
   });
 });

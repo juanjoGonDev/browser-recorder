@@ -48,11 +48,21 @@ const replaceSuperseded: Rule = (events, next) => {
   return [...events.slice(0, -1), next];
 };
 
-/** Rule 5: the click on the same element already shows where the pointer was. */
-const dropHoverBeforeClick: Rule = (events, next) => {
-  const isClick = next.kind === 'click' || next.kind === 'dblclick';
+/** Actions on an element that already show where the pointer was. */
+const ACTS_ON_HOVERED_ELEMENT: ReadonlySet<string> = new Set([
+  'click',
+  'dblclick',
+  'check',
+  'fill',
+  'select-option',
+]);
+
+/** Rule 5: the action on the same element already shows where the pointer was. */
+const dropHoverBeforeAction: Rule = (events, next) => {
   const last = events.at(-1);
-  if (!isClick || last?.kind !== 'hover') return null;
+  if (!ACTS_ON_HOVERED_ELEMENT.has(next.kind) || last?.kind !== 'hover') {
+    return null;
+  }
   if (last.pageId !== next.pageId || !isSameTarget(last, next)) return null;
   return [...events.slice(0, -1), next];
 };
@@ -82,13 +92,13 @@ const absorbClicks: Rule = (events, next) => {
   }
   if (kept === events) return null;
   const merged = { ...next, offsetMs: firstOffsetMs };
-  return dropHoverBeforeClick(kept, merged) ?? [...kept, merged];
+  return dropHoverBeforeAction(kept, merged) ?? [...kept, merged];
 };
 
 const RULES: readonly Rule[] = [
   replaceSuperseded,
   absorbClicks,
-  dropHoverBeforeClick,
+  dropHoverBeforeAction,
 ];
 
 /**
