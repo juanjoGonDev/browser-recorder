@@ -103,11 +103,11 @@ Decision already given: user accepted one large PR, `size:exception`, unlimited 
 
 ## WP6: TUI (worktree)
 
-- [ ] 6.1 RED->GREEN: state/actions/intents/keymap: focus `name -> url -> browser -> profile`, `cycle-option`, `browsers-loaded/failed`, profile index reset (Pickers).
-- [ ] 6.2 RED->GREEN: reducers + `recording-flow.ts`/`tui-controller.ts`: Enter refused with "Detecting browsers…", invalid/empty URL kept (Invalid URL, Empty URL).
-- [ ] 6.3 RED->GREEN: `new-recording-screen.ts` pickers and notes (Only bundled).
-- [ ] 6.4 RED->GREEN: recording/replay/setup screens: `Brave · managed`, warnings, inline lock error, detected browsers, bundled failure still allows another browser (Locked profile, Fallback warning).
-- [ ] 6.5 REFACTOR: against fake `AppServices`.
+- [x] 6.1 RED->GREEN: state/actions/intents/keymap: focus `name -> url -> browser -> profile`, `cycle-option`, `browsers-loaded/failed`, profile index reset (Pickers).
+- [x] 6.2 RED->GREEN: reducers + `recording-flow.ts`/`tui-controller.ts`: Enter refused with "Detecting browsers…", invalid/empty URL kept (Invalid URL, Empty URL).
+- [x] 6.3 RED->GREEN: `new-recording-screen.ts` pickers and notes (Only bundled).
+- [x] 6.4 RED->GREEN: recording/replay/setup screens: `Brave · managed`, warnings, inline lock error, detected browsers, bundled failure still allows another browser (Locked profile, Fallback warning).
+- [x] 6.5 REFACTOR: against fake `AppServices`.
 
 ## WP7: Integration (main, last)
 
