@@ -138,3 +138,12 @@ Note: `size:exception` was explicitly accepted by the user, so no decision gate 
 - [x] 7.5 Reconcile spec drift in docs only if needed: spec/design naming (`sensitive` vs `isSensitive`, `back`/`forward` vs `go-back`/`go-forward`, `uncheck` vs `check:false`, 2 s vs 1000 ms action window).
 - [x] 7.6 Final gates: `pnpm quality`, `pnpm test:coverage`, `pnpm build`, `pnpm audit`; verify all RQ scenarios; no push.
 - [x] 7.7 Gap closure from WP2 (contract changes on main): `dialog-closed` signal so dialogs answered in the browser window are recorded; cross-origin (out-of-process) iframes captured through their own frame session in an isolated world; optional `isHeadless` on `StartRecordingDeps`.
+
+## Verify remediation (after sdd-verify)
+
+- [x] R.1 (CRITICAL) environment-setup Automatic install: Failure: `ensureBrowser` `failed` carries `exitCode: number | null` (additive); the setup screen shows it with the manual command (`pnpm exec playwright install chromium`).
+- [x] R.2 (CRITICAL) Automatic install: Offline: after a failed install `l` opens the library (list, rename, delete, timeline); recording and replay are disabled with the reason shown (setup screen, greyed main-menu entry, inline library error, library hints).
+- [x] R.3 (WARNING) Replay scrolls from a CDP isolated world (`rt.scrollTo`, `Page.createIsolatedWorld` + `Runtime.callFunctionOn`), never `evaluate` in the page main world; goldens updated; integration tests prove exact positions (window, element, same-process iframe, out-of-process iframe) and that no main-world API call, global or property appears; no other main-world evaluate remains in the generated runtime. Also: `rt.at` no longer fires a step early when a timer does.
+- [x] R.4 (WARNING) Coalescing drops a hover right before check, fill and select-option on the same target like before a click; in the page the label of the control counts as the control; the e2e asserts the exact recorded kinds.
+- [x] R.5 (WARNING) Duplicate-id fixture: the label wraps the duplicated-id input and a label locator is asserted; every candidate of the uniqueness test is verified with `count() === 1`.
+- [x] R.6 (SUGGESTION) `.npmrc` header comment no longer mentions Electron.
