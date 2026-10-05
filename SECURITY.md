@@ -27,7 +27,7 @@ outside the local `recordings/` folder, privilege escalation, and unsafe
 handling of untrusted pages or recordings. Recordings are plaintext by design
 (see below): that alone is documented behavior, not a vulnerability, but a way
 to leak them unexpectedly is. Out of scope: vulnerabilities in Chromium or
-Playwright themselves (report those upstream) and issues that need an already
+Patchright themselves (report those upstream) and issues that need an already
 compromised local machine.
 
 ## What to know about the data it handles
@@ -47,8 +47,18 @@ compromised local machine.
   or its globals, and the page's Content-Security-Policy does not apply to it.
   The same holds for replay: generated scripts set scroll positions through a
   DevTools isolated world and never call `evaluate` in the page.
+- **Copied browser profiles contain your sessions.** A copy of a real profile
+  holds that profile's session cookies and other logins, so anyone who can read
+  the copy can act as you on those sites. Copies are made only under the tool's
+  own app-data folder (`~/Library/Application Support/browser-recorder` on
+  macOS, `%LOCALAPPDATA%\browser-recorder` on Windows, `$XDG_DATA_HOME` or
+  `~/.local/share` on Linux) in directories with mode 0700, never anywhere
+  else, and are deleted when the recording or replay ends; leftovers of a
+  crashed run are swept at the next start. The original profile is only read,
+  never modified. Managed profiles (the tool's own, kept between runs) hold the
+  logins you made in them: delete the `profiles` folder there to forget them.
 - **No network service and no telemetry.** The app listens on no port and sends
-  nothing anywhere. The only network access is Playwright downloading Chromium
+  nothing anywhere. The only network access is Patchright downloading Chromium
   on first use.
 - **No privilege escalation.** The app never runs `sudo` or an installer with
   elevated rights. On Linux it prints the command for missing system libraries

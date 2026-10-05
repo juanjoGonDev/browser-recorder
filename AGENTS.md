@@ -60,12 +60,12 @@ skipped unless `BROWSER_RECORDER_HEADED_TESTS=1` is set.
 
 Screaming and hexagonal. One top-level folder per capability under `src/`
 (`recording-capture`, `script-generation`, `replay`, `script-library`,
-`environment-setup`, `tui`), each split into `domain/` (pure),
-`application/` (use cases and `ports/`) and `adapters/` (Node and Playwright
+`environment-setup`, `browser-selection`, `browser-profiles`, `tui`), each split into `domain/` (pure),
+`application/` (use cases and `ports/`) and `adapters/` (Node and Patchright
 IO). `src/shared/domain/` is the shared kernel. Only `src/main.ts` and
 `src/composition/` wire features together; features never import each other.
-Playwright is the only runtime dependency and is imported only from adapters
-and the composition root. `pnpm deps:check` (dependency-cruiser) enforces all
+Patchright is the only runtime dependency and is imported only from adapters
+and the composition root; the previous engine must never come back. `pnpm deps:check` (dependency-cruiser) enforces all
 of this; do not weaken `.dependency-cruiser.json` to make a change pass.
 
 ## Naming and lint rules
@@ -128,6 +128,14 @@ worktree, in their own commit, before the worktrees merge them in.
 Agents never push, never add remotes and never open pull requests. Work stays
 on the local branch until the owner publishes it. No script or product code in
 this repo runs `git push`.
+
+## Real browser profiles
+
+Tests and agents never read or write a real browser profile or the real
+app-data folders: vitest runs on an isolated home, and the opt-in tests
+(`BROWSER_RECORDER_REAL_BROWSER_TESTS=1`) copy only from
+`tests/fixtures/profiles`. The product only reads a real profile to copy it
+into its own `sessions` folder and never modifies the original.
 
 ## Recordings are plaintext
 

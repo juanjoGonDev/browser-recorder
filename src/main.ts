@@ -71,5 +71,5 @@ async function run(): Promise<number> {
 const exitCode = await run().catch((error: unknown) =>
   fail(error instanceof Error ? error.message : String(error)),
 );
-// Playwright or timers may still hold the event loop: leave on purpose.
+// Patchright or timers may still hold the event loop: leave on purpose.
 process.exit(exitCode);

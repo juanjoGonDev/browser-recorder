@@ -19,7 +19,7 @@ pnpm install     # also installs the git hooks
 - Windows: use PowerShell or Git Bash. Line endings are normalized to LF by
   `.gitattributes`.
 - Linux: Chromium needs system libraries; run
-  `sudo pnpm exec playwright install-deps chromium` yourself when asked.
+  `sudo pnpm exec patchright install-deps chromium` yourself when asked.
 
 ## Scripts
 
