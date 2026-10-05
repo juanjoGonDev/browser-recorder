@@ -39,3 +39,19 @@ export function formatDrift(driftMs: number): string {
   const sign = driftMs > 0 ? '+' : '';
   return sign + formatGap(driftMs);
 }
+
+const SPINNER_FRAMES = '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏';
+const SPINNER_FRAME_MS = 80;
+
+/** A braille spinner frame derived from the injected clock, never from `Date`. */
+export function spinnerFrame(nowMs: number): string {
+  const frames = Array.from(SPINNER_FRAMES);
+  const index =
+    Math.floor(Math.max(0, nowMs) / SPINNER_FRAME_MS) % frames.length;
+  return frames[index] ?? '';
+}
+
+/** `1 event`, `2 events`. */
+export function pluralize(count: number, word: string): string {
+  return `${String(count)} ${word}${count === 1 ? '' : 's'}`;
+}

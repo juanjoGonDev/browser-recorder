@@ -6,6 +6,8 @@ import {
   formatDuration,
   formatGap,
   gapBar,
+  pluralize,
+  spinnerFrame,
 } from '../../../src/tui/render/format.ts';
 
 describe('src/tui/render/format.ts', () => {
@@ -44,5 +46,18 @@ describe('src/tui/render/format.ts', () => {
     expect(formatDrift(-3)).toBe('-3ms');
     expect(formatDrift(0)).toBe('0ms');
     expect(formatDrift(1500)).toBe('+1.5s');
+  });
+
+  it('animates the spinner from the clock and loops', () => {
+    expect(spinnerFrame(0)).toBe('⠋');
+    expect(spinnerFrame(80)).toBe('⠙');
+    expect(spinnerFrame(80 * 10)).toBe('⠋');
+    expect(spinnerFrame(-5)).toBe('⠋');
+  });
+
+  it('pluralizes counts', () => {
+    expect(pluralize(0, 'event')).toBe('0 events');
+    expect(pluralize(1, 'event')).toBe('1 event');
+    expect(pluralize(2, 'value')).toBe('2 values');
   });
 });
