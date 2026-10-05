@@ -1,6 +1,3 @@
-import { createServer } from 'node:http';
-import type { Server } from 'node:http';
-import type { AddressInfo } from 'node:net';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -9,48 +6,10 @@ import { createPatchrightBrowserLauncher } from '../../../src/recording-capture/
 import { createPerformanceClock } from '../../../src/recording-capture/adapters/performance-clock.ts';
 import type { SessionSignal } from '../../../src/recording-capture/application/ports/browser-launcher.ts';
 import { IN_PAGE_BUNDLE_PATH } from '../../support/build-in-page-bundle.ts';
+import { LOGIN_COOKIE, startLoginSite } from '../../support/login-site.ts';
+import type { LoginSite } from '../../support/login-site.ts';
 
-const COOKIE = 'sid=logged-in';
-const ONE_HOUR_S = 3600;
 const WAIT = { timeout: 10_000, interval: 50 };
-
-interface LoginSite {
-  readonly baseUrl: string;
-  /** The `cookie` header of every request to `/whoami`, oldest first. */
-  readonly cookiesSeen: (string | undefined)[];
-  close(): Promise<void>;
-}
-
-/** `/login` sets a persistent cookie; `/whoami` records what the browser sends. */
-async function startLoginSite(): Promise<LoginSite> {
-  const cookiesSeen: (string | undefined)[] = [];
-  const server: Server = createServer((request, response) => {
-    if (request.url === '/login') {
-      response.setHeader(
-        'set-cookie',
-        `${COOKIE}; Max-Age=${String(ONE_HOUR_S)}; Path=/`,
-      );
-    } else {
-      cookiesSeen.push(request.headers.cookie);
-    }
-    response.setHeader('content-type', 'text/html');
-    response.end('<!doctype html><title>login site</title><p>ok</p>');
-  });
-  await new Promise<void>((resolve) => {
-    server.listen(0, '127.0.0.1', resolve);
-  });
-  const { port } = server.address() as AddressInfo;
-  return {
-    baseUrl: `http://127.0.0.1:${String(port)}`,
-    cookiesSeen,
-    close: () =>
-      new Promise((resolve) => {
-        server.close(() => {
-          resolve();
-        });
-      }),
-  };
-}
 
 describe('src/recording-capture/adapters/patchright-browser-launcher.ts (managed profile)', () => {
   let site: LoginSite;
@@ -101,7 +60,7 @@ describe('src/recording-capture/adapters/patchright-browser-launcher.ts (managed
     const managed = await newProfileDir();
     await visit(managed, '/login');
     await visit(managed, '/whoami');
-    expect(site.cookiesSeen.at(-1)).toBe(COOKIE);
+    expect(site.cookiesSeen.at(-1)).toBe(LOGIN_COOKIE);
   });
 
   it('does not leak the login into a different directory', async () => {
