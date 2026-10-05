@@ -57,7 +57,10 @@ interface Harness {
   readonly live: LiveRecording;
 }
 
-async function begin(startUrl: string | null = null): Promise<Harness> {
+async function begin(
+  startUrl: string | null = null,
+  isHeadless?: boolean,
+): Promise<Harness> {
   const browser = createFakeBrowser();
   const clock = createFakeClock(START_MS);
   const saves: Recording[] = [];
@@ -83,6 +86,7 @@ async function begin(startUrl: string | null = null): Promise<Harness> {
         },
       },
       now: () => new Date('2026-03-04T05:06:07.000Z'),
+      ...(isHeadless === undefined ? {} : { isHeadless }),
     },
     { name: 'Checkout flow', slug: 'checkout-flow', startUrl },
   );
@@ -114,6 +118,11 @@ describe('src/recording-capture/application/recording-session.ts', () => {
           isHeadless: false,
         },
       ]);
+    });
+
+    it('launches headless when the composition asks for it', async () => {
+      const harness = await begin(null, true);
+      expect(harness.launches[0]?.isHeadless).toBe(true);
     });
 
     it('launches with no start URL when there is none', async () => {

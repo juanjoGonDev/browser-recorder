@@ -37,6 +37,8 @@ export interface StartRecordingDeps {
   readonly clock: MonotonicClock;
   readonly sink: RecordingSink;
   readonly now: () => Date;
+  /** Opens no window; the composition sets it for tests and automation. */
+  readonly isHeadless?: boolean;
 }
 
 export interface StartRecordingRequest {
@@ -229,7 +231,7 @@ export async function startRecording(
   const browser = await deps.launcher.launch({
     startUrl: request.startUrl,
     viewport: DEFAULT_VIEWPORT,
-    isHeadless: false,
+    isHeadless: deps.isHeadless ?? false,
   });
   return new RecordingRun(deps, request, browser);
 }
