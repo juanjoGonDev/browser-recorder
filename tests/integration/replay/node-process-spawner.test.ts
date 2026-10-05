@@ -1,7 +1,7 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type {
   SpawnedProcess,
@@ -94,6 +94,45 @@ describe('nodeProcessSpawner', () => {
       const { outcome } = start(request(file, { REPLAY_PROBE: 'on' }));
 
       expect((await outcome).stdout).toBe('on|string');
+    },
+    WAIT_MS,
+  );
+
+  it(
+    'overrides inherited browser variables, an empty value included, and keeps JSON and spaces intact',
+    async () => {
+      const keys = [
+        'BROWSER_RECORDER_USER_DATA_DIR',
+        'BROWSER_RECORDER_EXECUTABLE_PATH',
+        'BROWSER_RECORDER_BROWSER_ARGS',
+      ];
+      vi.stubEnv('BROWSER_RECORDER_USER_DATA_DIR', '/inherited/profile');
+      vi.stubEnv('BROWSER_RECORDER_EXECUTABLE_PATH', '/inherited/chrome');
+      vi.stubEnv('BROWSER_RECORDER_BROWSER_ARGS', '["--inherited"]');
+      try {
+        const file = await script(
+          'launch-env.mjs',
+          `process.stdout.write(JSON.stringify([${keys
+            .map((key) => `process.env.${key}`)
+            .join(',')}]));`,
+        );
+
+        const { outcome } = start(
+          request(file, {
+            BROWSER_RECORDER_USER_DATA_DIR: '',
+            BROWSER_RECORDER_EXECUTABLE_PATH: '/Apps/Brave Browser/brave $x',
+            BROWSER_RECORDER_BROWSER_ARGS: '["--profile-directory=Profile 1"]',
+          }),
+        );
+
+        expect(JSON.parse((await outcome).stdout)).toEqual([
+          '',
+          '/Apps/Brave Browser/brave $x',
+          '["--profile-directory=Profile 1"]',
+        ]);
+      } finally {
+        vi.unstubAllEnvs();
+      }
     },
     WAIT_MS,
   );

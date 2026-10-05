@@ -54,7 +54,7 @@ describe('src/composition/resolve-paths.ts', () => {
     );
   });
 
-  it('derives the recordings root, the capture script and the Playwright CLI', () => {
+  it('derives the recordings root, the capture script and the Patchright CLI', () => {
     const root = installPackage('browser-recorder');
     const entry = pathToFileURL(path.join(root, 'dist', 'main.js')).href;
     expect(resolveAppPaths(entry, depsWithCli('/the/cli.js'))).toEqual({

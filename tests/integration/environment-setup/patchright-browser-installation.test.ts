@@ -4,9 +4,9 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
-  createPlaywrightBrowserInstallation,
-  type PlaywrightInstallationOptions,
-} from '../../../src/environment-setup/adapters/playwright-browser-installation.ts';
+  createPatchrightBrowserInstallation,
+  type PatchrightInstallationOptions,
+} from '../../../src/environment-setup/adapters/patchright-browser-installation.ts';
 
 const WAIT_MS = 15_000;
 
@@ -20,8 +20,8 @@ async function fakeCli(source: string): Promise<string> {
 
 function options(
   cliPath: string,
-  overrides: Partial<PlaywrightInstallationOptions> = {},
-): PlaywrightInstallationOptions {
+  overrides: Partial<PatchrightInstallationOptions> = {},
+): PatchrightInstallationOptions {
   return {
     cliPath,
     nodePath: process.execPath,
@@ -31,7 +31,7 @@ function options(
   };
 }
 
-describe('createPlaywrightBrowserInstallation', () => {
+describe('createPatchrightBrowserInstallation', () => {
   beforeEach(async () => {
     dir = await mkdtemp(join(tmpdir(), 'install-'));
   });
@@ -42,7 +42,7 @@ describe('createPlaywrightBrowserInstallation', () => {
 
   it('reports installed from the executable path existing on disk', async () => {
     const probed: string[] = [];
-    const installation = createPlaywrightBrowserInstallation(
+    const installation = createPatchrightBrowserInstallation(
       options('unused', {
         exists: (file) => {
           probed.push(file);
@@ -56,7 +56,7 @@ describe('createPlaywrightBrowserInstallation', () => {
   });
 
   it('reports missing when the executable is absent', async () => {
-    const installation = createPlaywrightBrowserInstallation(options('unused'));
+    const installation = createPatchrightBrowserInstallation(options('unused'));
 
     expect(await installation.isInstalled()).toBe(false);
   });
@@ -70,7 +70,7 @@ describe('createPlaywrightBrowserInstallation', () => {
       );
       const lines: string[] = [];
 
-      const result = await createPlaywrightBrowserInstallation(
+      const result = await createPatchrightBrowserInstallation(
         options(cli),
       ).install((line) => lines.push(line));
 
@@ -89,7 +89,7 @@ describe('createPlaywrightBrowserInstallation', () => {
       );
       const lines: string[] = [];
 
-      const result = await createPlaywrightBrowserInstallation(
+      const result = await createPatchrightBrowserInstallation(
         options(cli),
       ).install((line) => lines.push(line));
 
@@ -102,7 +102,7 @@ describe('createPlaywrightBrowserInstallation', () => {
   it(
     'rejects with the reason when the node binary cannot start',
     async () => {
-      const installation = createPlaywrightBrowserInstallation(
+      const installation = createPatchrightBrowserInstallation(
         options('cli.js', { nodePath: join(dir, 'no-such-node') }),
       );
 

@@ -3,9 +3,9 @@ import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';
 
 import {
-  resolvePlaywrightCli,
+  resolvePatchrightCli,
   type CliResolverDeps,
-} from '../../../src/environment-setup/adapters/resolve-playwright-cli.ts';
+} from '../../../src/environment-setup/adapters/resolve-patchright-cli.ts';
 
 const nodeRequire = createRequire(import.meta.url);
 
@@ -15,9 +15,9 @@ const realDeps: CliResolverDeps = {
   exists: existsSync,
 };
 
-describe('resolvePlaywrightCli', () => {
+describe('resolvePatchrightCli', () => {
   it('resolves the real installed patchright CLI to an existing file', () => {
-    const cli = resolvePlaywrightCli(realDeps);
+    const cli = resolvePatchrightCli(realDeps);
 
     expect(cli).toMatch(/patchright[\\/]cli\.js$/);
     expect(existsSync(cli)).toBe(true);
@@ -35,7 +35,7 @@ describe('resolvePlaywrightCli', () => {
         bin: { 'patchright-core': 'cli.js' },
       }),
     };
-    const cli = resolvePlaywrightCli({
+    const cli = resolvePatchrightCli({
       resolve: (id) => {
         const file = `/m/${id}`;
         if (!(file in files)) throw new Error(`Cannot find module ${id}`);
@@ -57,7 +57,7 @@ describe('resolvePlaywrightCli', () => {
         bin: { 'patchright-core': 'cli.js' },
       }),
     };
-    const cli = resolvePlaywrightCli({
+    const cli = resolvePatchrightCli({
       resolve: (id) => `/m/${id}`,
       readText: (file) => files[file] ?? '',
       exists: (file) => file.replaceAll('\\', '/').includes('patchright-core'),
@@ -68,23 +68,23 @@ describe('resolvePlaywrightCli', () => {
 
   it('throws a clear error when no candidate resolves', () => {
     expect(() =>
-      resolvePlaywrightCli({
+      resolvePatchrightCli({
         resolve: () => {
           throw new Error('nope');
         },
         readText: () => '',
         exists: () => false,
       }),
-    ).toThrow(/Playwright CLI/);
+    ).toThrow(/Patchright CLI/);
   });
 
   it('throws when the package declares no usable bin', () => {
     expect(() =>
-      resolvePlaywrightCli({
+      resolvePatchrightCli({
         resolve: (id) => `/m/${id}`,
         readText: () => '{}',
         exists: () => true,
       }),
-    ).toThrow(/Playwright CLI/);
+    ).toThrow(/Patchright CLI/);
   });
 });

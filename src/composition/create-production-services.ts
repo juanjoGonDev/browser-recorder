@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { createPlaywrightBrowserInstallation } from '../environment-setup/adapters/playwright-browser-installation.ts';
-import { resolvePlaywrightCli } from '../environment-setup/adapters/resolve-playwright-cli.ts';
+import { createPatchrightBrowserInstallation } from '../environment-setup/adapters/patchright-browser-installation.ts';
+import { resolvePatchrightCli } from '../environment-setup/adapters/resolve-patchright-cli.ts';
 import { createPerformanceClock } from '../recording-capture/adapters/performance-clock.ts';
 import { createPlaywrightBrowserLauncher } from '../recording-capture/adapters/playwright-browser-launcher.ts';
 import type { BrowserLauncher } from '../recording-capture/application/ports/browser-launcher.ts';
@@ -35,7 +35,7 @@ export function resolveProductionPaths(moduleUrl: string): AppPaths {
     readText: (file) => readFileSync(file, 'utf8'),
     exists: existsSync,
     resolveCli: () =>
-      resolvePlaywrightCli({
+      resolvePatchrightCli({
         resolve: (id) => nodeRequire.resolve(id),
         readText: (file) => readFileSync(file, 'utf8'),
         exists: existsSync,
@@ -66,7 +66,7 @@ export function createProductionDeps(
       }),
     clock,
     now: () => new Date(),
-    installation: createPlaywrightBrowserInstallation({
+    installation: createPatchrightBrowserInstallation({
       cliPath: paths.playwrightCliPath,
       nodePath: process.execPath,
     }),
