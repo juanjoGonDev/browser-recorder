@@ -10,11 +10,20 @@ function tail(lines: readonly string[], context: RenderContext): string[] {
   return lines.slice(-rows).map((line) => `  ${context.style.muted(line)}`);
 }
 
+function exitCodeLine(screen: SetupScreen, context: RenderContext): string[] {
+  return screen.exitCode === null
+    ? []
+    : [
+        `  ${context.style.muted(`The installer failed with exit code ${String(screen.exitCode)}.`)}`,
+      ];
+}
+
 function failedBody(screen: SetupScreen, context: RenderContext): string[] {
   const { style } = context;
   return [
     '',
     `  ${style.danger('✖')} ${style.bold('Chromium could not be installed.')}`,
+    ...exitCodeLine(screen, context),
     '',
     '  Install it yourself, then retry:',
     `    ${style.accent(screen.manualCommand ?? '')}`,

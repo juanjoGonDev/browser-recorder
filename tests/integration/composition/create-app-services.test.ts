@@ -104,6 +104,7 @@ describe('src/composition/create-app-services.ts', () => {
       ).resolves.toEqual({
         kind: 'failed',
         manualCommand: 'pnpm exec playwright install chromium',
+        exitCode: 1,
       });
     });
 

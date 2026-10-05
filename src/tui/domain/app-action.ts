@@ -13,7 +13,11 @@ export type AppAction =
   | { readonly type: 'setup-output'; readonly line: string }
   | { readonly type: 'setup-installing' }
   | { readonly type: 'setup-ready'; readonly linuxHint: string | null }
-  | { readonly type: 'setup-failed'; readonly manualCommand: string }
+  | {
+      readonly type: 'setup-failed';
+      readonly manualCommand: string;
+      readonly exitCode: number | null;
+    }
   | { readonly type: 'navigate'; readonly target: MenuTarget }
   | { readonly type: 'move-selection'; readonly delta: number }
   | { readonly type: 'page-selection'; readonly direction: 'up' | 'down' }

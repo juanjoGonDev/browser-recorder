@@ -69,13 +69,18 @@ class IntentController implements TuiController {
       store.dispatch(
         result.kind === 'ready'
           ? { type: 'setup-ready', linuxHint: result.linuxHint }
-          : { type: 'setup-failed', manualCommand: result.manualCommand },
+          : {
+              type: 'setup-failed',
+              manualCommand: result.manualCommand,
+              exitCode: result.exitCode,
+            },
       );
     } catch (error) {
       store.dispatch({ type: 'setup-output', line: messageOf(error) });
       store.dispatch({
         type: 'setup-failed',
         manualCommand: MANUAL_INSTALL_COMMAND,
+        exitCode: null,
       });
     }
   }

@@ -68,6 +68,7 @@ describe('src/tui/domain/keymap.ts', () => {
       phase: 'failed',
       lines: [],
       manualCommand: 'x',
+      exitCode: 1,
     });
 
     it('retries on Enter only after a failure and quits on q', () => {

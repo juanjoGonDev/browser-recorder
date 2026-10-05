@@ -70,6 +70,7 @@ describe('src/tui/application/tui-controller.ts', () => {
         return Promise.resolve({
           kind: 'failed',
           manualCommand: 'pnpm exec playwright install chromium',
+          exitCode: 2,
         });
       };
       await harness.controller.start();
@@ -78,6 +79,7 @@ describe('src/tui/application/tui-controller.ts', () => {
         phase: 'failed',
         lines: ['Downloading Chromium'],
         manualCommand: 'pnpm exec playwright install chromium',
+        exitCode: 2,
       });
     });
 
@@ -104,7 +106,7 @@ describe('src/tui/application/tui-controller.ts', () => {
     it('retries the setup on Enter after a failure', async () => {
       const harness = setup();
       harness.fake.environment = () =>
-        Promise.resolve({ kind: 'failed', manualCommand: 'cmd' });
+        Promise.resolve({ kind: 'failed', manualCommand: 'cmd', exitCode: 1 });
       await harness.controller.start();
       harness.fake.environment = () =>
         Promise.resolve({ kind: 'ready', linuxHint: null });

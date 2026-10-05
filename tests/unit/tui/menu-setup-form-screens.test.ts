@@ -56,6 +56,7 @@ describe('src/tui/render/screens (main menu, setup, new recording)', () => {
       phase: 'checking',
       lines: [],
       manualCommand: null,
+      exitCode: null,
     };
 
     it('shows a spinner while checking and installing', () => {
@@ -87,6 +88,7 @@ describe('src/tui/render/screens (main menu, setup, new recording)', () => {
         ...base,
         phase: 'failed',
         manualCommand: 'pnpm exec playwright install chromium',
+        exitCode: 1,
       };
       const view = renderSetupScreen(failed, plainContext());
       expect(view.body.join('\n')).toContain(
@@ -96,6 +98,22 @@ describe('src/tui/render/screens (main menu, setup, new recording)', () => {
         'pnpm exec playwright install chromium',
       );
       expect(view.hints.map((hint) => hint.key)).toEqual(['enter', 'q']);
+    });
+
+    it('displays the installer exit code on failure', () => {
+      const failedWith = (exitCode: number | null): string =>
+        renderSetupScreen(
+          {
+            ...base,
+            phase: 'failed',
+            manualCommand: 'pnpm exec playwright install chromium',
+            exitCode,
+          },
+          plainContext(),
+        ).body.join('\n');
+      expect(failedWith(7)).toContain('exit code 7');
+      expect(failedWith(137)).toContain('exit code 137');
+      expect(failedWith(null)).not.toContain('exit code');
     });
   });
 

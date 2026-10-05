@@ -145,11 +145,13 @@ describe('src/tui/domain/app-reducer.ts', () => {
       const state = reduce(initialState(), {
         type: 'setup-failed',
         manualCommand: 'pnpm exec playwright install chromium',
+        exitCode: 7,
       });
       expect(state.screen).toMatchObject({
         kind: 'setup',
         phase: 'failed',
         manualCommand: 'pnpm exec playwright install chromium',
+        exitCode: 7,
       });
     });
   });

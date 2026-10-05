@@ -19,6 +19,8 @@ export interface SetupScreen {
   readonly phase: 'checking' | 'installing' | 'failed';
   readonly lines: readonly string[];
   readonly manualCommand: string | null;
+  /** The installer's exit code after a failed install, when it had one. */
+  readonly exitCode: number | null;
 }
 
 export interface MainMenuScreen {

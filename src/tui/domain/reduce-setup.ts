@@ -28,10 +28,15 @@ export function setupReady(
   return { ...state, linuxHint, screen: { kind: 'main-menu', selected: 0 } };
 }
 
-export function setupFailed(state: AppState, manualCommand: string): AppState {
+export function setupFailed(
+  state: AppState,
+  manualCommand: string,
+  exitCode: number | null,
+): AppState {
   return onSetup(state, (screen) => ({
     ...screen,
     phase: 'failed',
     manualCommand,
+    exitCode,
   }));
 }

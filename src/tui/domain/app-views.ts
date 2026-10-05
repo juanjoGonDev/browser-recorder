@@ -21,7 +21,11 @@ export type LibraryEntryView =
 
 export type EnvironmentView =
   | { readonly kind: 'ready'; readonly linuxHint: string | null }
-  | { readonly kind: 'failed'; readonly manualCommand: string };
+  | {
+      readonly kind: 'failed';
+      readonly manualCommand: string;
+      readonly exitCode: number | null;
+    };
 
 export interface DialogView {
   readonly dialogType: DialogType;

@@ -7,7 +7,12 @@ export type EnsureBrowserEvent =
 
 export type EnsureBrowserResult =
   | { readonly kind: 'ready'; readonly linuxHint: string | null }
-  | { readonly kind: 'failed'; readonly manualCommand: string };
+  | {
+      readonly kind: 'failed';
+      readonly manualCommand: string;
+      /** The installer's exit code; `null` when it never produced one. */
+      readonly exitCode: number | null;
+    };
 
 export interface EnsureBrowserDeps {
   readonly installation: BrowserInstallation;
@@ -18,27 +23,27 @@ export interface EnsureBrowserDeps {
 
 export const MANUAL_INSTALL_COMMAND = 'pnpm exec playwright install chromium';
 
-const FAILED: EnsureBrowserResult = {
-  kind: 'failed',
-  manualCommand: MANUAL_INSTALL_COMMAND,
-};
+function failed(exitCode: number | null): EnsureBrowserResult {
+  return { kind: 'failed', manualCommand: MANUAL_INSTALL_COMMAND, exitCode };
+}
 
 async function installAndRecheck(
   deps: EnsureBrowserDeps,
 ): Promise<EnsureBrowserResult> {
   const { installation, onEvent } = deps;
   onEvent({ kind: 'missing' });
+  let exitCode: number | null;
   try {
-    const { exitCode } = await installation.install((line) => {
+    ({ exitCode } = await installation.install((line) => {
       onEvent({ kind: 'install-output', line });
-    });
-    if (exitCode !== 0) return FAILED;
+    }));
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     onEvent({ kind: 'install-output', line: reason });
-    return FAILED;
+    return failed(null);
   }
-  return (await installation.isInstalled()) ? ready(deps) : FAILED;
+  if (exitCode !== 0) return failed(exitCode);
+  return (await installation.isInstalled()) ? ready(deps) : failed(exitCode);
 }
 
 function ready(deps: EnsureBrowserDeps): EnsureBrowserResult {

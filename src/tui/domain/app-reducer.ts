@@ -47,6 +47,7 @@ export function initialState(): AppState {
       phase: 'checking',
       lines: [],
       manualCommand: null,
+      exitCode: null,
     },
     nowMs: 0,
     listRows: listRowsFor(INITIAL_TERMINAL_ROWS),
@@ -134,7 +135,8 @@ const handlers: Handlers = {
   'setup-output': (state, action) => setupOutput(state, action.line),
   'setup-installing': setupInstalling,
   'setup-ready': (state, action) => setupReady(state, action.linuxHint),
-  'setup-failed': (state, action) => setupFailed(state, action.manualCommand),
+  'setup-failed': (state, action) =>
+    setupFailed(state, action.manualCommand, action.exitCode),
   navigate: (state, action) => ({ ...state, screen: screenFor(action.target) }),
   'move-selection': (state, action) => moveSelection(state, action.delta),
   'page-selection': (state, action) =>

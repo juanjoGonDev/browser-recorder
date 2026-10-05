@@ -90,10 +90,17 @@ describe('ensureBrowser', () => {
     expect(await h.run()).toEqual({
       kind: 'failed',
       manualCommand: MANUAL_INSTALL_COMMAND,
+      exitCode: 1,
     });
     expect(MANUAL_INSTALL_COMMAND).toBe(
       'pnpm exec playwright install chromium',
     );
+  });
+
+  it('carries whatever non-zero exit code the installer returned', async () => {
+    const h = harness({ isInstalledBefore: false, exitCode: 137 });
+
+    expect(await h.run()).toMatchObject({ kind: 'failed', exitCode: 137 });
   });
 
   it('fails when the installer exited 0 but Chromium is still absent', async () => {
@@ -103,7 +110,7 @@ describe('ensureBrowser', () => {
       exitCode: 0,
     });
 
-    expect((await h.run()).kind).toBe('failed');
+    expect(await h.run()).toMatchObject({ kind: 'failed', exitCode: 0 });
   });
 
   it('does not crash when the installer cannot even start (offline)', async () => {
@@ -114,7 +121,7 @@ describe('ensureBrowser', () => {
 
     const result = await h.run();
 
-    expect(result.kind).toBe('failed');
+    expect(result).toMatchObject({ kind: 'failed', exitCode: null });
     expect(h.events).toContain('getaddrinfo ENOTFOUND cdn.playwright.dev');
   });
 
@@ -125,7 +132,7 @@ describe('ensureBrowser', () => {
       hasSignalExit: true,
     });
 
-    expect((await h.run()).kind).toBe('failed');
+    expect(await h.run()).toMatchObject({ kind: 'failed', exitCode: null });
   });
 
   it('carries the Linux dependency hint on linux only', async () => {
