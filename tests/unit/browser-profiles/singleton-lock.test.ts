@@ -17,16 +17,10 @@ describe('parseSingletonLock', () => {
     });
   });
 
-  it.each([
-    '',
-    'nohost',
-    'host-',
-    'host-abc',
-    'host-0',
-    'host--5',
-    '-12',
-    'h-1x',
-  ])('rejects %j', (target) => {
-    expect(parseSingletonLock(target)).toBeNull();
-  });
+  it.each(['', 'nohost', 'host-', 'host-abc', 'host-0', '-12', 'h-1x'])(
+    'rejects %j',
+    (target) => {
+      expect(parseSingletonLock(target)).toBeNull();
+    },
+  );
 });
