@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Button</title>
+  </head>
+  <body>
+    <button id="save" data-testid="save-button">Save</button>
+    <button id="plain">Plain</button>
+    <p id="status">idle</p>
+    <p id="clicks">0</p>
+    <script>
+      const status = document.getElementById('status');
+      const clicks = document.getElementById('clicks');
+      let count = 0;
+      document.getElementById('save').addEventListener('click', (event) => {
+        count += 1;
+        clicks.textContent = String(count);
+        status.textContent = event.shiftKey ? 'saved with shift' : 'saved';
+      });
+      document
+        .getElementById('save')
+        .addEventListener('contextmenu', (event) => {
+          event.preventDefault();
+          status.textContent = event.shiftKey
+            ? 'context with shift'
+            : 'context';
+        });
+      document.getElementById('save').addEventListener('dblclick', () => {
+        status.textContent = 'double clicked';
+      });
+    </script>
+  </body>
+</html>
