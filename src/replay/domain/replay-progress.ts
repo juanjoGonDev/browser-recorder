@@ -1,3 +1,5 @@
+import type { ProgressMessage } from './parse-progress-line.ts';
+
 export type StepStatus = 'pending' | 'running' | 'done';
 export type ReplayStatus = 'running' | 'succeeded' | 'failed' | 'cancelled';
 
@@ -21,4 +23,112 @@ export interface ReplayProgress {
   readonly exitCode: number | null;
   readonly errorMessage: string | null;
   readonly stderrTail: readonly string[];
+}
+
+export const STDERR_TAIL_LINES = 10;
+const EXIT_SUCCESS = 0;
+
+export function createReplayProgress(
+  stepOffsetsMs: readonly number[],
+): ReplayProgress {
+  return {
+    status: 'running',
+    steps: stepOffsetsMs.map((offsetMs, index) => ({
+      index,
+      status: 'pending',
+      offsetMs,
+      elapsedMs: null,
+      driftMs: null,
+    })),
+    lastStepIndex: null,
+    exitCode: null,
+    errorMessage: null,
+    stderrTail: [],
+  };
+}
+
+function reachStep(
+  step: StepProgress,
+  reached: number,
+  elapsedMs: number | null,
+): StepProgress {
+  if (step.index < reached) return { ...step, status: 'done' };
+  if (step.index > reached) return step;
+  return {
+    ...step,
+    status: 'running',
+    elapsedMs,
+    driftMs: elapsedMs === null ? null : elapsedMs - step.offsetMs,
+  };
+}
+
+/** Folds one parsed stdout line into the snapshot. */
+export function applyMessage(
+  progress: ReplayProgress,
+  message: ProgressMessage,
+): ReplayProgress {
+  switch (message.kind) {
+    case 'step':
+      return {
+        ...progress,
+        lastStepIndex: message.index,
+        steps: progress.steps.map((step) =>
+          reachStep(step, message.index, message.elapsedMs),
+        ),
+      };
+    case 'done':
+      return {
+        ...progress,
+        steps: progress.steps.map((step) => ({ ...step, status: 'done' })),
+      };
+    case 'error':
+      return { ...progress, errorMessage: message.message };
+    case 'log':
+      return progress;
+  }
+}
+
+export function applyStderrLine(
+  progress: ReplayProgress,
+  line: string,
+): ReplayProgress {
+  return {
+    ...progress,
+    stderrTail: [...progress.stderrTail, line].slice(-STDERR_TAIL_LINES),
+  };
+}
+
+function exitStatus(
+  exitCode: number | null,
+  isCancelled: boolean,
+): ReplayStatus {
+  if (isCancelled) return 'cancelled';
+  return exitCode === EXIT_SUCCESS ? 'succeeded' : 'failed';
+}
+
+function failureMessage(
+  progress: ReplayProgress,
+  status: ReplayStatus,
+  exitCode: number | null,
+): string | null {
+  if (status !== 'failed') return progress.errorMessage;
+  if (progress.errorMessage !== null) return progress.errorMessage;
+  return exitCode === null
+    ? 'The replay was terminated by a signal.'
+    : `The replay exited with code ${String(exitCode)}.`;
+}
+
+/** Settles the snapshot once the child process has exited. */
+export function applyExit(
+  progress: ReplayProgress,
+  exitCode: number | null,
+  isCancelled: boolean,
+): ReplayProgress {
+  const status = exitStatus(exitCode, isCancelled);
+  return {
+    ...progress,
+    status,
+    exitCode,
+    errorMessage: failureMessage(progress, status, exitCode),
+  };
 }
