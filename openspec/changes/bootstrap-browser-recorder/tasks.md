@@ -147,6 +147,8 @@ Note: `size:exception` was explicitly accepted by the user, so no decision gate 
 - [x] R.4 (WARNING) Coalescing drops a hover right before check, fill and select-option on the same target like before a click; in the page the label of the control counts as the control; the e2e asserts the exact recorded kinds.
 - [x] R.5 (WARNING) Duplicate-id fixture: the label wraps the duplicated-id input and a label locator is asserted; every candidate of the uniqueness test is verified with `count() === 1`.
 - [x] R.6 (SUGGESTION) `.npmrc` header comment no longer mentions Electron.
+- [x] R.7 (WARNING) Scroll inside shadow DOM is recorded and replayed exactly: scroll listeners on every open shadow root from the isolated world (existing, mutation-observed and later-attached roots); replay dispatches a composed one-shot event at the Playwright locator and scrolls the `composedPath()[0]` element from an isolated world, replacing the XPath index path and removing the "Cannot scroll an element inside a shadow tree" refusal; closed roots documented as a limitation with a test; goldens updated; scenarios added to recording-capture and script-generation; integration tests for open, nested, late-attached and iframe+shadow roots, a record-and-replay e2e and main-world isolation checks.
+- [x] R.8 (WARNING) "Duplicate id fallback" wording matches the locator priority (role+name outranks label); the tests record a real click on the fixture and assert the stored locator (role for the labelled input, label for a no-role `type=date` input).
 
 ## GitHub community files (G)
 

@@ -68,6 +68,39 @@ describe('src/recording-capture/adapters/playwright-browser-session.ts', () => {
       });
     });
 
+    it('stores the role locator, not #x, when a click lands on a labelled element behind a duplicated id', async () => {
+      const rig = await factory.start('duplicate-id.html');
+      await rig.firstPage().getByLabel('Second field').click();
+      const signal = await rig.waitForSignal('dom');
+      expect(signal.kind === 'dom' && signal.candidates).toContainEqual({
+        kind: 'label',
+        text: 'Second field',
+      });
+      expect(signal.kind === 'dom' && signal.candidates[0]).toEqual({
+        kind: 'role',
+        role: 'textbox',
+        name: 'Second field',
+      });
+      expect(signal.kind === 'dom' && signal.candidates).not.toContainEqual({
+        kind: 'css',
+        selector: '#x',
+      });
+    });
+
+    it('stores the label locator, not #x, when the clicked element has no role', async () => {
+      const rig = await factory.start('duplicate-id-no-role.html');
+      await rig.firstPage().getByLabel('Birthday').click();
+      const signal = await rig.waitForSignal('dom');
+      expect(signal.kind === 'dom' && signal.candidates[0]).toEqual({
+        kind: 'label',
+        text: 'Birthday',
+      });
+      expect(signal.kind === 'dom' && signal.candidates).not.toContainEqual({
+        kind: 'css',
+        selector: '#x',
+      });
+    });
+
     it('keeps events in the order they happened', async () => {
       const rig = await factory.start('button.html');
       const save = rig.firstPage().getByTestId('save-button');

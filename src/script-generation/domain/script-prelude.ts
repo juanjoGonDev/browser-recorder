@@ -9,46 +9,39 @@ const ABORT_EXIT_CODE = 130;
 const DEFAULT_WAIT_MS = 10000;
 const SCROLL_WORLD = '__browser_recorder_replay';
 
-// Runs inside an isolated world through the DevTools protocol, never in the
-// page's own: it is serialized with toString(), so it may not use this file's
-// bindings. segments[i] is the chain of element indexes (children, not nodes)
-// that leads to the i-th element, each one inside the previous one's iframe.
-function scrollInIsolatedWorld(segments, left, top) {
-  let scope = document;
-  for (let hop = 0; hop < segments.length; hop += 1) {
-    let node = scope;
-    for (const index of segments[hop]) {
-      node = node.children[index];
-      if (!node) throw new Error('The element to scroll is no longer in the page');
-    }
-    if (hop === segments.length - 1) {
-      node.scrollTo({ left, top, behavior: 'instant' });
-      return;
-    }
-    scope = node.contentDocument;
-    if (!scope) throw new Error('Cannot scroll inside a frame of another origin');
-  }
+// The three functions below run inside an isolated world through the
+// DevTools protocol, never in the page's own: they are serialized with
+// toString(), so they may not use this file's bindings.
+function scrollWindowInIsolatedWorld(left, top) {
   window.scrollTo({ left, top, behavior: 'instant' });
 }
 
-// Where the element sits in its document as child indexes from the root,
-// read with Playwright's own selector engine (its utility world), so nothing
-// runs in the page. An XPath never crosses a shadow boundary: reaching the
-// document root through ancestors proves the element is not inside one.
-async function elementPath(locator) {
-  const depth = await locator.locator('xpath=ancestor::*').count();
-  const rootSelector = 'xpath=ancestor-or-self::*[' + (depth + 1) + '][self::html]';
-  if ((await locator.locator(rootSelector).count()) !== 1) {
-    throw new Error('Cannot scroll an element inside a shadow tree');
-  }
-  const indexes = await Promise.all(
-    Array.from({ length: depth + 1 }, (_, up) =>
-      locator
-        .locator('xpath=ancestor-or-self::*[' + (up + 1) + ']/preceding-sibling::*')
-        .count(),
-    ),
-  );
-  return indexes.reverse();
+// Waits, on the window, for one event that Playwright dispatches at the
+// element to scroll. A composed event reaches the window from inside any open
+// shadow root, and its path names the real element, so no path of child
+// indexes, which cannot cross a shadow boundary, is needed.
+function armScrollProbe(type, left, top) {
+  const state = { scrolled: false, error: '' };
+  const handler = (event) => {
+    window.removeEventListener(type, handler, true);
+    const [target] = event.composedPath();
+    if (!(target instanceof Element)) {
+      state.error = 'The element to scroll is not reachable';
+      return;
+    }
+    target.scrollTo({ left, top, behavior: 'instant' });
+    state.scrolled = true;
+  };
+  window.addEventListener(type, handler, true);
+  window[Symbol.for(type)] = { state, handler };
+}
+
+function readScrollProbe(type) {
+  const probe = window[Symbol.for(type)];
+  if (!probe) return { scrolled: false, error: '' };
+  window.removeEventListener(type, probe.handler, true);
+  delete window[Symbol.for(type)];
+  return probe.state;
 }
 
 function createDeferred() {
@@ -129,23 +122,19 @@ function createRuntime(context, options = {}) {
   }
 
   // The frames that host each element of the chain, the page's main frame first.
-  async function framesAndPaths(page, chain) {
+  async function framesOf(page, chain) {
     const frames = [page.mainFrame()];
-    const paths = [];
-    for (const [position, locator] of chain.entries()) {
+    for (const locator of chain.slice(0, -1)) {
       const handle = await locator.elementHandle({ timeout: elementTimeoutMs });
       try {
-        paths.push(await elementPath(locator));
-        if (position < chain.length - 1) {
-          const frame = await handle.contentFrame();
-          if (!frame) throw new Error('The element that should hold a frame is not an iframe');
-          frames.push(frame);
-        }
+        const frame = await handle.contentFrame();
+        if (!frame) throw new Error('The element that should hold a frame is not an iframe');
+        frames.push(frame);
       } finally {
         await handle.dispose();
       }
     }
-    return { frames, paths };
+    return frames;
   }
 
   // The deepest frame with a DevTools session of its own: the page's, unless a
@@ -153,33 +142,84 @@ function createRuntime(context, options = {}) {
   async function sessionFor(page, frames) {
     for (let depth = frames.length - 1; depth > 0; depth -= 1) {
       try {
-        return { depth, session: await context.newCDPSession(frames[depth]) };
+        return { session: await context.newCDPSession(frames[depth]) };
       } catch {
         // Same process as its parent: the parent's session reaches it.
       }
     }
-    return { depth: 0, session: await context.newCDPSession(page) };
+    return { session: await context.newCDPSession(page) };
   }
 
-  async function scrollInWorld(page, chain, [left, top]) {
-    const { frames, paths } = await framesAndPaths(page, chain);
-    const { depth, session } = await sessionFor(page, frames);
-    try {
-      const { frameTree } = await session.send('Page.getFrameTree');
-      const { executionContextId } = await session.send('Page.createIsolatedWorld', {
-        frameId: frameTree.frame.id,
-        worldName: SCROLL_WORLD,
-      });
-      const { exceptionDetails } = await session.send('Runtime.callFunctionOn', {
-        executionContextId,
-        functionDeclaration: scrollInIsolatedWorld.toString(),
-        arguments: [{ value: paths.slice(depth) }, { value: left }, { value: top }],
-        returnByValue: true,
-      });
-      if (exceptionDetails) {
-        const description = exceptionDetails.exception?.description ?? exceptionDetails.text;
-        throw new Error(description.split('\n')[0].replace(/^Error: /, ''));
+  function failureOf({ exceptionDetails }) {
+    if (!exceptionDetails) return null;
+    const description = exceptionDetails.exception?.description ?? exceptionDetails.text;
+    return new Error(description.split('\n')[0].replace(/^Error: /, ''));
+  }
+
+  async function call(session, executionContextId, fn, args) {
+    const result = await session.send('Runtime.callFunctionOn', {
+      executionContextId,
+      functionDeclaration: fn.toString(),
+      arguments: args.map((value) => ({ value })),
+      returnByValue: true,
+    });
+    const failure = failureOf(result);
+    if (failure) throw failure;
+    return result.result.value;
+  }
+
+  // An isolated world in every frame this session reaches; a frame of another
+  // process is not reachable from it and is skipped.
+  async function worldsOf(session) {
+    const { frameTree } = await session.send('Page.getFrameTree');
+    const worlds = [];
+    const visit = async (node) => {
+      try {
+        const { executionContextId } = await session.send('Page.createIsolatedWorld', {
+          frameId: node.frame.id,
+          worldName: SCROLL_WORLD,
+        });
+        worlds.push(executionContextId);
+      } catch {
+        // Not a frame of this session.
       }
+      for (const child of node.childFrames ?? []) await visit(child);
+    };
+    await visit(frameTree);
+    return worlds;
+  }
+
+  async function scrollElement(session, chain, [left, top]) {
+    const type = 'br-scroll-' + globalThis.crypto.randomUUID();
+    const worlds = await worldsOf(session);
+    for (const world of worlds) await call(session, world, armScrollProbe, [type, left, top]);
+    let dispatchError = null;
+    try {
+      await chain[chain.length - 1].dispatchEvent(
+        type,
+        { bubbles: true, composed: true },
+        { timeout: elementTimeoutMs },
+      );
+    } catch (error) {
+      dispatchError = error;
+    }
+    const states = [];
+    for (const world of worlds) states.push(await call(session, world, readScrollProbe, [type]));
+    if (dispatchError) throw dispatchError;
+    const failed = states.find((state) => state.error !== '');
+    if (failed) throw new Error(failed.error);
+    if (!states.some((state) => state.scrolled)) {
+      throw new Error('The element to scroll is no longer in the page');
+    }
+  }
+
+  async function scrollInWorld(page, chain, position) {
+    const frames = await framesOf(page, chain);
+    const { session } = await sessionFor(page, frames);
+    try {
+      if (chain.length > 0) return await scrollElement(session, chain, position);
+      const [world] = await worldsOf(session);
+      await call(session, world, scrollWindowInIsolatedWorld, position);
     } finally {
       await session.detach().catch(() => {});
     }
