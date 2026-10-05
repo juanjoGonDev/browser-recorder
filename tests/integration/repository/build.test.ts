@@ -8,6 +8,9 @@ const ROOT = path.resolve(import.meta.dirname, '..', '..', '..');
 // Inside the repository so the emitted entry resolves `playwright` like the
 // real build does.
 const SCRATCH_PARENT = path.join(ROOT, 'recordings');
+// A real tsc run: seconds alone, much longer while the whole suite shares the
+// CPU with its browsers.
+const BUILD_TIMEOUT_MS = 120_000;
 
 describe('scripts/build.ts against the real toolchain', () => {
   let outDir = '';
@@ -16,7 +19,7 @@ describe('scripts/build.ts against the real toolchain', () => {
     mkdirSync(SCRATCH_PARENT, { recursive: true });
     outDir = mkdtempSync(path.join(SCRATCH_PARENT, 'build-out-'));
     await buildApp({ root: ROOT, outDir });
-  });
+  }, BUILD_TIMEOUT_MS);
 
   afterAll(() => {
     rmSync(outDir, { recursive: true, force: true });
