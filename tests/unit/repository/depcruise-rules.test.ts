@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 const ROOT = path.resolve(import.meta.dirname, '..', '..', '..');
 const CONFIG = path.join(ROOT, '.dependency-cruiser.json');
+const TESTS_CONFIG = path.join(ROOT, '.dependency-cruiser.tests.json');
 const CRUISE_BIN = path.join(
   ROOT,
   'node_modules',
@@ -22,9 +23,12 @@ const workDirs: string[] = [];
 
 const STUB_PACKAGES = ['patchright', 'playwright', 'playwright-core'] as const;
 
-function stubPackageFiles(): Record<string, string> {
+function stubPackageFiles(hasPlaywright: boolean): Record<string, string> {
+  const names = STUB_PACKAGES.filter(
+    (name) => hasPlaywright || name === 'patchright',
+  );
   return Object.fromEntries(
-    STUB_PACKAGES.flatMap((name) => [
+    names.flatMap((name) => [
       [
         `node_modules/${name}/package.json`,
         `{"name":"${name}","version":"1.0.0","main":"index.js"}`,
@@ -35,12 +39,15 @@ function stubPackageFiles(): Record<string, string> {
 }
 
 /** Write a throwaway source tree (plus stub browser libraries) and cruise it. */
-function cruise(files: Record<string, string>): string[] {
+function cruise(
+  files: Record<string, string>,
+  { root = 'src', config = CONFIG, hasPlaywright = true } = {},
+): string[] {
   const dir = mkdtempSync(path.join(tmpdir(), 'br-depcruise-'));
   workDirs.push(dir);
   const all: Record<string, string> = {
     'package.json': '{"name":"fixture","dependencies":{"patchright":"1.0.0"}}',
-    ...stubPackageFiles(),
+    ...stubPackageFiles(hasPlaywright),
     ...files,
   };
   for (const [relative, content] of Object.entries(all)) {
@@ -50,7 +57,7 @@ function cruise(files: Record<string, string>): string[] {
   }
   const result = spawnSync(
     process.execPath,
-    [CRUISE_BIN, 'src', '--config', CONFIG, '--output-type', 'json'],
+    [CRUISE_BIN, root, '--config', config, '--output-type', 'json'],
     { cwd: dir, encoding: 'utf8' },
   );
   const report = JSON.parse(result.stdout) as CruiseReport;
@@ -225,5 +232,46 @@ describe('dependency-cruiser layering rules', () => {
       'src/replay/domain/lonely.ts': 'export const lonely = 1;\n',
     });
     expect(violations).toContain('no-orphans');
+  });
+
+  describe('tests config', () => {
+    const inTests = { root: 'tests', config: TESTS_CONFIG };
+
+    it.each(['playwright', 'playwright-core'])(
+      'rejects an installed %s imported from a test',
+      (library) => {
+        const violations = cruise(
+          {
+            'tests/unit/uses.test.ts': `import '${library}';\nexport const used = 1;\n`,
+          },
+          inTests,
+        );
+        expect(violations).toContain('no-playwright');
+      },
+    );
+
+    it.each(['playwright', '@playwright/test'])(
+      'rejects an uninstalled %s imported from a test',
+      (library) => {
+        const violations = cruise(
+          {
+            'tests/unit/uses.test.ts': `import '${library}';\nexport const used = 1;\n`,
+          },
+          { ...inTests, hasPlaywright: false },
+        );
+        expect(violations).toContain('no-playwright-unresolved');
+      },
+    );
+
+    it('accepts a test that imports patchright', () => {
+      const violations = cruise(
+        {
+          'tests/unit/uses.test.ts':
+            "import 'patchright';\nexport const used = 1;\n",
+        },
+        inTests,
+      );
+      expect(violations).toEqual([]);
+    });
   });
 });

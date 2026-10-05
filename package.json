@@ -33,7 +33,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "deadcode": "knip",
-    "deps:check": "depcruise src scripts --config .dependency-cruiser.json --ts-config tsconfig.node.json",
+    "deps:check": "depcruise src scripts --config .dependency-cruiser.json --ts-config tsconfig.node.json && depcruise tests --config .dependency-cruiser.tests.json --ts-config tsconfig.tests.json",
     "typecheck": "pnpm typecheck:node && pnpm typecheck:in-page && pnpm typecheck:tests",
     "typecheck:node": "tsc -p tsconfig.node.json --noEmit",
     "typecheck:in-page": "tsc -p tsconfig.in-page.json",
