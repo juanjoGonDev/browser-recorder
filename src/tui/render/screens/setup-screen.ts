@@ -1,6 +1,8 @@
 import type { SetupScreen } from '../../domain/app-state.ts';
 import { spinnerFrame } from '../format.ts';
+import { sanitize } from '../layout.ts';
 import type { RenderContext, ScreenView } from '../screen-view.ts';
+import type { KeyHint } from '../status-bar.ts';
 
 const QUIT_HINT = { key: 'q', label: 'quit' } as const;
 const HEADER_ROWS = 3;
@@ -18,6 +20,19 @@ function exitCodeLine(screen: SetupScreen, context: RenderContext): string[] {
       ];
 }
 
+function afterFailure(screen: SetupScreen, context: RenderContext): string[] {
+  const { style } = context;
+  if (screen.browsers.length === 0) {
+    return [
+      `  ${style.muted('Meanwhile the library stays open; recording and replay are disabled.')}`,
+    ];
+  }
+  return [
+    `  ${style.bold(`Detected: ${sanitize(screen.browsers.join(', '))}`)}`,
+    `  ${style.muted('You can still record with them (press m); the library stays open too.')}`,
+  ];
+}
+
 function failedBody(screen: SetupScreen, context: RenderContext): string[] {
   const { style } = context;
   return [
@@ -28,7 +43,7 @@ function failedBody(screen: SetupScreen, context: RenderContext): string[] {
     '  Install it yourself, then retry:',
     `    ${style.accent(screen.manualCommand ?? '')}`,
     '',
-    `  ${style.muted('Meanwhile the library stays open; recording and replay are disabled.')}`,
+    ...afterFailure(screen, context),
   ];
 }
 
@@ -42,6 +57,15 @@ function busyBody(screen: SetupScreen, context: RenderContext): string[] {
   return ['', `  ${spinner} ${text}`, '', ...tail(screen.lines, context)];
 }
 
+function failedHints(screen: SetupScreen): KeyHint[] {
+  return [
+    { key: 'enter', label: 'retry' },
+    ...(screen.browsers.length > 0 ? [{ key: 'm', label: 'menu' }] : []),
+    { key: 'l', label: 'library' },
+    QUIT_HINT,
+  ];
+}
+
 export function renderSetupScreen(
   screen: SetupScreen,
   context: RenderContext,
@@ -50,12 +74,6 @@ export function renderSetupScreen(
   return {
     title: 'Setting up',
     body: isFailed ? failedBody(screen, context) : busyBody(screen, context),
-    hints: isFailed
-      ? [
-          { key: 'enter', label: 'retry' },
-          { key: 'l', label: 'library' },
-          QUIT_HINT,
-        ]
-      : [QUIT_HINT],
+    hints: isFailed ? failedHints(screen) : [QUIT_HINT],
   };
 }

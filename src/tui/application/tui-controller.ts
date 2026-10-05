@@ -69,11 +69,16 @@ class IntentController implements TuiController {
       });
       store.dispatch(
         result.kind === 'ready'
-          ? { type: 'setup-ready', linuxHint: result.linuxHint }
+          ? {
+              type: 'setup-ready',
+              linuxHint: result.linuxHint,
+              browsers: result.browsers,
+            }
           : {
               type: 'setup-failed',
               manualCommand: result.manualCommand,
               exitCode: result.exitCode,
+              browsers: await this.otherBrowsers(),
             },
       );
     } catch (error) {
@@ -82,7 +87,20 @@ class IntentController implements TuiController {
         type: 'setup-failed',
         manualCommand: MANUAL_INSTALL_COMMAND,
         exitCode: null,
+        browsers: await this.otherBrowsers(),
       });
+    }
+  }
+
+  /** Labels of the detected browsers that do not need the bundled install. */
+  private async otherBrowsers(): Promise<readonly string[]> {
+    try {
+      const views = await this.deps.services.browsers.list();
+      return views
+        .filter((view) => view.browserId !== 'bundled')
+        .map((view) => view.label);
+    } catch {
+      return [];
     }
   }
 

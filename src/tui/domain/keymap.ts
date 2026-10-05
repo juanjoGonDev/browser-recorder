@@ -15,6 +15,7 @@ const SUBMIT: Intent = { kind: 'submit' };
 const NO: Intent = { kind: 'answer-confirm', isYes: false };
 const UP: Intent = { kind: 'move-selection', delta: -1 };
 const DOWN: Intent = { kind: 'move-selection', delta: 1 };
+const OPEN_MENU: Intent = { kind: 'open', target: 'main-menu' };
 const OPEN_LIBRARY: Intent = { kind: 'open', target: 'library' };
 const SWITCH_FIELD: Intent = { kind: 'switch-field' };
 const ACCEPT: Intent = { kind: 'respond-dialog', action: 'accept' };
@@ -114,6 +115,8 @@ function forSetup(screen: Screen, key: KeyInput): Intent | null {
   const isRetry = screen.kind === 'setup' && screen.phase === 'failed';
   if (isRetry && keyId(key) === 'return') return { kind: 'retry-setup' };
   if (isRetry && keyId(key) === 'l') return OPEN_LIBRARY;
+  const canRecord = isRetry && screen.browsers.length > 0;
+  if (canRecord && keyId(key) === 'm') return OPEN_MENU;
   return keyId(key) === 'q' ? QUIT : null;
 }
 

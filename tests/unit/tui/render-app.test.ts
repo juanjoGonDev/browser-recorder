@@ -44,6 +44,7 @@ describe('src/tui/render/render-app.ts', () => {
       lines: [],
       manualCommand: 'pnpm exec patchright install chromium',
       exitCode: 1,
+      browsers: [],
     };
     for (const screen of [...everyScreen, failedSetup]) {
       const text = renderApp(on(screen), SIZE, false).join('\n');

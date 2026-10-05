@@ -77,12 +77,29 @@ describe('src/tui/domain/keymap.ts', () => {
       lines: [],
       manualCommand: 'x',
       exitCode: 1,
+      browsers: [],
     });
 
     it('retries on Enter only after a failure and quits on q', () => {
       expect(press(failed, named('return'))).toEqual({ kind: 'retry-setup' });
       expect(press(initialState(), named('return'))).toBeNull();
       expect(press(failed, char('q'))).toEqual({ kind: 'quit' });
+    });
+
+    it('opens the main menu from a failed setup only when another browser exists', () => {
+      const withBrave = on({
+        kind: 'setup',
+        phase: 'failed',
+        lines: [],
+        manualCommand: 'x',
+        exitCode: 1,
+        browsers: ['Brave'],
+      });
+      expect(press(withBrave, char('m'))).toEqual({
+        kind: 'open',
+        target: 'main-menu',
+      });
+      expect(press(failed, char('m'))).toBeNull();
     });
 
     it('opens the library from a failed setup only', () => {

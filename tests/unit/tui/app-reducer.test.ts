@@ -139,7 +139,9 @@ describe('src/tui/domain/app-reducer.ts', () => {
       const state = reduce(initialState(), {
         type: 'setup-ready',
         linuxHint: 'sudo x',
+        browsers: ['Brave', 'Chrome'],
       });
+      expect(state.detectedBrowsers).toEqual(['Brave', 'Chrome']);
       expect(state.screen).toEqual({ kind: 'main-menu', selected: 0 });
       expect(state.linuxHint).toBe('sudo x');
     });
@@ -149,6 +151,7 @@ describe('src/tui/domain/app-reducer.ts', () => {
         type: 'setup-failed',
         manualCommand: 'pnpm exec patchright install chromium',
         exitCode: 7,
+        browsers: [],
       });
       expect(state.screen).toMatchObject({
         kind: 'setup',
@@ -165,13 +168,33 @@ describe('src/tui/domain/app-reducer.ts', () => {
         type: 'setup-failed',
         manualCommand: 'cmd',
         exitCode: null,
+        browsers: [],
       });
       expect(initialState().isBrowserAvailable).toBe(true);
       expect(failed.isBrowserAvailable).toBe(false);
-      expect(
-        reduce(failed, { type: 'setup-ready', linuxHint: null })
-          .isBrowserAvailable,
-      ).toBe(true);
+      const ready = reduce(failed, {
+        type: 'setup-ready',
+        linuxHint: null,
+        browsers: [],
+      });
+      expect(ready.isBrowserAvailable).toBe(true);
+      expect(ready.isBundledMissing).toBe(false);
+    });
+
+    it('stays available after a failed install when another browser was detected', () => {
+      const failed = reduce(initialState(), {
+        type: 'setup-failed',
+        manualCommand: 'cmd',
+        exitCode: 1,
+        browsers: ['Brave'],
+      });
+      expect(failed.isBrowserAvailable).toBe(true);
+      expect(failed.isBundledMissing).toBe(true);
+      expect(failed.screen).toMatchObject({
+        kind: 'setup',
+        phase: 'failed',
+        browsers: ['Brave'],
+      });
     });
   });
 

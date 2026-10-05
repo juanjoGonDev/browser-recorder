@@ -55,11 +55,14 @@ export function initialState(): AppState {
       lines: [],
       manualCommand: null,
       exitCode: null,
+      browsers: [],
     },
     nowMs: 0,
     listRows: listRowsFor(INITIAL_TERMINAL_ROWS),
     linuxHint: null,
     isBrowserAvailable: true,
+    isBundledMissing: false,
+    detectedBrowsers: [],
     isQuitting: false,
   };
 }
@@ -140,9 +143,9 @@ const handlers: Handlers = {
   resize: (state, action) => resizeLists(state, action.listRows),
   'setup-output': (state, action) => setupOutput(state, action.line),
   'setup-installing': setupInstalling,
-  'setup-ready': (state, action) => setupReady(state, action.linuxHint),
-  'setup-failed': (state, action) =>
-    setupFailed(state, action.manualCommand, action.exitCode),
+  'setup-ready': (state, action) =>
+    setupReady(state, action.linuxHint, action.browsers),
+  'setup-failed': (state, action) => setupFailed(state, action),
   navigate: (state, action) => ({ ...state, screen: screenFor(action.target) }),
   'move-selection': (state, action) => moveSelection(state, action.delta),
   'page-selection': (state, action) =>

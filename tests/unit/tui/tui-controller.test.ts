@@ -62,8 +62,13 @@ describe('src/tui/application/tui-controller.ts', () => {
     it('opens the main menu once Chromium is ready and keeps the Linux hint', async () => {
       const harness = setup();
       harness.fake.environment = () =>
-        Promise.resolve({ kind: 'ready', linuxHint: 'sudo x', browsers: [] });
+        Promise.resolve({
+          kind: 'ready',
+          linuxHint: 'sudo x',
+          browsers: ['Brave'],
+        });
       await harness.controller.start();
+      expect(harness.store.getState().detectedBrowsers).toEqual(['Brave']);
       expect(harness.store.getState().screen).toEqual({
         kind: 'main-menu',
         selected: 0,
@@ -133,6 +138,47 @@ describe('src/tui/application/tui-controller.ts', () => {
       expect(harness.store.getState().screen.kind).toBe('main-menu');
     });
 
+    describe('after the bundled browser failed but Brave was detected', () => {
+      async function withBrave(): Promise<Harness> {
+        const harness = setup();
+        harness.fake.environment = () =>
+          Promise.resolve({
+            kind: 'failed',
+            manualCommand: 'cmd',
+            exitCode: 1,
+          });
+        await harness.controller.start();
+        return harness;
+      }
+
+      it('lists the detected browsers on the setup screen and opens the menu with m', async () => {
+        const harness = await withBrave();
+        expect(harness.store.getState().screen).toMatchObject({
+          kind: 'setup',
+          phase: 'failed',
+          browsers: ['Brave'],
+        });
+        await harness.press(char('m'));
+        expect(harness.store.getState().screen.kind).toBe('main-menu');
+        expect(harness.store.getState().isBrowserAvailable).toBe(true);
+      });
+
+      it('records with Brave and never offers the bundled browser', async () => {
+        const harness = await withBrave();
+        await harness.press(char('m'), named('return'));
+        await vi.waitFor(() => {
+          expect(
+            (harness.store.getState().screen as NewRecordingScreen).browsers,
+          ).not.toBeNull();
+        });
+        const form = harness.store.getState().screen as NewRecordingScreen;
+        expect(form.browsers?.map((view) => view.browserId)).toEqual(['brave']);
+        await harness.type('Demo');
+        await harness.press(named('return'));
+        expect(harness.fake.startRequests[0]?.browser).toEqual(BRAVE_CHOICE);
+      });
+    });
+
     describe('after a failed install (offline)', () => {
       async function offline(): Promise<Harness> {
         const harness = setup();
@@ -140,6 +186,7 @@ describe('src/tui/application/tui-controller.ts', () => {
           validEntry('a', 'Alpha'),
           validEntry('b', 'Beta'),
         ];
+        harness.fake.browsers = BROWSER_VIEWS.slice(1);
         harness.fake.environment = () =>
           Promise.resolve({
             kind: 'failed',

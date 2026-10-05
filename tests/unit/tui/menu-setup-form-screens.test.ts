@@ -59,6 +59,17 @@ describe('src/tui/render/screens (main menu, setup, new recording)', () => {
       expect(available.join('\n')).not.toContain('needs Chromium');
     });
 
+    it('lists the detected browsers under the entries', () => {
+      const text = renderMainMenuScreen(
+        screen(0),
+        plainContext({ detectedBrowsers: ['Brave', 'Chrome'] }),
+      ).body.join('\n');
+      expect(text).toContain('Browsers: Brave, Chrome');
+      expect(
+        renderMainMenuScreen(screen(0), plainContext()).body.join('\n'),
+      ).not.toContain('Browsers:');
+    });
+
     it('advertises its keys', () => {
       const keys = renderMainMenuScreen(screen(0), plainContext()).hints.map(
         (hint) => hint.key,
@@ -74,6 +85,7 @@ describe('src/tui/render/screens (main menu, setup, new recording)', () => {
       lines: [],
       manualCommand: null,
       exitCode: null,
+      browsers: [],
     };
 
     it('shows a spinner while checking and installing', () => {
@@ -124,6 +136,29 @@ describe('src/tui/render/screens (main menu, setup, new recording)', () => {
       ).body.join('\n');
       expect(text).toContain('library');
       expect(text).toContain('recording and replay are disabled');
+    });
+
+    it('offers the detected browsers when only the bundled one failed', () => {
+      const view = renderSetupScreen(
+        {
+          ...base,
+          phase: 'failed',
+          manualCommand: 'cmd',
+          exitCode: 1,
+          browsers: ['Brave', 'Chrome'],
+        },
+        plainContext(),
+      );
+      const text = view.body.join('\n');
+      expect(text).toContain('Detected: Brave, Chrome');
+      expect(text).toContain('You can still record with them');
+      expect(text).not.toContain('recording and replay are disabled');
+      expect(view.hints.map((hint) => hint.key)).toEqual([
+        'enter',
+        'm',
+        'l',
+        'q',
+      ]);
     });
 
     it('displays the installer exit code on failure', () => {

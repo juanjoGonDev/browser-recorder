@@ -27,6 +27,8 @@ export interface SetupScreen {
   readonly manualCommand: string | null;
   /** The installer's exit code after a failed install, when it had one. */
   readonly exitCode: number | null;
+  /** Labels of the other browsers found, which can still record. */
+  readonly browsers: readonly string[];
 }
 
 export interface MainMenuScreen {
@@ -109,7 +111,14 @@ export interface AppState {
   readonly listRows: number;
   /** Shown on the setup screen and the main menu when relevant. */
   readonly linuxHint: string | null;
-  /** False after a failed install: only the library stays usable. */
+  /**
+   * False after a failed install with no other browser found: only the
+   * library stays usable.
+   */
   readonly isBrowserAvailable: boolean;
+  /** True after a failed install: the bundled browser is not offered. */
+  readonly isBundledMissing: boolean;
+  /** Labels of the browsers found on this machine, for the main menu. */
+  readonly detectedBrowsers: readonly string[];
   readonly isQuitting: boolean;
 }

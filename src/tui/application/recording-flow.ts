@@ -62,7 +62,11 @@ class LiveRecordingFlow implements RecordingFlow {
   async loadBrowsers(): Promise<void> {
     const { store, services } = this.deps;
     try {
-      const browsers = await services.browsers.list();
+      const detected = await services.browsers.list();
+      const { isBundledMissing } = store.getState();
+      const browsers = detected.filter(
+        (view) => !(isBundledMissing && view.browserId === 'bundled'),
+      );
       store.dispatch({ type: 'browsers-loaded', browsers });
     } catch (error) {
       store.dispatch({ type: 'browsers-failed', message: messageOf(error) });

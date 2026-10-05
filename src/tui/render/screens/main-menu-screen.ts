@@ -4,6 +4,7 @@ import {
   MAIN_MENU_ITEMS,
   type MainMenuItem,
 } from '../../domain/main-menu-items.ts';
+import { sanitize } from '../layout.ts';
 import type { RenderContext, ScreenView } from '../screen-view.ts';
 
 const TAGLINE = 'Record a browser session, replay it as a Patchright script.';
@@ -28,6 +29,12 @@ function reasonLines(context: RenderContext): string[] {
     : ['', `  ${context.style.warning(`! ${BROWSER_REQUIRED_REASON}`)}`];
 }
 
+function browserLines(context: RenderContext): string[] {
+  if (context.detectedBrowsers.length === 0) return [];
+  const text = sanitize(`Browsers: ${context.detectedBrowsers.join(', ')}`);
+  return ['', `  ${context.style.muted(text)}`];
+}
+
 export function renderMainMenuScreen(
   screen: MainMenuScreen,
   context: RenderContext,
@@ -46,6 +53,7 @@ export function renderMainMenuScreen(
       `  ${context.style.muted(TAGLINE)}`,
       '',
       ...items,
+      ...browserLines(context),
       ...reasonLines(context),
       ...hint,
     ],

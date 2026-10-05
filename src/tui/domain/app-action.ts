@@ -14,11 +14,17 @@ export type AppAction =
   | { readonly type: 'resize'; readonly listRows: number }
   | { readonly type: 'setup-output'; readonly line: string }
   | { readonly type: 'setup-installing' }
-  | { readonly type: 'setup-ready'; readonly linuxHint: string | null }
+  | {
+      readonly type: 'setup-ready';
+      readonly linuxHint: string | null;
+      readonly browsers: readonly string[];
+    }
   | {
       readonly type: 'setup-failed';
       readonly manualCommand: string;
       readonly exitCode: number | null;
+      /** Labels of the non-bundled browsers that can still record. */
+      readonly browsers: readonly string[];
     }
   | { readonly type: 'navigate'; readonly target: MenuTarget }
   | { readonly type: 'move-selection'; readonly delta: number }
