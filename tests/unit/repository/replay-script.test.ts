@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import type { SpawnSyncReturns } from 'node:child_process';
 import {
   mkdirSync,
   mkdtempSync,
@@ -28,6 +29,22 @@ function manifest(): Manifest {
   return JSON.parse(readFileSync(MANIFEST, 'utf8')) as Manifest;
 }
 
+/**
+ * On Windows `pnpm` is a `.cmd` shim, which Node only starts through a shell
+ * (CVE-2024-27980). The shell gets one command line with each argument quoted,
+ * so the arguments still reach pnpm untouched.
+ */
+function runPnpm(
+  args: readonly string[],
+  cwd: string,
+): SpawnSyncReturns<string> {
+  if (process.platform !== 'win32') {
+    return spawnSync('pnpm', args, { cwd, encoding: 'utf8' });
+  }
+  const line = ['pnpm', ...args.map((arg) => `"${arg}"`)].join(' ');
+  return spawnSync(line, { cwd, encoding: 'utf8', shell: true });
+}
+
 describe('package.json replay alias', () => {
   it('builds quietly and runs the replay subcommand of the one binary', () => {
     const { scripts, bin } = manifest();
@@ -53,12 +70,11 @@ describe('package.json replay alias', () => {
           scripts: { build: 'node -e 0', replay: manifest().scripts['replay'] },
         }),
       );
-      const run = spawnSync(
-        'pnpm',
+      const run = runPnpm(
         ['-s', 'replay', 'My Flow', '-r', '-d', '900-250'],
-        { cwd: root, encoding: 'utf8' },
+        root,
       );
-      expect(run.status).toBe(0);
+      expect(run.status, String(run.error ?? run.stderr)).toBe(0);
       expect(JSON.parse(run.stdout) as string[]).toStrictEqual([
         'replay',
         'My Flow',
