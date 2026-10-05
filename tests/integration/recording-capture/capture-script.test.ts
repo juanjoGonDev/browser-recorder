@@ -1,35 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { IN_PAGE_BUNDLE_PATH } from '../../support/build-in-page-bundle.ts';
 import { useCaptureSite } from '../../support/capture-test-site.ts';
 
-const INSTALL_KEY = 'browser-recorder.installed';
+const SCRIPT_GLOBALS = [
+  '__browserRecorderEmit',
+  'inPageKit',
+  '__browser_recorder',
+];
 
 describe('src/recording-capture/in-page/capture-script.ts', () => {
   const site = useCaptureSite();
 
   describe('install guard', () => {
-    it('marks the window with a non-enumerable Symbol.for flag', async () => {
-      const { page } = await site.open('button.html');
-      const flag = await page.evaluate((key) => {
-        const symbol = Symbol.for(key);
-        return {
-          isSet: symbol in window,
-          isEnumerable: Object.prototype.propertyIsEnumerable.call(
-            window,
-            symbol,
-          ),
-        };
-      }, INSTALL_KEY);
-      expect(flag).toEqual({ isSet: true, isEnumerable: false });
-    });
-
-    it('wires the document only once when the script is injected twice', async () => {
+    it('wires a document only once when the script is injected twice', async () => {
       const harness = await site.open('button.html');
-      await harness.page.addScriptTag({ path: IN_PAGE_BUNDLE_PATH });
+      await harness.injectAgain();
       await harness.page.getByTestId('save-button').click();
       await harness.waitForDom('click');
       await harness.page.getByTestId('save-button').click();
       await harness.waitForDom('click', 2);
+      await harness.page.waitForTimeout(100);
       expect(harness.domMessages('click')).toHaveLength(2);
     });
   });
@@ -47,19 +36,61 @@ describe('src/recording-capture/in-page/capture-script.ts', () => {
       await harness.waitForDom('click');
       expect(harness.domMessages('click')).toHaveLength(1);
     });
+  });
 
-    it('drops a malformed message a page sends to the binding', async () => {
+  describe('isolation from the page', () => {
+    it('adds nothing a page script can see to the page world', async () => {
+      const recorded = await site.open('button.html');
+      const plain = await site.openPlain('button.html');
+      const inspect = (): {
+        names: string[];
+        symbols: number;
+        hasBinding: boolean;
+        hasFlag: boolean;
+      } => ({
+        names: Object.getOwnPropertyNames(window).sort(),
+        symbols: Object.getOwnPropertySymbols(window).length,
+        hasBinding: '__browserRecorderEmit' in window,
+        hasFlag: Symbol.for('browser-recorder.installed') in window,
+      });
+      const seenWithRecorder = await recorded.page.evaluate(inspect);
+      const seenWithout = await plain.evaluate(inspect);
+      expect(seenWithRecorder.hasBinding).toBe(false);
+      expect(seenWithRecorder.hasFlag).toBe(false);
+      expect(seenWithRecorder.names).toEqual(seenWithout.names);
+      expect(seenWithRecorder.symbols).toBe(seenWithout.symbols);
+      for (const name of SCRIPT_GLOBALS) {
+        expect(seenWithRecorder.names).not.toContain(name);
+      }
+    });
+
+    it('still captures while a page script listens to every event', async () => {
       const harness = await site.open('button.html');
       await harness.page.evaluate(() => {
-        const binding = (
-          window as unknown as Record<string, (m: unknown) => unknown>
-        ).__browserRecorderEmit;
-        void binding({ kind: 'dom', payload: 'nope' });
+        for (const type of ['click', 'pointerdown']) {
+          window.addEventListener(
+            type,
+            (event) => {
+              event.stopImmediatePropagation();
+            },
+            true,
+          );
+        }
       });
-      await expect
-        .poll(() => harness.rejectedCount(), { timeout: 3000 })
-        .toBe(1);
-      expect(harness.domMessages()).toHaveLength(0);
+      await harness.page.getByTestId('save-button').click();
+      await harness.waitForDom('click');
+      expect(harness.domMessages('click')).toHaveLength(1);
+    });
+
+    it('captures on a page whose strict Content-Security-Policy forbids scripts', async () => {
+      const harness = await site.open('csp.html');
+      // The page's own inline script is blocked by the policy.
+      await expect(harness.page.title()).resolves.toBe('Strict policy');
+      await harness.page.getByRole('button', { name: 'Guarded' }).click();
+      await harness.waitForDom('click');
+      expect(harness.payloads('click')).toMatchObject([
+        { description: 'button "Guarded"' },
+      ]);
     });
   });
 });

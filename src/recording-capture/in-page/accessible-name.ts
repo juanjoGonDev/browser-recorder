@@ -14,7 +14,6 @@ const NAME_FROM_CONTENT = new Set([
   'radio',
   'cell',
   'columnheader',
-  'listitem',
 ]);
 const LABELABLE = new Set([
   'BUTTON',

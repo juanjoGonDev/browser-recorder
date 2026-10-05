@@ -111,8 +111,6 @@ export function installScrollListener(): void {
   listen('scroll', onScroll);
   // A scroll that was waiting for its debounce must precede the next action.
   beforeEmit((message) => {
-    const isScroll =
-      message.kind === 'dom' && message.payload.kind === 'scroll';
-    if (!isScroll) flushPending();
+    if (message.payload.kind !== 'scroll') flushPending();
   });
 }

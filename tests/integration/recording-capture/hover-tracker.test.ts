@@ -36,7 +36,7 @@ describe('src/recording-capture/in-page/hover-tracker.ts', () => {
     ]);
     const firstCandidates = harness
       .domMessages('hover')
-      .map(({ message }) => message.kind === 'dom' && message.candidates[0]);
+      .map(({ message }) => message.candidates[0]);
     expect(firstCandidates).toEqual([
       { kind: 'css', selector: '#popover-anchor' },
       { kind: 'css', selector: '#popover' },
@@ -70,7 +70,7 @@ describe('src/recording-capture/in-page/hover-tracker.ts', () => {
     await harness.waitForDom('click');
     const firstCandidates = harness
       .domMessages('hover')
-      .map(({ message }) => message.kind === 'dom' && message.candidates[0]);
+      .map(({ message }) => message.candidates[0]);
     expect(firstCandidates).toEqual([{ kind: 'css', selector: '#popover' }]);
   });
 });

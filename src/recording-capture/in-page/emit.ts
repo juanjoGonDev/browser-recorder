@@ -14,7 +14,7 @@ export type EventBody = DistributiveOmit<
   'ageMs' | 'description'
 >;
 
-type Binding = (message: InPageMessage) => unknown;
+type Binding = (text: string) => unknown;
 type Hook = (message: InPageMessage) => void;
 
 const beforeHooks: Hook[] = [];
@@ -37,7 +37,7 @@ function sendToBinding(message: InPageMessage): boolean {
   if (typeof binding !== 'function') return false;
   try {
     // The page may be going away; a lost report must never break the page.
-    Promise.resolve(binding(message)).catch(() => undefined);
+    Promise.resolve(binding(JSON.stringify(message))).catch(() => undefined);
   } catch {
     return false;
   }
@@ -68,7 +68,7 @@ export function emitDom(
       ...body,
       ageMs: Math.max(0, Math.round(ageMs)),
       description,
-    } as CapturedEvent,
+    },
     candidates: element === null ? [] : buildCandidates(element),
   });
 }

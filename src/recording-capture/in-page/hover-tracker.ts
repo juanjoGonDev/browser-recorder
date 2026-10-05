@@ -93,6 +93,6 @@ export function installHoverTracker(): void {
   });
   // Any other recorded action ends the window the hovers belong to.
   afterEmit((message) => {
-    if (message.kind !== 'dom' || message.payload.kind !== 'hover') trace = [];
+    if (message.payload.kind !== 'hover') trace = [];
   });
 }

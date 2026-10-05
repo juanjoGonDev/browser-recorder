@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import type { Browser } from 'playwright';
+import type { Browser, Page } from 'playwright';
 import { afterAll, beforeAll } from 'vitest';
 import type { CaptureHarness } from './capture-harness.ts';
 import { createCaptureHarness } from './capture-harness.ts';
@@ -9,6 +9,8 @@ import { startFixtureServer } from './fixture-server.ts';
 export interface CaptureSite {
   /** Opens a fixture page in a fresh, instrumented browser context. */
   open(pageName: string): Promise<CaptureHarness>;
+  /** Opens the page in a context with no recorder attached at all. */
+  openPlain(pageName: string): Promise<Page>;
 }
 
 /**
@@ -32,6 +34,11 @@ export function useCaptureSite(): CaptureSite {
   });
 
   return {
+    async openPlain(pageName) {
+      const page = await browser.newPage();
+      await page.goto(server.urlFor(pageName));
+      return page;
+    },
     async open(pageName) {
       const harness = await createCaptureHarness(browser, server);
       open.push(harness);

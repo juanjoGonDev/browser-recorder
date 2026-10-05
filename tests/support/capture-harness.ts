@@ -1,10 +1,13 @@
-import type { Browser, BrowserContext, Page } from 'playwright';
+import type { Browser, BrowserContext, CDPSession, Page } from 'playwright';
 import { vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 import {
-  BINDING_NAME,
-  parseInPageMessage,
-} from '../../src/recording-capture/domain/in-page-message.ts';
+  WORLD_NAME,
+  attachCapture,
+} from '../../src/recording-capture/adapters/isolated-world-capture.ts';
+import { createPerformanceClock } from '../../src/recording-capture/adapters/performance-clock.ts';
 import type { InPageMessage } from '../../src/recording-capture/domain/in-page-message.ts';
+import type { CaptureWorld } from '../../src/recording-capture/adapters/isolated-world-capture.ts';
 import type { Locator } from '../../src/shared/domain/locator.ts';
 import type { CapturedEvent } from '../../src/recording-capture/domain/captured-event.ts';
 import { IN_PAGE_BUNDLE_PATH } from './build-in-page-bundle.ts';
@@ -26,11 +29,13 @@ export interface DomMessage {
 export interface CaptureHarness {
   readonly context: BrowserContext;
   readonly page: Page;
+  readonly cdp: CDPSession;
+  readonly world: CaptureWorld;
   /** Every well formed message the in-page script sent, in arrival order. */
   readonly received: ReceivedMessage[];
-  /** Messages the binding got that failed validation. */
-  readonly rejectedCount: () => number;
   open(pageName: string): Promise<void>;
+  /** Injects the capture script into the current document a second time. */
+  injectAgain(): Promise<void>;
   /** The dom messages whose payload has the given kind. */
   domMessages(kind?: string): ReceivedMessage[];
   /** The first dom message of the kind; fails the test when there is none. */
@@ -45,9 +50,9 @@ export interface CaptureHarness {
 }
 
 /**
- * A browser context wired the way the Playwright adapter wires one: the
- * bundled capture script is injected into every document and the binding
- * collects what it emits. Tests then drive trusted input and assert on it.
+ * A browser context wired the way the Playwright adapter wires a page: the
+ * bundled capture script runs in a CDP isolated world and reports through its
+ * binding. Tests then drive trusted input and assert on what was reported.
  */
 export async function createCaptureHarness(
   browser: Browser,
@@ -56,27 +61,34 @@ export async function createCaptureHarness(
   const context = await browser.newContext({
     viewport: { width: 1280, height: 800 },
   });
-  const received: ReceivedMessage[] = [];
-  let rejected = 0;
-  await context.exposeBinding(BINDING_NAME, (source, raw: unknown) => {
-    const message = parseInPageMessage(raw);
-    if (message === null) {
-      rejected += 1;
-      return;
-    }
-    received.push({
-      message,
-      frameUrl: source.frame.url(),
-      isMainFrame: source.frame === source.page.mainFrame(),
-    });
-  });
-  await context.addInitScript({ path: IN_PAGE_BUNDLE_PATH });
   const page = await context.newPage();
+  const cdp = await context.newCDPSession(page);
+  const frameUrls = new Map<string, string>();
+  await cdp.send('Page.enable');
+  const { frameTree } = await cdp.send('Page.getFrameTree');
+  const mainFrameId = frameTree.frame.id;
+  cdp.on(
+    'Page.frameNavigated',
+    (event: { frame: { id: string; url: string } }) => {
+      frameUrls.set(event.frame.id, event.frame.url);
+    },
+  );
+  const received: ReceivedMessage[] = [];
+  const scriptSource = readFileSync(IN_PAGE_BUNDLE_PATH, 'utf8');
+  const world = await attachCapture(cdp, {
+    scriptSource,
+    clock: createPerformanceClock(),
+    onMessage: ({ message, frameId }) => {
+      received.push({
+        message,
+        frameUrl: frameUrls.get(frameId) ?? '',
+        isMainFrame: frameId === mainFrameId,
+      });
+    },
+  });
   const domMessages = (kind?: string): ReceivedMessage[] =>
     received.filter(
-      ({ message }) =>
-        message.kind === 'dom' &&
-        (kind === undefined || message.payload.kind === kind),
+      ({ message }) => kind === undefined || message.payload.kind === kind,
     );
   const waitFor = (condition: () => boolean): Promise<void> =>
     vi.waitFor(
@@ -88,15 +100,23 @@ export async function createCaptureHarness(
   return {
     context,
     page,
+    cdp,
+    world,
     received,
-    rejectedCount: () => rejected,
     async open(pageName) {
       await page.goto(server.urlFor(pageName));
+    },
+    async injectAgain() {
+      await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
+        source: scriptSource,
+        worldName: WORLD_NAME,
+        runImmediately: true,
+      });
     },
     domMessages,
     firstDom(kind) {
       const found = domMessages(kind).at(0);
-      if (found?.message.kind !== 'dom') {
+      if (found === undefined) {
         throw new Error(`no ${kind} message was captured`);
       }
       const { payload, candidates } = found.message;
@@ -111,9 +131,7 @@ export async function createCaptureHarness(
     waitForDom: (kind, count = 1) =>
       waitFor(() => domMessages(kind).length >= count),
     payloads(kind) {
-      return domMessages(kind).flatMap(({ message }) =>
-        message.kind === 'dom' ? [message.payload] : [],
-      );
+      return domMessages(kind).map(({ message }) => message.payload);
     },
     close: () => context.close(),
   };

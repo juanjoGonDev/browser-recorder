@@ -1,36 +1,22 @@
 import type { Locator } from '../../shared/domain/locator.ts';
 import type { CapturedEvent } from './captured-event.ts';
 
-/** The binding the Playwright adapter exposes and the capture script calls. */
+/** The CDP binding the capture script calls, added to its isolated world only. */
 export const BINDING_NAME = '__browserRecorderEmit';
 /** `Symbol.for` key of the install guard, so a document is wired only once. */
 export const INSTALL_FLAG_KEY = 'browser-recorder.installed';
-/** `Symbol.for` key of the helpers the adapter calls back into the page. */
+/** `Symbol.for` key of the helpers Node calls back in the isolated world. */
 export const PAGE_API_KEY = 'browser-recorder.api';
 
-const NAVIGATION_TYPES = [
-  'navigate',
-  'reload',
-  'back_forward',
-  'push',
-  'replace',
-  'traverse',
-  'unknown',
-] as const;
-
-/** What the capture script hands to the binding, before Node adds context. */
-export type InPageMessage =
-  | {
-      readonly kind: 'dom';
-      readonly payload: CapturedEvent;
-      readonly candidates: readonly Locator[];
-    }
-  | {
-      readonly kind: 'navigation';
-      readonly url: string;
-      readonly navigationType: (typeof NAVIGATION_TYPES)[number];
-      readonly entryIndex: number | null;
-    };
+/**
+ * What the capture script hands to the binding, before Node adds context.
+ * Navigation is not reported from the page at all: Node observes it over CDP.
+ */
+export interface InPageMessage {
+  readonly kind: 'dom';
+  readonly payload: CapturedEvent;
+  readonly candidates: readonly Locator[];
+}
 
 type Fields = Readonly<Record<string, unknown>>;
 type Check = (fields: Fields) => boolean;
@@ -116,28 +102,25 @@ function isPayload(value: unknown): boolean {
   );
 }
 
-function isNavigation(fields: Fields): boolean {
-  const index = fields['entryIndex'];
-  return (
-    typeof fields['url'] === 'string' &&
-    NAVIGATION_TYPES.some((type) => type === fields['navigationType']) &&
-    (index === null || (typeof index === 'number' && Number.isInteger(index)))
-  );
-}
-
 /**
- * Validates what a page sent to the binding. Page scripts can call the
- * binding too, so nothing from it is trusted: anything malformed is dropped
- * instead of reaching the session.
+ * Validates what the capture script sent to the binding. The binding lives in
+ * an isolated world the page cannot reach, but nothing crossing the process
+ * boundary is trusted: anything malformed is dropped.
  */
 export function parseInPageMessage(value: unknown): InPageMessage | null {
   if (!isRecord(value)) return null;
-  if (value['kind'] === 'navigation') {
-    return isNavigation(value) ? (value as unknown as InPageMessage) : null;
-  }
-  const isValidDom =
+  const isValid =
     value['kind'] === 'dom' &&
     isPayload(value['payload']) &&
     isLocatorList(value['candidates']);
-  return isValidDom ? (value as unknown as InPageMessage) : null;
+  return isValid ? (value as unknown as InPageMessage) : null;
+}
+
+/** The binding delivers one JSON string per message. */
+export function parseInPageText(text: string): InPageMessage | null {
+  try {
+    return parseInPageMessage(JSON.parse(text) as unknown);
+  } catch {
+    return null;
+  }
 }

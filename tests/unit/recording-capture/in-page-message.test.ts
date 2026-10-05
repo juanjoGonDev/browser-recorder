@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   BINDING_NAME,
   parseInPageMessage,
+  parseInPageText,
 } from '../../../src/recording-capture/domain/in-page-message.ts';
 
 const css = { kind: 'css', selector: '#save' };
@@ -94,27 +95,30 @@ describe('src/recording-capture/domain/in-page-message.ts', () => {
     });
   });
 
-  describe('navigation messages', () => {
-    const navigation = {
-      kind: 'navigation',
-      url: 'http://a.test/x',
-      navigationType: 'reload',
-      entryIndex: 3,
-    };
+  describe('navigation reports', () => {
+    it('are not accepted: navigation is observed from Node over CDP', () => {
+      const navigation = {
+        kind: 'navigation',
+        url: 'http://a.test/x',
+        navigationType: 'reload',
+        entryIndex: 3,
+      };
+      expect(parseInPageMessage(navigation)).toBeNull();
+    });
+  });
 
-    it('accepts an entry index or null', () => {
-      expect(parseInPageMessage(navigation)).toEqual(navigation);
-      const noIndex = { ...navigation, entryIndex: null };
-      expect(parseInPageMessage(noIndex)).toEqual(noIndex);
+  describe('parseInPageText', () => {
+    it('parses the JSON string the binding delivers', () => {
+      const message = dom({ kind: 'hover' });
+      expect(parseInPageText(JSON.stringify(message))).toEqual(message);
     });
 
-    it.each([
-      ['an unknown navigation type', { ...navigation, navigationType: 'warp' }],
-      ['a missing url', { ...navigation, url: 7 }],
-      ['a fractional entry index', { ...navigation, entryIndex: 1.5 }],
-    ])('rejects %s', (_name, message) => {
-      expect(parseInPageMessage(message)).toBeNull();
-    });
+    it.each(['', 'not json', '{"kind":', '"dom"', '{"kind":"dom"}'])(
+      'drops the text %j',
+      (text) => {
+        expect(parseInPageText(text)).toBeNull();
+      },
+    );
   });
 
   it.each([null, undefined, 'dom', 42, [], { kind: 'other' }, {}])(

@@ -1,12 +1,11 @@
 // The in-page capture script: bundled by esbuild into one classic script and
-// injected into every document and frame of the recorded browser context.
+// run in a CDP isolated world of every frame, never in the page's own world.
 import { INSTALL_FLAG_KEY, PAGE_API_KEY } from '../domain/in-page-message.ts';
 import { cssPath } from './css-path.ts';
 import { installDragListener } from './drag-listener.ts';
 import { installHoverTracker } from './hover-tracker.ts';
 import { installInputListener } from './input-listener.ts';
 import { installKeyListener } from './key-listener.ts';
-import { installNavigationListener } from './navigation-listener.ts';
 import { installPointerListener } from './pointer-listener.ts';
 import { installScrollListener } from './scroll-listener.ts';
 
@@ -29,7 +28,6 @@ function install(): void {
   installInputListener();
   installKeyListener();
   installScrollListener();
-  installNavigationListener();
 }
 
 install();
