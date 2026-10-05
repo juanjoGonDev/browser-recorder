@@ -22,6 +22,7 @@ import {
   initialState,
 } from '../../../src/tui/domain/app-reducer.ts';
 import {
+  BRAVE_CHOICE,
   BUNDLED_CHOICE,
   WINDOW_DISPLAY,
 } from '../../support/browser-fixtures.ts';
@@ -414,6 +415,8 @@ describe('src/tui/domain/app-reducer.ts', () => {
     const started = reduce(on(newForm, 5000), {
       type: 'recording-started',
       name: 'Demo',
+      browser: BRAVE_CHOICE,
+      warnings: ['Brave is running: the copy may miss its latest changes'],
     });
 
     it('starts the clock at the last tick and tracks events', () => {
@@ -423,6 +426,8 @@ describe('src/tui/domain/app-reducer.ts', () => {
         name: 'Demo',
         startedAtMs: 5000,
         events: [],
+        browser: BRAVE_CHOICE,
+        warnings: ['Brave is running: the copy may miss its latest changes'],
       });
       const updated = reduce(started, {
         type: 'recording-updated',
@@ -548,6 +553,7 @@ describe('src/tui/domain/app-reducer.ts', () => {
         type: 'replay-started',
         recording,
         view: idleReplay,
+        warnings: ['Brave was not found: replaying on bundled Chromium'],
       });
       const screen = started.screen as ReplayScreen;
       expect(screen).toMatchObject({
@@ -555,6 +561,8 @@ describe('src/tui/domain/app-reducer.ts', () => {
         name: 'Demo',
         startedAtMs: 900,
         events: recording.events,
+        browser: recording.browser,
+        warnings: ['Brave was not found: replaying on bundled Chromium'],
       });
       const done: ReplayView = {
         status: 'succeeded',

@@ -3,13 +3,16 @@ import type { RecordingScreen } from '../../domain/app-state.ts';
 import { followRange } from '../../domain/list-window.ts';
 import { renderField } from '../field-view.ts';
 import { pluralize } from '../format.ts';
+import { describeBrowser } from '../browser-summary.ts';
 import { sanitize, spread } from '../layout.ts';
 import type { RenderContext, ScreenView } from '../screen-view.ts';
 import { rule } from '../screen-view.ts';
 import type { KeyHint } from '../status-bar.ts';
 import { NO_DECORATION, timelineRow } from '../timeline-list.ts';
+import { warningLines } from '../warning-lines.ts';
 
-const HEADER_ROWS = 2;
+/** Title row, browser row and the closing rule; warnings come on top. */
+const HEADER_ROWS = 3;
 const ANSWER_LABEL = 'Answer: ';
 
 function header(screen: RecordingScreen, context: RenderContext): string[] {
@@ -22,9 +25,15 @@ function header(screen: RecordingScreen, context: RenderContext): string[] {
   ).length;
   const note =
     masked === 0
-      ? rule(context)
+      ? ''
       : style.warning(`${pluralize(masked, 'sensitive value')} masked`);
-  return [spread(left, `${elapsed}  ${count}`, width), note];
+  const summary = style.muted(sanitize(describeBrowser(screen.browser)));
+  return [
+    spread(left, `${elapsed}  ${count}`, width),
+    spread(summary, note, width),
+    ...warningLines(screen.warnings, context),
+    rule(context),
+  ];
 }
 
 function banner(screen: RecordingScreen, context: RenderContext): string[] {
@@ -101,7 +110,8 @@ export function renderRecordingScreen(
   context: RenderContext,
 ): ScreenView {
   const bannerLines = banner(screen, context);
-  const rows = Math.max(1, context.height - HEADER_ROWS - bannerLines.length);
+  const headerRows = HEADER_ROWS + screen.warnings.length;
+  const rows = Math.max(1, context.height - headerRows - bannerLines.length);
   return {
     title: 'Recording',
     body: [

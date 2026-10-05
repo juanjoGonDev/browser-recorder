@@ -10,6 +10,7 @@ import {
   newRecordingScreen,
   validEntry,
 } from '../../support/tui-fixtures.ts';
+import { BRAVE_CHOICE } from '../../support/browser-fixtures.ts';
 
 const SIZE = { columns: 80, rows: 24 };
 
@@ -107,6 +108,8 @@ describe('src/tui/render/render-app.ts', () => {
   it('renders a replay with the running step highlighted at 80x24', () => {
     const screen: Screen = {
       kind: 'replay',
+      browser: BRAVE_CHOICE,
+      warnings: [],
       name: 'Checkout flow',
       events: clicks(6),
       startedAtMs: 0,
@@ -123,31 +126,31 @@ describe('src/tui/render/render-app.ts', () => {
     };
     expect(renderApp(on(screen, 4200), SIZE, false).join('\n'))
       .toMatchInlineSnapshot(`
-      "╭─ Replay · Checkout flow ─────────────────────────────────────────────────────╮
-      │ ▶ Running                                                00:04.200  step 3/6 │
-      │ ──────────────────────────────────────────────────────────────────────────── │
-      │ ✓ +00:00.000        click         Step 0                                +2ms │
-      │ ✓ +00:01.000 ━━━    click         Step 1                                +5ms │
-      │ ▶ +00:02.000 ━━━    click         Step 2                                     │
-      │ · +00:03.000 ━━━    click         Step 3                                     │
-      │ · +00:04.000 ━━━    click         Step 4                                     │
-      │ · +00:05.000 ━━━    click         Step 5                                     │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      │                                                                              │
-      ╰──────────────────────────────────────────────────────────────────────────────╯
-       c cancel                                                                       "
-    `);
+        "╭─ Replay · Checkout flow ─────────────────────────────────────────────────────╮
+        │ ▶ Running                                                00:04.200  step 3/6 │
+        │ Brave · managed                                                              │
+        │ ──────────────────────────────────────────────────────────────────────────── │
+        │ ✓ +00:00.000        click         Step 0                                +2ms │
+        │ ✓ +00:01.000 ━━━    click         Step 1                                +5ms │
+        │ ▶ +00:02.000 ━━━    click         Step 2                                     │
+        │ · +00:03.000 ━━━    click         Step 3                                     │
+        │ · +00:04.000 ━━━    click         Step 4                                     │
+        │ · +00:05.000 ━━━    click         Step 5                                     │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        │                                                                              │
+        ╰──────────────────────────────────────────────────────────────────────────────╯
+         c cancel                                                                       "
+      `);
   });
 
   it('is a pure function of state and size', () => {

@@ -40,6 +40,7 @@ class LiveReplayFlow implements ReplayFlow {
         type: 'replay-started',
         recording,
         view: STARTING_VIEW,
+        warnings: live.warnings,
       });
       this.live = live;
       live.subscribe((view) => {

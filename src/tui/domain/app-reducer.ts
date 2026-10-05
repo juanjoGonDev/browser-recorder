@@ -154,7 +154,7 @@ const handlers: Handlers = {
   'edit-text': (state, action) => editText(state, action.edit),
   'form-error': (state, action) =>
     onForm(state, (screen) => ({ ...screen, error: action.message })),
-  'recording-started': (state, action) => recordingStarted(state, action.name),
+  'recording-started': (state, action) => recordingStarted(state, action),
   'recording-updated': (state, action) =>
     recordingUpdated(state, action.update),
   'recording-stopping': setStopping,
@@ -171,6 +171,8 @@ const handlers: Handlers = {
     screen: {
       kind: 'replay',
       name: action.recording.name,
+      browser: action.recording.browser,
+      warnings: action.warnings,
       events: action.recording.events,
       view: action.view,
       startedAtMs: state.nowMs,

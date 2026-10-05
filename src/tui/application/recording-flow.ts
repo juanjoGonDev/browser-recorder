@@ -145,7 +145,12 @@ class LiveRecordingFlow implements RecordingFlow {
       });
       return;
     }
-    this.deps.store.dispatch({ type: 'recording-started', name: request.name });
+    this.deps.store.dispatch({
+      type: 'recording-started',
+      name: request.name,
+      browser,
+      warnings: this.live.warnings,
+    });
     this.unsubscribe = this.live.subscribe((update) => {
       this.onUpdate(update);
     });

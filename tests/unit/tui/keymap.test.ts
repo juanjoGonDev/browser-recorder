@@ -12,6 +12,7 @@ import { initialState } from '../../../src/tui/domain/app-reducer.ts';
 import { keymap } from '../../../src/tui/domain/keymap.ts';
 import { emptyField } from '../../../src/tui/domain/text-input.ts';
 import {
+  BRAVE_CHOICE,
   BUNDLED_CHOICE,
   WINDOW_DISPLAY,
 } from '../../support/browser-fixtures.ts';
@@ -38,6 +39,8 @@ function on(screen: Screen): AppState {
 
 const recording: RecordingScreen = {
   kind: 'recording',
+  browser: BRAVE_CHOICE,
+  warnings: [],
   name: 'Demo',
   startedAtMs: 0,
   events: [],
@@ -350,6 +353,8 @@ describe('src/tui/domain/keymap.ts', () => {
     const replay = (status: 'running' | 'succeeded'): AppState =>
       on({
         kind: 'replay',
+        browser: BRAVE_CHOICE,
+        warnings: [],
         name: 'n',
         events: [],
         startedAtMs: 0,

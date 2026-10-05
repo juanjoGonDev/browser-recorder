@@ -5,9 +5,12 @@ import { emptyField } from '../../../src/tui/domain/text-input.ts';
 import { renderRecordingScreen } from '../../../src/tui/render/screens/recording-screen.ts';
 import { plainContext } from '../../support/render-context.ts';
 import { clickAt, clicks, passwordFill } from '../../support/tui-fixtures.ts';
+import { BRAVE_CHOICE } from '../../support/browser-fixtures.ts';
 
 const idle: RecordingScreen = {
   kind: 'recording',
+  browser: BRAVE_CHOICE,
+  warnings: [],
   name: 'Demo',
   startedAtMs: 1000,
   events: [],
@@ -32,6 +35,41 @@ describe('src/tui/render/screens/recording-screen.ts', () => {
     expect(view).toContain('00:12.345');
     expect(view).toContain('0 events');
     expect(view).toContain('Waiting for your first action');
+  });
+
+  it('names the browser and profile the recording runs on', () => {
+    expect(text(idle)).toContain('Brave · managed');
+    expect(
+      text({
+        ...idle,
+        browser: {
+          browserId: 'chrome',
+          profileMode: 'copy-of-real',
+          sourceProfile: 'Profile 2',
+        },
+      }),
+    ).toContain('Chrome · copy of Profile 2');
+  });
+
+  it('shows the warnings raised while preparing the browser', () => {
+    const view = text({
+      ...idle,
+      warnings: ['Brave is running: the copy may miss its latest changes'],
+    });
+    expect(view).toContain(
+      '! Brave is running: the copy may miss its latest changes',
+    );
+    expect(text(idle)).not.toContain('!');
+  });
+
+  it('keeps the newest events visible next to the warnings', () => {
+    const view = text(
+      { ...idle, warnings: ['first', 'second'], events: clicks(40) },
+      1000,
+      12,
+    );
+    expect(view).toContain('! second');
+    expect(view).toContain('Step 39');
   });
 
   it('streams events with their offsets and counts them', () => {

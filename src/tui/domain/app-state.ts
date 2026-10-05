@@ -1,3 +1,4 @@
+import type { BrowserChoice } from '../../shared/domain/browser-choice.ts';
 import type { Recording } from '../../shared/domain/recording.ts';
 import type { RecordingEvent } from '../../shared/domain/recording-event.ts';
 import type {
@@ -49,6 +50,9 @@ export interface NewRecordingScreen {
 export interface RecordingScreen {
   readonly kind: 'recording';
   readonly name: string;
+  readonly browser: BrowserChoice;
+  /** Cautions raised while preparing the browser, shown for the whole run. */
+  readonly warnings: readonly string[];
   readonly startedAtMs: number;
   readonly events: readonly RecordingEvent[];
   readonly pendingDialog: DialogView | null;
@@ -80,6 +84,9 @@ export interface TimelineScreen {
 export interface ReplayScreen {
   readonly kind: 'replay';
   readonly name: string;
+  readonly browser: BrowserChoice;
+  /** For example the fallback to the bundled browser. */
+  readonly warnings: readonly string[];
   readonly events: readonly RecordingEvent[];
   readonly view: ReplayView;
   readonly startedAtMs: number;

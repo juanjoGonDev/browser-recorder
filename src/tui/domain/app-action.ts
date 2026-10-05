@@ -1,3 +1,4 @@
+import type { BrowserChoice } from '../../shared/domain/browser-choice.ts';
 import type { Recording } from '../../shared/domain/recording.ts';
 import type {
   BrowserOptionView,
@@ -31,7 +32,12 @@ export type AppAction =
   | { readonly type: 'browsers-failed'; readonly message: string }
   | { readonly type: 'edit-text'; readonly edit: TextEdit }
   | { readonly type: 'form-error'; readonly message: string | null }
-  | { readonly type: 'recording-started'; readonly name: string }
+  | {
+      readonly type: 'recording-started';
+      readonly name: string;
+      readonly browser: BrowserChoice;
+      readonly warnings: readonly string[];
+    }
   | { readonly type: 'recording-updated'; readonly update: RecordingUpdateView }
   | { readonly type: 'recording-stopping' }
   | { readonly type: 'request-discard' }
@@ -49,6 +55,7 @@ export type AppAction =
       readonly type: 'replay-started';
       readonly recording: Recording;
       readonly view: ReplayView;
+      readonly warnings: readonly string[];
     }
   | { readonly type: 'replay-updated'; readonly view: ReplayView }
   | { readonly type: 'quit' };

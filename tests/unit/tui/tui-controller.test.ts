@@ -292,6 +292,36 @@ describe('src/tui/application/tui-controller.ts', () => {
       ).toBe(5000);
     });
 
+    it('carries the browser and the profile warnings to the recording screen', async () => {
+      const harness = setup();
+      harness.fake.live.warnings = ['The copy may miss its latest changes'];
+      await startRecording(harness);
+      expect(harness.store.getState().screen).toMatchObject({
+        kind: 'recording',
+        browser: BRAVE_CHOICE,
+        warnings: ['The copy may miss its latest changes'],
+      });
+    });
+
+    it('shows a locked profile inline and keeps the library usable', async () => {
+      const harness = setup();
+      harness.fake.entries = [validEntry('alpha', 'Alpha')];
+      harness.fake.startError = new Error(
+        'Brave is already using this profile. Close it and try again.',
+      );
+      await startRecording(harness);
+      const form = harness.store.getState().screen as NewRecordingScreen;
+      expect(form.error).toBe(
+        'Brave is already using this profile. Close it and try again.',
+      );
+      expect(form.name.value).toBe('Demo');
+      await harness.press(named('escape'), named('down'), named('return'));
+      expect(harness.store.getState().screen).toMatchObject({
+        kind: 'library',
+        entries: [expect.objectContaining({ slug: 'alpha' })],
+      });
+    });
+
     it('keeps the form and shows the error when the browser cannot start', async () => {
       const harness = setup();
       harness.fake.startError = new Error('Could not launch Chromium');
@@ -653,6 +683,19 @@ describe('src/tui/application/tui-controller.ts', () => {
       await ready(harness);
       await harness.press(named('down'), named('return'), named('return'));
     }
+
+    it('shows the recorded browser and the fallback warning', async () => {
+      const harness = setup();
+      harness.fake.replay.warnings = [
+        'Brave is not installed: replaying on bundled Chromium',
+      ];
+      await startReplay(harness);
+      expect(harness.store.getState().screen).toMatchObject({
+        kind: 'replay',
+        browser: BUNDLED_CHOICE,
+        warnings: ['Brave is not installed: replaying on bundled Chromium'],
+      });
+    });
 
     it('starts the replay of the selected recording', async () => {
       const harness = setup();

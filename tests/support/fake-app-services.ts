@@ -18,7 +18,7 @@ import { validateStartUrl } from '../../src/script-library/domain/validate-start
 import { BROWSER_VIEWS, recordingWith, clicks } from './tui-fixtures.ts';
 
 export class FakeLiveRecording implements LiveRecordingView {
-  readonly warnings: readonly string[] = [];
+  warnings: readonly string[] = [];
   readonly responses: {
     action: 'accept' | 'dismiss';
     promptText: string | null;
@@ -59,7 +59,7 @@ export class FakeLiveRecording implements LiveRecordingView {
 }
 
 export class FakeLiveReplay implements LiveReplayView {
-  readonly warnings: readonly string[] = [];
+  warnings: readonly string[] = [];
   cancelCount = 0;
   readonly finished: Promise<ReplayView>;
   private readonly listeners: ((view: ReplayView) => void)[] = [];

@@ -1,3 +1,4 @@
+import type { AppAction } from './app-action.ts';
 import type { AppState, RecordingScreen } from './app-state.ts';
 import type { RecordingUpdateView } from './app-views.ts';
 import { updateScreen } from './screen-update.ts';
@@ -12,12 +13,17 @@ export function onRecording(
   return updateScreen(state, 'recording', update);
 }
 
-export function recordingStarted(state: AppState, name: string): AppState {
+export function recordingStarted(
+  state: AppState,
+  started: Extract<AppAction, { type: 'recording-started' }>,
+): AppState {
   return {
     ...state,
     screen: {
       kind: 'recording',
-      name,
+      name: started.name,
+      browser: started.browser,
+      warnings: started.warnings,
       startedAtMs: state.nowMs,
       events: [],
       pendingDialog: null,
