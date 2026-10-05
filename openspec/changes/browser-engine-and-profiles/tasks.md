@@ -76,14 +76,14 @@ Decision already given: user accepted one large PR, `size:exception`, unlimited 
 
 ## WP3: browser-profiles (worktree)
 
-- [ ] 3.1 RED->GREEN: `domain/profile-layout.ts` (`appDataRootFor` per OS, `SAFE_PROFILE_DIR`, managed/sessions dirs; Per browser).
-- [ ] 3.2 RED->GREEN: `domain/parse-local-state.ts`: hostile names, missing `info_cache`, order, app-bound flag (Multiple profiles, Unreadable Local State).
-- [ ] 3.3 RED->GREEN: `domain/copy-filter.ts` denylist + suffixes (Skipped entries); `domain/singleton-lock.ts` host-pid parser.
-- [ ] 3.4 RED->GREEN: `domain/profile-errors.ts`; `application/check-profile-lock.ts` (Locked managed profile, Stale lock; win32 `lockfile`).
-- [ ] 3.5 RED: `copy-profile.test.ts` (in-memory fs): WAL sibling, Torn read retry 50/100/200, `unstable-copy`, `source-in-use` removes destination, symlinks skipped, `../x`, `Default/../..`, `C:\x`, absolute, `Guest Profile` -> `unknown-profile`, `remove` outside sessions throws. GREEN: `application/copy-profile.ts`.
-- [ ] 3.6 RED->GREEN: `application/profile-store.ts`: managed (First use, Reuse), ephemeral (Cleanup, 5 retries), copy-of-real (source-running, app-bound warnings, keychain flags), `sweepStaleSessions`.
-- [ ] 3.7 RED->GREEN: `adapters/node-profile-file-system.ts` and `node-process-probe.ts`; integration on temp dirs: 0700, `COPYFILE_EXCL`, fixture hash and mtimes unchanged also after failed copy (Hash unchanged), fake `SingletonLock` live/dead pid, Unreadable cookies reporting.
-- [ ] 3.8 REFACTOR: shared walk helpers; depcruise clean.
+- [x] 3.1 RED->GREEN: `domain/profile-layout.ts` (`appDataRootFor` per OS, `SAFE_PROFILE_DIR`, managed/sessions dirs; Per browser).
+- [x] 3.2 RED->GREEN: `domain/parse-local-state.ts`: hostile names, missing `info_cache`, order, app-bound flag (Multiple profiles, Unreadable Local State).
+- [x] 3.3 RED->GREEN: `domain/copy-filter.ts` denylist + suffixes (Skipped entries); `domain/singleton-lock.ts` host-pid parser.
+- [x] 3.4 RED->GREEN: `domain/profile-errors.ts`; `application/check-profile-lock.ts` (Locked managed profile, Stale lock; win32 `lockfile`).
+- [x] 3.5 RED: `copy-profile.test.ts` (in-memory fs): WAL sibling, Torn read retry 50/100/200, `unstable-copy`, `source-in-use` removes destination, symlinks skipped, `../x`, `Default/../..`, `C:\x`, absolute, `Guest Profile` -> `unknown-profile`, `remove` outside sessions throws. GREEN: `application/copy-profile.ts`.
+- [x] 3.6 RED->GREEN: `application/profile-store.ts`: managed (First use, Reuse), ephemeral (Cleanup, 5 retries), copy-of-real (source-running, app-bound warnings, keychain flags), `sweepStaleSessions`.
+- [x] 3.7 RED->GREEN: `adapters/node-profile-file-system.ts` and `node-process-probe.ts`; integration on temp dirs: 0700, `COPYFILE_EXCL`, fixture hash and mtimes unchanged also after failed copy (Hash unchanged), fake `SingletonLock` live/dead pid, Unreadable cookies reporting.
+- [x] 3.8 REFACTOR: shared walk helpers; depcruise clean.
 
 ## WP4: script-generation + script-library (worktree)
 
