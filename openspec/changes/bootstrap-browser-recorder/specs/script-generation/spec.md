@@ -32,7 +32,7 @@ Each step MUST wait until its recorded `offsetMs` from script start before execu
 
 ### Requirement: Progress markers
 
-The script MUST print `::step <index>` before each step, 0-based, to stdout.
+The script MUST print `::step <index> <elapsedMs>` before each step, 0-based, to stdout, `::done <elapsedMs>` at the end, and `::error <index or -> <JSON string message>` on failure.
 
 #### Scenario: Markers
 - GIVEN a 3-event recording

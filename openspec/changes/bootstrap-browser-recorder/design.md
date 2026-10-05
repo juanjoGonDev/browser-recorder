@@ -131,7 +131,8 @@ export type SessionSignal = { readonly receivedAt: number; readonly pageId: Page
   | { kind: 'navigation'; url: string; navigationType: 'navigate' | 'reload' | 'back_forward' | 'push' | 'replace' | 'traverse' | 'unknown'; entryIndex: number | null }
   | { kind: 'page-opened'; openerPageId: PageId | null; url: string }
   | { kind: 'page-closed' } | { kind: 'browser-closed' }
-  | { kind: 'dialog-opened'; dialogType: 'alert' | 'confirm' | 'prompt' | 'beforeunload'; message: string; defaultValue: string });
+  | { kind: 'dialog-opened'; dialogType: 'alert' | 'confirm' | 'prompt' | 'beforeunload'; message: string; defaultValue: string }
+  | { kind: 'dialog-closed'; dialogType: 'alert' | 'confirm' | 'prompt' | 'beforeunload'; message: string; action: 'accept' | 'dismiss'; promptText: string | null }); // answered in the browser window
 // monotonic-clock.ts: export interface MonotonicClock { now(): number }
 // recording-sink.ts:  export interface RecordingSink { save(r: Recording): Promise<void> }
 // recording-session.ts
@@ -349,9 +350,9 @@ No migration required. The repository is greenfield and nothing is pushed.
 
 ## Open Questions
 
-- [ ] Confirm that `playwright/cli` resolves through the package `exports`; otherwise resolve `playwright-core/cli.js`.
-- [ ] Validate that headed Chromium with a `page.on('dialog')` listener does not show the native dialog. This is the assumption behind TUI-mediated dialogs.
-- [ ] Reconcile the branch naming in AGENTS.md (devbar `feat/…` vs the owner's global branching policy).
+- [x] Confirm that `playwright/cli` resolves through the package `exports`; otherwise resolve `playwright-core/cli.js`. Outcome (WP5): `playwright/cli` is not exported; `playwright/package.json` is, and its `bin` names the CLI.
+- [x] Validate that headed Chromium with a `page.on('dialog')` listener does not show the native dialog. Outcome (WP2): it still shows it. The recorder prompt stays, and an answer given in the native dialog is recorded through the `dialog-closed` signal (see the WP7 addendum).
+- [x] Reconcile the branch naming in AGENTS.md (devbar `feat/…` vs the owner's global branching policy). Outcome (WP0): `<type>/<slug>`.
 
 ## Addendum: no code in the page's main world (user decision, 2026-10-05)
 
@@ -371,3 +372,38 @@ navigation classification above.
   any recorder global, and the page's CSP does not apply to it.
 - Forbidden on the recording path: `page.exposeBinding`, `exposeFunction`,
   `addInitScript` and `frame.evaluate` in the main world.
+
+## Addendum: integration decisions (WP7)
+
+Recorded when the work packages were merged; the names here are the ones the
+code uses and the specs were reconciled to them.
+
+- **Names.** `isSensitive`, `go-back` / `go-forward`, `wait-for-url`, `check`
+  with `checked: boolean` (there is no `uncheck` kind), the 1000 ms action
+  window (1500 ms for a redirect), a `fill` keeps the offset of its last input,
+  saves are debounced by 250 ms, and the replay protocol is `::step <i> <ms>`,
+  `::done <ms>`, `::error <i|-> <json>`.
+- **Native dialogs.** The browser reports every closed dialog
+  (`Page.javascriptDialogClosed`). One the recorder did not answer was answered
+  in the browser window: the adapter emits `dialog-closed` (action and prompt
+  text), the session clears the pending dialog and records the same `dialog`
+  event the recorder prompt would have.
+- **Cross-origin iframes.** A cross-site iframe lives in its own process and
+  its own CDP target. The adapter asks Playwright for that frame's session
+  (`context.newCDPSession(frame)`, which only succeeds for such frames) and
+  installs the same isolated-world capture in it, so there is still no code in
+  the page's main world. `Target.setAutoAttach` with `waitForDebuggerOnStart`
+  was rejected: Playwright's `CDPSession` cannot address the child session it
+  creates, so the paused frame could never be resumed (a reload hung in a
+  probe). Frame paths are resolved across sessions, each iframe selector asked
+  of the session that holds its parent.
+- **Composition.** `src/composition/create-app-services.ts` adapts the use
+  cases to `AppServices` and adds `persistActiveRecording()`;
+  `create-production-services.ts` is the only place real adapters are built;
+  `exit-after-saving.ts` makes SIGINT, SIGTERM and crashes save the live
+  recording before exiting (bounded by a deadline). A discarded recording
+  removes its whole `recordings/<slug>/` folder. `StartRecordingDeps` gained an
+  optional `isHeadless` (default headed) so automation and tests never open a
+  window.
+- **Linux hint.** The printed command is `sudo pnpm exec playwright install-deps
+  chromium`, with `playwright install --with-deps chromium` as the alternative.

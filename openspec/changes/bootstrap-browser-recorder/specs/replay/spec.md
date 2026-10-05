@@ -18,10 +18,10 @@ The system MUST replay by spawning `node <recordings>/<slug>/script.mjs` with a 
 
 ### Requirement: Progress parsing
 
-The system MUST parse `::step <n>` lines from stdout, tolerating chunk splits and CRLF, and ignore other lines.
+The system MUST parse the script's progress lines from stdout, tolerating chunk splits and CRLF, and ignore other lines: `::step <index> <elapsedMs>`, `::done <elapsedMs>` and `::error <index or -> <JSON string message>`.
 
 #### Scenario: Split chunk
-- GIVEN stdout arrives as `::ste` then `p 3\r\n`
+- GIVEN stdout arrives as `::ste` then `p 3 1200\r\n`
 - WHEN parsed
 - THEN one progress event for step 3 is emitted
 

@@ -37,12 +37,12 @@ When missing, the system MUST run the Playwright CLI install for Chromium, strea
 
 ### Requirement: Linux system dependencies
 
-On Linux, when the browser fails to launch for missing libraries, the system MUST print the exact `--with-deps` command and MUST NOT escalate privileges.
+On Linux, when the browser fails to launch for missing libraries, the system MUST print the exact `sudo pnpm exec playwright install-deps chromium` command (and the `--with-deps` alternative) for the user to run, and MUST NOT run it or escalate privileges.
 
 #### Scenario: Missing libs
 - GIVEN a launch error naming missing shared libraries on Linux
 - WHEN handled
-- THEN the guidance includes the `playwright install --with-deps chromium` command and no sudo is executed
+- THEN the guidance includes the `sudo pnpm exec playwright install-deps chromium` command and nothing is executed
 
 ### Requirement: Cross-OS portability
 

@@ -4,7 +4,7 @@
 
 ### Requirement: Event coverage
 
-The system MUST capture clicks (left/middle/right, modifiers), dblclick, check/uncheck, fill, select, key presses and modifier shortcuts, scroll, drag and drop, file inputs (file names), dialogs (accept/dismiss, prompt text), goto/waitForURL, reload, back, forward, new tab, page close.
+The system MUST capture clicks (left/middle/right, modifiers), dblclick, check (with the resulting `checked` state, so unchecking is a `check` with `checked: false`), fill, select, key presses and modifier shortcuts, scroll, drag and drop, file inputs (file names), dialogs (accept/dismiss, prompt text), goto/wait-for-url, reload, go-back, go-forward, new tab, page close, in the main frame and in iframes, including cross-origin iframes that run in their own process.
 
 #### Scenario: Modified right click
 - GIVEN a recording session on a page with a button
@@ -14,16 +14,26 @@ The system MUST capture clicks (left/middle/right, modifiers), dblclick, check/u
 #### Scenario: Checkbox state
 - GIVEN an unchecked checkbox
 - WHEN the user clicks it, then clicks it again
-- THEN events `check` then `uncheck` are stored, not plain clicks
+- THEN events `check` with `checked: true` then `check` with `checked: false` are stored, not plain clicks
 
 #### Scenario: Dialog
 - GIVEN a page that opens a `prompt`
 - WHEN the user types "abc" and accepts
-- THEN a dialog event with action `accept` and text `abc` is stored
+- THEN a dialog event with action `accept` and prompt text `abc` is stored
+
+#### Scenario: Dialog answered in the browser window
+- GIVEN a headed browser that shows its own native dialog next to the recorder's prompt
+- WHEN the user answers it in the browser window instead of the recorder
+- THEN the same dialog event (action, prompt text) is stored and the recorder's prompt closes
+
+#### Scenario: Cross-origin iframe
+- GIVEN a page with an iframe from another site (it runs in its own process)
+- WHEN the user clicks inside that iframe
+- THEN a click event is stored whose target carries the iframe selector in its frame path
 
 ### Requirement: Navigation fidelity
 
-The system MUST record reload, back and forward as distinct events and MUST NOT drop navigations to the same URL.
+The system MUST record reload, go-back and go-forward as distinct events and MUST NOT drop navigations to the same URL.
 
 #### Scenario: Reload
 - GIVEN the page is at `https://a.test/x`
@@ -33,21 +43,21 @@ The system MUST record reload, back and forward as distinct events and MUST NOT 
 #### Scenario: Back and forward
 - GIVEN history `/a` then `/b`
 - WHEN the user goes back then forward
-- THEN events `back` then `forward` are stored, and no `waitForURL` duplicates them
+- THEN events `go-back` then `go-forward` are stored, and no `wait-for-url` duplicates them
 
 #### Scenario: Action-triggered navigation
-- GIVEN a click causes navigation within 2 s
+- GIVEN a click causes navigation within 1000 ms (a redirect within 1500 ms of the previous navigation counts the same)
 - WHEN the main frame navigates
-- THEN a `waitForURL` event follows the click; a navigation with no preceding action yields `goto`
+- THEN a `wait-for-url` event follows the click; a navigation with no preceding action yields `goto`
 
 ### Requirement: Coalescing
 
-Consecutive fills on the same locator MUST merge into one event keeping the first offset and the last value; consecutive selects likewise; consecutive goto/waitForURL likewise.
+Consecutive fills on the same locator MUST merge into one event keeping the last value and the offset of the last input; consecutive selects likewise; consecutive `wait-for-url` events on the same page likewise, while a `goto` followed by its redirect `wait-for-url` keeps both.
 
 #### Scenario: Typing
 - GIVEN the user types "h", "he", "hey" into one input
 - WHEN capture finishes
-- THEN one fill event with value `hey` and the offset of the first input exists
+- THEN one fill event with value `hey` and the offset of the last input exists
 
 #### Scenario: Interleaved target
 - GIVEN fill on input A, fill on input B, fill on input A
@@ -93,7 +103,7 @@ Before a click on target T the system MUST emit `hover` only for (1) the outermo
 
 ### Requirement: Interrupted recording safety
 
-The system MUST persist `recording.json` on Ctrl+C, browser or last-page close, and after every event via atomic write (temp file then rename).
+The system MUST persist `recording.json` on Ctrl+C, browser or last-page close, and shortly after each event (saves are debounced by 250 ms so a typing burst writes once) via atomic write (temp file then rename).
 
 #### Scenario: Ctrl+C
 - GIVEN a recording with 5 events
@@ -117,4 +127,4 @@ Password inputs MUST be flagged in the event; values are stored in plain text.
 #### Scenario: Password
 - GIVEN a `type=password` input
 - WHEN the user fills it
-- THEN the fill event has `sensitive: true`
+- THEN the fill event has `isSensitive: true`
