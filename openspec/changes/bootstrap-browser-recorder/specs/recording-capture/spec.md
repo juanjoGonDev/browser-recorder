@@ -26,6 +26,16 @@ The system MUST capture clicks (left/middle/right, modifiers), dblclick, check (
 - WHEN the user answers it in the browser window instead of the recorder
 - THEN the same dialog event (action, prompt text) is stored and the recorder's prompt closes
 
+#### Scenario: Scroll inside a shadow root
+- GIVEN a page whose scrollable box lives inside an open shadow root (also nested ones, roots attached after load, and shadow roots of an iframe)
+- WHEN the user scrolls the box with the wheel
+- THEN one scroll event is stored with the final `scrollLeft`/`scrollTop` and a locator that Playwright resolves across the shadow boundary (for example `#box`), and the page's main world is untouched
+
+#### Scenario: Scroll inside a closed shadow root
+- GIVEN a scrollable box inside a closed shadow root
+- WHEN the user scrolls it
+- THEN no scroll event is stored: a closed root is unreachable from the isolated world and Playwright locators do not pierce it (documented limitation)
+
 #### Scenario: Cross-origin iframe
 - GIVEN a page with an iframe from another site (it runs in its own process)
 - WHEN the user clicks inside that iframe
@@ -76,7 +86,7 @@ The system MUST choose the first unique locator in order: testid, role+name, lab
 #### Scenario: Duplicate id fallback
 - GIVEN two elements share `id="x"` and one has a unique label
 - WHEN the user clicks it
-- THEN the label locator is stored, not `#x`
+- THEN a label-derived locator is stored, never `#x`: role+name when the element has an implicit role (it outranks label), otherwise the label locator
 
 #### Scenario: Dynamic id
 - GIVEN an element id matching a generated pattern (e.g. `:r1:`) and no other unique attribute

@@ -412,15 +412,25 @@ code uses and the specs were reconciled to them.
 
 - **Replay scrolls from an isolated world.** The generated runtime has no code
   in the page's main world either. `rt.scrollTo(page, chain, [x, y])` receives
-  one locator per nesting level (each iframe element, then the target). Playwright
-  itself (utility world) proves the element is attached and yields its child-index
-  path per document (`xpath=ancestor-or-self::*[n]/preceding-sibling::*` counts);
-  a CDP session of the page, or of the deepest out-of-process frame on the
-  chain, creates an isolated world for the root frame and a single
-  `Runtime.callFunctionOn` walks the index paths (through `contentDocument` for
-  same-process iframes) and calls `scrollTo({ left, top, behavior: 'instant' })`.
-  Elements inside a shadow tree are refused with a clear error (an XPath never
-  crosses a shadow boundary). The element wait defaults to 10 s.
+  one locator per nesting level (each iframe element, then the target). A CDP
+  session of the page, or of the deepest out-of-process frame on the chain,
+  creates an isolated world in every frame that session reaches and arms a
+  one-shot capture listener on each window for a random event type. Playwright
+  then dispatches that composed event at the target locator (it waits for the
+  element, honours `nth`, and pierces open shadow roots); the listener reads
+  `event.composedPath()[0]`, the real element even inside nested shadow roots,
+  and calls `scrollTo({ left, top, behavior: 'instant' })` there. No child-index
+  path is computed and no page code runs; the page only sees an unknown event
+  type. Closed shadow roots are out of reach for Playwright locators too. The
+  element wait defaults to 10 s.
+- **Shadow DOM scroll is recorded.** `scroll` does not cross a shadow boundary,
+  so `shadow-roots.ts` registers every open shadow root (existing ones, those
+  created with new elements through `MutationObserver`, and those attached later
+  to existing hosts, found on the composed path of the user's wheel, touch, key
+  or scrollbar gesture) and listens on each root in the isolated world. The
+  locator is built by the existing shadow-aware generators, and Playwright
+  resolves it across the boundary on replay. Closed roots are a documented
+  limitation: neither the isolated world nor Playwright reaches them.
 - **Setup failure keeps the library.** `EnsureBrowserResult` `failed` gained
   `exitCode: number | null` (additive). After a failed setup the app state has
   `isBrowserAvailable: false`: the setup screen offers `l` for the library, the

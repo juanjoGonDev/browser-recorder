@@ -53,6 +53,11 @@ Every event type MUST map to a Playwright call: reload to `page.reload`, back/fo
 - WHEN generation runs
 - THEN it fails with an error naming the type and index, and no file is written
 
+#### Scenario: Scroll inside a shadow root
+- GIVEN a recorded scroll whose locator resolves inside an open shadow root (nested roots and iframe hosts included)
+- WHEN the script is replayed
+- THEN the element ends at exactly the recorded scroll position, and no code runs in the page's main world (no page API call, no new global or property)
+
 ### Requirement: Safe literals
 
 Values and locators MUST be emitted as escaped string literals.
