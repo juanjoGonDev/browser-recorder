@@ -204,8 +204,8 @@ function applyPageClosed(
 }
 
 /**
- * Folds one browser signal into the timeline. Dialog and browser-closed
- * signals carry no event of their own; the session handles them.
+ * Folds one browser signal into the timeline. An opened dialog and a closed
+ * browser carry no event of their own; the session handles them.
  */
 export function applySignal(
   timeline: Timeline,
@@ -224,6 +224,12 @@ export function applySignal(
       return applyPageOpened(timeline, signal);
     case 'page-closed':
       return applyPageClosed(known, signal.pageId, signal.receivedAt);
+    case 'dialog-closed':
+      return applyDialogAnswer(known, {
+        dialog: signal,
+        answer: signal,
+        nowMs: signal.receivedAt,
+      });
     case 'browser-closed':
     case 'dialog-opened':
       return timeline;

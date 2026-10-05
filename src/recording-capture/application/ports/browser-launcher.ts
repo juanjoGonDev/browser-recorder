@@ -56,6 +56,17 @@ export type SessionSignal = {
       readonly message: string;
       readonly defaultValue: string;
     }
+  /**
+   * The browser handled the dialog itself (a headed window shows its own
+   * native one), so the recorder's prompt never received the answer.
+   */
+  | {
+      readonly kind: 'dialog-closed';
+      readonly dialogType: DialogType;
+      readonly message: string;
+      readonly action: DialogResponse['action'];
+      readonly promptText: string | null;
+    }
 );
 
 export interface BrowserSession {

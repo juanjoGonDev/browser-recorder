@@ -117,6 +117,9 @@ class RecordingRun implements LiveRecording {
     } else if (signal.kind === 'dialog-opened') {
       this.pendingDialog = signal;
       this.publish();
+    } else if (signal.kind === 'dialog-closed') {
+      this.pendingDialog = null;
+      this.record(signal);
     } else {
       this.record(signal);
     }

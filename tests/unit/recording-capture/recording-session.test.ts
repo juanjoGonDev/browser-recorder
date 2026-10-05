@@ -334,6 +334,59 @@ describe('src/recording-capture/application/recording-session.ts', () => {
       expect(harness.updates.at(-1)?.pendingDialog).toEqual(opened);
     });
 
+    describe('answered in the browser itself', () => {
+      const closed: SessionSignal = {
+        kind: 'dialog-closed',
+        receivedAt: START_MS + 400,
+        pageId: 'page1',
+        dialogType: 'prompt',
+        message: 'Name?',
+        action: 'accept',
+        promptText: 'native',
+      };
+
+      it('records the answer the browser reported and clears the pending dialog', async () => {
+        const harness = await begin();
+        harness.browser.emit(opened);
+        harness.browser.emit(closed);
+        const last = harness.updates.at(-1);
+        expect(last?.pendingDialog).toBeNull();
+        expect(last?.events).toEqual([
+          {
+            kind: 'dialog',
+            offsetMs: 400,
+            pageId: 'page1',
+            dialogType: 'prompt',
+            message: 'Name?',
+            action: 'accept',
+            promptText: 'native',
+          },
+        ]);
+      });
+
+      it('drops typed text for a dismissed prompt', async () => {
+        const harness = await begin();
+        harness.browser.emit(opened);
+        harness.browser.emit({
+          ...closed,
+          action: 'dismiss',
+          promptText: 'ignored',
+        });
+        expect(harness.updates.at(-1)?.events[0]).toMatchObject({
+          action: 'dismiss',
+          promptText: null,
+        });
+      });
+
+      it('saves the dialog event like any other', async () => {
+        const harness = await begin();
+        harness.browser.emit(opened);
+        harness.browser.emit(closed);
+        await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+        expect(harness.saves.at(-1)?.events).toHaveLength(1);
+      });
+    });
+
     it('forwards an answer when no dialog is pending without recording one', async () => {
       const harness = await begin();
       await harness.live.respondToDialog({

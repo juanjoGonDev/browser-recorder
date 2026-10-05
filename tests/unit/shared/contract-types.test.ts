@@ -97,6 +97,7 @@ describe('frozen contracts', () => {
       | 'page-closed'
       | 'browser-closed'
       | 'dialog-opened'
+      | 'dialog-closed'
     >();
   });
 
