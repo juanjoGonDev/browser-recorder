@@ -104,11 +104,11 @@ describe('record, generate and replay round trip', () => {
     }, WAIT);
   }
 
-  async function replayAndObserve(): Promise<{
+  async function replayAndObserve(slug = 'round-trip'): Promise<{
     final: ReplayView;
     startedOrder: number[];
   }> {
-    const replay = await services.replay.start('round-trip');
+    const replay = await services.replay.start(slug);
     const startedOrder: number[] = [];
     replay.subscribe((view) => {
       for (const step of view.steps) {
@@ -166,5 +166,68 @@ describe('record, generate and replay round trip', () => {
         DRIFT_TOLERANCE_MS,
       );
     }
+  });
+
+  interface ShadowState {
+    readonly box: readonly number[];
+    readonly deep: readonly number[];
+    readonly spyCalls: number;
+    readonly addedGlobals: readonly string[];
+  }
+
+  async function wheelOver(page: Page, selector: string): Promise<void> {
+    const box = await page.locator(selector).boundingBox();
+    if (box === null) throw new Error(`missing ${selector}`);
+    await page.mouse.move(box.x + 20, box.y + 20);
+    await page.mouse.wheel(0, 200);
+    await page.waitForTimeout(THINK_TIME_MS);
+  }
+
+  it('replays scrolls inside shadow roots to the exact positions that were recorded', async () => {
+    const live = await services.recording.start({
+      name: 'Shadow scroll',
+      startUrl: server.urlFor('scroll-shadow.html'),
+    });
+    let recordedKinds: readonly string[] = [];
+    live.subscribe((update) => {
+      recordedKinds = update.events.map((event) => event.kind);
+    });
+    const page = recordingPage();
+    await page.waitForLoadState('load');
+    await page.waitForTimeout(THINK_TIME_MS);
+    await wheelOver(page, '#box');
+    await wheelOver(page, '#deep');
+    server.clearReports();
+    await page.locator('#report').click();
+    await vi.waitFor(() => {
+      expect(recordedKinds.at(-1)).toBe('click');
+    }, WAIT);
+    await vi.waitFor(() => {
+      expect(server.reports()).toHaveLength(1);
+    }, WAIT);
+    await live.stop();
+    const recordedState = JSON.parse(
+      server.reports()[0] ?? '{}',
+    ) as ShadowState;
+    expect(recordedState.box[1]).toBeGreaterThan(0);
+    expect(recordedState.deep[1]).toBeGreaterThan(0);
+
+    const recording = await services.library.load('shadow-scroll');
+    expect(recording.events.map((event) => event.kind)).toEqual([
+      'goto',
+      'scroll',
+      'scroll',
+      'click',
+    ]);
+
+    server.clearReports();
+    const { final } = await replayAndObserve('shadow-scroll');
+    expect(final.errorMessage).toBeNull();
+    expect(final.status).toBe('succeeded');
+    const replayed = JSON.parse(server.reports()[0] ?? '{}') as ShadowState;
+    expect(replayed.box).toStrictEqual(recordedState.box);
+    expect(replayed.deep).toStrictEqual(recordedState.deep);
+    expect(replayed.spyCalls).toBe(0);
+    expect(replayed.addedGlobals).toStrictEqual([]);
   });
 });
