@@ -1,5 +1,6 @@
 import type { Recording } from '../../../shared/domain/recording.ts';
 import type { BrowserChoice } from '../../../shared/domain/browser-choice.ts';
+import type { ReplayTiming } from '../../../shared/domain/replay-timing.ts';
 import type {
   BrowserOptionView,
   EnvironmentView,
@@ -44,6 +45,6 @@ export interface AppServices {
     ): Promise<LiveRecordingView>;
   };
   readonly replay: {
-    start(slug: string): Promise<LiveReplayView>;
+    start(slug: string, timing: ReplayTiming): Promise<LiveReplayView>;
   };
 }

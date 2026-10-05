@@ -130,6 +130,7 @@ export function createProductionDeps(
       cancelGraceMs: CANCEL_GRACE_MS,
       cwd: paths.packageRoot,
       scriptPathOf: (slug) => repository.scriptPath(slug),
+      parentEnv: process.env,
     },
   };
 }

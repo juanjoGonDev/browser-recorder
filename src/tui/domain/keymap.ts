@@ -54,6 +54,7 @@ const LIBRARY_KEYS: KeyTable = {
   ...LIST_KEYS,
   return: { kind: 'replay-selected' },
   p: { kind: 'replay-selected' },
+  h: { kind: 'toggle-timing' },
   t: { kind: 'show-timeline' },
   r: { kind: 'begin-rename' },
   d: { kind: 'begin-delete' },

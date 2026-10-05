@@ -3,6 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { RECORDED_TIMING } from '../../src/shared/domain/replay-timing.ts';
 import { createAppServices } from '../../src/composition/create-app-services.ts';
 import type { ComposedServices } from '../../src/composition/create-app-services.ts';
 import {
@@ -78,7 +79,7 @@ describe('record, generate and replay on a managed profile', () => {
   }
 
   async function replay(slug: string): Promise<ReplayView> {
-    const live = await services.replay.start(slug);
+    const live = await services.replay.start(slug, RECORDED_TIMING);
     return await live.finished;
   }
 

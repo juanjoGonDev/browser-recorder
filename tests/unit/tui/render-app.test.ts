@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { RECORDED_TIMING } from '../../../src/shared/domain/replay-timing.ts';
 import type { AppState, Screen } from '../../../src/tui/domain/app-state.ts';
 import { initialState } from '../../../src/tui/domain/app-reducer.ts';
 import { cellWidth, stripAnsi } from '../../../src/tui/render/layout.ts';
@@ -27,6 +28,7 @@ const library: Screen = {
   cursor: { selected: 0, top: 0 },
   mode: { kind: 'browse' },
   error: null,
+  timing: RECORDED_TIMING,
 };
 
 const everyScreen: Screen[] = [
@@ -91,7 +93,7 @@ describe('src/tui/render/render-app.ts', () => {
       .toMatchInlineSnapshot(`
         "╭─ Library ────────────────────────────────────────────────────────────────────╮
         │   Name                      Created          Browser          Duration Steps │
-        │                                                                          1/2 │
+        │                                                        recorded timing · 1/2 │
         │ ❯ Checkout flow             2026-10-05 12:30                      1:05     7 │
         │   Login                     2026-10-05 12:30                      0:12     3 │
         │                                                                              │
@@ -112,7 +114,7 @@ describe('src/tui/render/render-app.ts', () => {
         │                                                                              │
         │                                                                              │
         ╰──────────────────────────────────────────────────────────────────────────────╯
-         ↑↓ move  enter replay  t timeline  r rename  d delete  n new  esc back         "
+         ↑↓ move  enter replay  h mode  t timeline  r rename  d delete  n new  esc back "
       `);
   });
 
@@ -131,6 +133,7 @@ describe('src/tui/render/render-app.ts', () => {
       name: 'Checkout flow',
       events: clicks(6),
       startedAtMs: 0,
+      timing: RECORDED_TIMING,
       view: {
         status: 'running',
         errorMessage: null,
@@ -146,7 +149,7 @@ describe('src/tui/render/render-app.ts', () => {
       .toMatchInlineSnapshot(`
         "╭─ Replay · Checkout flow ─────────────────────────────────────────────────────╮
         │ ▶ Running                                                00:04.200  step 3/6 │
-        │ Brave · managed                                                              │
+        │ Brave · managed · recorded timing                                            │
         │ ──────────────────────────────────────────────────────────────────────────── │
         │ ✓ +00:00.000        click         Step 0                                +2ms │
         │ ✓ +00:01.000 ━━━    click         Step 1                                +5ms │

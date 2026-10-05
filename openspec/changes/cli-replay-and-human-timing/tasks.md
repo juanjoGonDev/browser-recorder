@@ -41,11 +41,11 @@ HARD RULES (all tasks): headless tests only; no main-world code; no `Runtime.ena
 
 ## WP2: Launch reuse and TUI
 
-- [ ] 2.1 RED/GREEN `src/composition/launch-replay.ts` extracted from `Composition.startReplay`, returning `{ recording, live, warnings, released }`; update `create-app-services.ts`, `replay-views.ts`. Test: `tests/unit/composition/`, fakes.
-- [ ] 2.2 RED/GREEN `resolve-paths.ts` export `findPackageRoot`; `package-version.ts` equals `package.json`.
-- [ ] 2.3 RED/GREEN TUI domain (`app-state`, `intent`, `keymap`, `app-action`, `app-reducer`, `reduce-library`): `h` toggles; Toggle, Not remembered.
-- [ ] 2.4 RED/GREEN `replay-flow`, `tui-controller`, `app-services` (`replay.start(slug, timing)`), `library-screen`, `replay-screen`, `layout`, `ansi`: Mode display, key hint, no drift column in human mode.
-- [ ] 2.5 REFACTOR; `pnpm test`.
+- [x] 2.1 RED/GREEN `src/composition/launch-replay.ts` extracted from `Composition.startReplay`, returning `{ recording, live, warnings, released }`; update `create-app-services.ts`, `replay-views.ts`. Test: `tests/unit/composition/`, fakes.
+- [x] 2.2 RED/GREEN `resolve-paths.ts` export `findPackageRoot`; `package-version.ts` equals `package.json`.
+- [x] 2.3 RED/GREEN TUI domain (`app-state`, `intent`, `keymap`, `app-action`, `app-reducer`, `reduce-library`): `h` toggles; Toggle, Not remembered.
+- [x] 2.4 RED/GREEN `replay-flow`, `tui-controller`, `app-services` (`replay.start(slug, timing)`), `library-screen`, `replay-screen`, `layout`, `ansi`: Mode display, key hint, no drift column in human mode.
+- [x] 2.5 REFACTOR; `pnpm test`.
 
 ## WP3: CLI feature
 

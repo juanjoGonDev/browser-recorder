@@ -27,7 +27,10 @@ export interface AppPaths {
 const PACKAGE_NAME = 'browser-recorder';
 const PACKAGE_FILE = 'package.json';
 
-function isOurPackage(directory: string, deps: PathDeps): boolean {
+function isOurPackage(
+  directory: string,
+  deps: Pick<PathDeps, 'readText' | 'exists'>,
+): boolean {
   const manifest = path.join(directory, PACKAGE_FILE);
   if (!deps.exists(manifest)) return false;
   try {
@@ -38,7 +41,11 @@ function isOurPackage(directory: string, deps: PathDeps): boolean {
   }
 }
 
-function findPackageRoot(startDirectory: string, deps: PathDeps): string {
+/** The nearest directory upward whose package.json is this package's. */
+export function findPackageRoot(
+  startDirectory: string,
+  deps: Pick<PathDeps, 'readText' | 'exists'>,
+): string {
   let directory = startDirectory;
   for (;;) {
     if (isOurPackage(directory, deps)) return directory;

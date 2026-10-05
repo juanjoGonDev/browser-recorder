@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
+import {
+  RECORDED_TIMING,
+  humanTiming,
+} from '../../../src/shared/domain/replay-timing.ts';
 import type { Recording } from '../../../src/shared/domain/recording.ts';
 import type { RecordingEvent } from '../../../src/shared/domain/recording-event.ts';
 import type { AppAction } from '../../../src/tui/domain/app-action.ts';
@@ -89,6 +93,7 @@ function library(count: number, selected = 0): LibraryScreen {
     cursor: { selected, top: 0 },
     mode: { kind: 'browse' },
     error: null,
+    timing: RECORDED_TIMING,
   };
 }
 
@@ -558,6 +563,34 @@ describe('src/tui/domain/app-reducer.ts', () => {
     });
   });
 
+  describe('replay timing', () => {
+    const timingOf = (state: AppState): unknown =>
+      (state.screen as LibraryScreen).timing;
+
+    it('toggles recorded and human on the library screen', () => {
+      const once = reduce(on(library(1)), { type: 'toggle-timing' });
+      expect(timingOf(once)).toEqual(humanTiming());
+      expect(timingOf(reduce(once, { type: 'toggle-timing' }))).toEqual(
+        RECORDED_TIMING,
+      );
+    });
+
+    it('ignores the toggle on any other screen', () => {
+      const menu = on({ kind: 'main-menu', selected: 1 });
+      expect(reduce(menu, { type: 'toggle-timing' })).toEqual(menu);
+    });
+
+    it('is not remembered: opening the library again starts recorded', () => {
+      const human = reduce(on(library(1)), { type: 'toggle-timing' });
+      const reopened = reduce(
+        human,
+        { type: 'navigate', target: 'main-menu' },
+        { type: 'navigate', target: 'library' },
+      );
+      expect(timingOf(reopened)).toEqual(RECORDED_TIMING);
+    });
+  });
+
   describe('timeline and replay', () => {
     it('opens a timeline on the first event', () => {
       const state = reduce(on(library(1)), {
@@ -577,6 +610,7 @@ describe('src/tui/domain/app-reducer.ts', () => {
         recording,
         view: idleReplay,
         warnings: ['Brave was not found: replaying on bundled Chromium'],
+        timing: humanTiming(),
       });
       const screen = started.screen as ReplayScreen;
       expect(screen).toMatchObject({
@@ -586,6 +620,7 @@ describe('src/tui/domain/app-reducer.ts', () => {
         events: recording.events,
         browser: recording.browser,
         warnings: ['Brave was not found: replaying on bundled Chromium'],
+        timing: humanTiming(),
       });
       const done: ReplayView = {
         status: 'succeeded',

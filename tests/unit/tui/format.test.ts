@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  RECORDED_TIMING,
+  humanTiming,
+} from '../../../src/shared/domain/replay-timing.ts';
+import {
   formatCreated,
   formatDrift,
   formatDuration,
   formatGap,
+  formatTiming,
   gapBar,
   pluralize,
   spinnerFrame,
@@ -46,6 +51,14 @@ describe('src/tui/render/format.ts', () => {
     expect(formatDrift(-3)).toBe('-3ms');
     expect(formatDrift(0)).toBe('0ms');
     expect(formatDrift(1500)).toBe('+1.5s');
+  });
+
+  it('labels the timing mode with its range', () => {
+    expect(formatTiming(RECORDED_TIMING)).toBe('recorded timing');
+    expect(formatTiming(humanTiming())).toBe('human timing 250-900 ms');
+    expect(formatTiming(humanTiming({ minMs: 0, maxMs: 60_000 }))).toBe(
+      'human timing 0-60000 ms',
+    );
   });
 
   it('animates the spinner from the clock and loops', () => {

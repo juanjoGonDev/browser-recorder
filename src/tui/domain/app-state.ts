@@ -1,3 +1,4 @@
+import type { ReplayTiming } from '../../shared/domain/replay-timing.ts';
 import type { BrowserChoice } from '../../shared/domain/browser-choice.ts';
 import type { Recording } from '../../shared/domain/recording.ts';
 import type { RecordingEvent } from '../../shared/domain/recording-event.ts';
@@ -75,6 +76,8 @@ export interface LibraryScreen {
   readonly cursor: ListCursor;
   readonly mode: LibraryMode;
   readonly error: string | null;
+  /** How the next replay is paced; always recorded when the screen opens. */
+  readonly timing: ReplayTiming;
 }
 
 export interface TimelineScreen {
@@ -91,6 +94,8 @@ export interface ReplayScreen {
   readonly warnings: readonly string[];
   readonly events: readonly RecordingEvent[];
   readonly view: ReplayView;
+  /** The pacing this replay runs with. */
+  readonly timing: ReplayTiming;
   readonly startedAtMs: number;
 }
 

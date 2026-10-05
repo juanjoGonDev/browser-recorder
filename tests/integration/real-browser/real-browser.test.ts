@@ -3,6 +3,7 @@ import { access } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { RECORDED_TIMING } from '../../../src/shared/domain/replay-timing.ts';
 import { nodeProcessProbe } from '../../../src/browser-profiles/adapters/node-process-probe.ts';
 import { nodeProfileFileSystem } from '../../../src/browser-profiles/adapters/node-profile-file-system.ts';
 import { createProfileStore } from '../../../src/browser-profiles/application/profile-store.ts';
@@ -179,9 +180,9 @@ describe.runIf(isRealBrowserEnabled(process.env))(
           browser: choice,
         }),
       ).rejects.toThrow(/profile is in use/);
-      await expect(services.replay.start('held-profile')).rejects.toThrow(
-        /profile is in use/,
-      );
+      await expect(
+        services.replay.start('held-profile', RECORDED_TIMING),
+      ).rejects.toThrow(/profile is in use/);
       await holder.stop();
     });
 
@@ -198,7 +199,10 @@ describe.runIf(isRealBrowserEnabled(process.env))(
       }, WAIT);
       await live.stop();
 
-      const replay = await services.replay.start('copied-profile');
+      const replay = await services.replay.start(
+        'copied-profile',
+        RECORDED_TIMING,
+      );
       const final = await replay.finished;
       expect(final.errorMessage).toBeNull();
       expect(final.status).toBe('succeeded');

@@ -1,3 +1,5 @@
+import type { ReplayTiming } from '../../shared/domain/replay-timing.ts';
+
 const MS_PER_SECOND = 1000;
 const SECONDS_PER_MINUTE = 60;
 const MIN_GAP_MS = 250;
@@ -49,6 +51,13 @@ export function spinnerFrame(nowMs: number): string {
   const index =
     Math.floor(Math.max(0, nowMs) / SPINNER_FRAME_MS) % frames.length;
   return frames[index] ?? '';
+}
+
+/** `recorded timing`, `human timing 250-900 ms`. */
+export function formatTiming(timing: ReplayTiming): string {
+  if (timing.kind === 'recorded') return 'recorded timing';
+  const { minMs, maxMs } = timing.delay;
+  return `human timing ${String(minMs)}-${String(maxMs)} ms`;
 }
 
 /** `1 event`, `2 events`. */

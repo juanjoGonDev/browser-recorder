@@ -4,7 +4,7 @@ import type { ReplayStepView, ReplayView } from '../../domain/app-views.ts';
 import { followRange } from '../../domain/list-window.ts';
 import type { Style } from '../ansi.ts';
 import { describeBrowser } from '../browser-summary.ts';
-import { formatDrift } from '../format.ts';
+import { formatDrift, formatTiming } from '../format.ts';
 import { spread } from '../layout.ts';
 import { sanitize } from '../../../shared/domain/terminal-text.ts';
 import type { RenderContext, ScreenView } from '../screen-view.ts';
@@ -31,13 +31,18 @@ function driftText(driftMs: number, style: Style): string {
     : style.muted(text);
 }
 
+/** Drift only means something when steps run at their recorded offsets. */
 function decorate(
   step: ReplayStepView | undefined,
   style: Style,
+  isDriftShown: boolean,
 ): RowDecoration {
   const base = { isHighlighted: false, suffix: '' };
   if (step?.status === 'done') {
-    const suffix = step.driftMs === null ? '' : driftText(step.driftMs, style);
+    const suffix =
+      step.driftMs === null || !isDriftShown
+        ? ''
+        : driftText(step.driftMs, style);
     return { ...base, symbol: '✓', tone: 'done', suffix };
   }
   if (step?.status === 'running') {
@@ -74,7 +79,9 @@ function header(screen: ReplayScreen, context: RenderContext): string[] {
       : `${style.danger('✖')} ${style.danger(sanitize(view.errorMessage))}`;
   return [
     spread(status, `${elapsed}${progress(screen)}`, width),
-    style.muted(sanitize(describeBrowser(screen.browser))),
+    style.muted(
+      `${sanitize(describeBrowser(screen.browser))} · ${formatTiming(screen.timing)}`,
+    ),
     ...warningLines(screen.warnings, context),
     closing,
   ];
@@ -99,7 +106,11 @@ export function renderReplayScreen(
     return timelineRow(events, index, {
       width: context.width,
       style: context.style,
-      decoration: decorate(step, context.style),
+      decoration: decorate(
+        step,
+        context.style,
+        screen.timing.kind === 'recorded',
+      ),
     });
   });
   return {

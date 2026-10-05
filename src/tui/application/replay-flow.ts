@@ -1,3 +1,4 @@
+import type { ReplayTiming } from '../../shared/domain/replay-timing.ts';
 import type { LiveReplayView, ReplayView } from '../domain/app-views.ts';
 import {
   messageOf,
@@ -6,7 +7,7 @@ import {
 } from './controller-deps.ts';
 
 export interface ReplayFlow {
-  start(slug: string): Promise<void>;
+  start(slug: string, timing: ReplayTiming): Promise<void>;
   /** Asks the running script to stop; a no-op when nothing is running. */
   cancel(): Promise<void>;
 }
@@ -30,17 +31,18 @@ class LiveReplayFlow implements ReplayFlow {
     this.deps = deps;
   }
 
-  async start(slug: string): Promise<void> {
+  async start(slug: string, timing: ReplayTiming): Promise<void> {
     const { store, services } = this.deps;
     try {
       const recording = await services.library.load(slug);
-      const live = await services.replay.start(slug);
+      const live = await services.replay.start(slug, timing);
       syncClock(this.deps);
       store.dispatch({
         type: 'replay-started',
         recording,
         view: STARTING_VIEW,
         warnings: live.warnings,
+        timing,
       });
       this.live = live;
       live.subscribe((view) => {

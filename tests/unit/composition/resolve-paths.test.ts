@@ -4,7 +4,10 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { resolveAppPaths } from '../../../src/composition/resolve-paths.ts';
+import {
+  findPackageRoot,
+  resolveAppPaths,
+} from '../../../src/composition/resolve-paths.ts';
 import type { PathDeps } from '../../../src/composition/resolve-paths.ts';
 
 let scratch: string;
@@ -131,5 +134,14 @@ describe('src/composition/resolve-paths.ts', () => {
     expect(resolveAppPaths(entry, depsWithCli('/cli.js')).packageRoot).toBe(
       root,
     );
+  });
+
+  it('exports the package root lookup for the commands that need the manifest', () => {
+    const root = installPackage('browser-recorder');
+    const nested = path.join(root, 'dist', 'composition');
+    expect(findPackageRoot(nested, depsWithCli('/cli.js'))).toBe(root);
+    expect(() =>
+      findPackageRoot(path.join(scratch, 'lonely'), depsWithCli('/cli.js')),
+    ).toThrow(/package root/i);
   });
 });

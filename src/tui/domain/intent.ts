@@ -32,6 +32,7 @@ export type Intent =
       readonly action: 'accept' | 'dismiss';
     }
   | { readonly kind: 'replay-selected' }
+  | { readonly kind: 'toggle-timing' }
   | { readonly kind: 'show-timeline' }
   | { readonly kind: 'begin-rename' }
   | { readonly kind: 'begin-delete' }

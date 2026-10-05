@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { RECORDED_TIMING } from '../../../src/shared/domain/replay-timing.ts';
 import type { KeyInput } from '../../../src/tui/domain/key-input.ts';
 import type {
   AppState,
@@ -56,6 +57,7 @@ const library: LibraryScreen = {
   cursor: { selected: 0, top: 0 },
   mode: { kind: 'browse' },
   error: null,
+  timing: RECORDED_TIMING,
 };
 
 function press(state: AppState, key: KeyInput): Intent | null {
@@ -314,6 +316,18 @@ describe('src/tui/domain/keymap.ts', () => {
       expect(press(browse, char('q'))).toEqual({ kind: 'quit' });
     });
 
+    it('toggles the replay timing with h while browsing only', () => {
+      expect(press(on(library), char('h'))).toEqual({ kind: 'toggle-timing' });
+      const rename = on({
+        ...library,
+        mode: { kind: 'rename', field: emptyField('a') },
+      });
+      expect(press(rename, char('h'))).toEqual({
+        kind: 'edit-text',
+        edit: { kind: 'insert', text: 'h' },
+      });
+    });
+
     it('edits the name inline while renaming', () => {
       const rename = on({
         ...library,
@@ -374,6 +388,7 @@ describe('src/tui/domain/keymap.ts', () => {
         warnings: [],
         name: 'n',
         events: [],
+        timing: RECORDED_TIMING,
         startedAtMs: 0,
         view: { status, steps: [], errorMessage: null },
       });

@@ -1,5 +1,6 @@
 import type { BrowserChoice } from '../../src/shared/domain/browser-choice.ts';
 import type { Recording } from '../../src/shared/domain/recording.ts';
+import type { ReplayTiming } from '../../src/shared/domain/replay-timing.ts';
 import type {
   AppServices,
   NewRecordingRequest,
@@ -100,6 +101,8 @@ export interface FakeServicesHandle {
   readonly removed: string[];
   readonly renamed: { slug: string; name: string }[];
   readonly replayed: string[];
+  /** The timing each replay was started with, in order. */
+  readonly replayTimings: ReplayTiming[];
   entries: LibraryEntryView[];
   browsers: readonly BrowserOptionView[];
   environment: (onLine: (line: string) => void) => Promise<EnvironmentView>;
@@ -124,6 +127,7 @@ export function createFakeServices(): FakeServicesHandle {
     removed: [],
     renamed: [],
     replayed: [],
+    replayTimings: [],
     entries: [],
     browsers: BROWSER_VIEWS,
     environment: () =>
@@ -179,8 +183,9 @@ export function createFakeServices(): FakeServicesHandle {
         },
       },
       replay: {
-        start: (slug) => {
+        start: (slug, timing) => {
           handle.replayed.push(slug);
+          handle.replayTimings.push(timing);
           return Promise.resolve(replay);
         },
       },

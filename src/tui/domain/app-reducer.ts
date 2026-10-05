@@ -6,6 +6,7 @@ import type {
   RecordingScreen,
   Screen,
 } from './app-state.ts';
+import { RECORDED_TIMING } from '../../shared/domain/replay-timing.ts';
 import { MAIN_MENU_ITEMS } from './main-menu-items.ts';
 import {
   beginDelete,
@@ -18,6 +19,7 @@ import {
   pageListSelection,
   resizeLists,
   timelineOpened,
+  toggleReplayTiming,
 } from './reduce-library.ts';
 import {
   blankForm,
@@ -80,6 +82,7 @@ function screenFor(target: MenuTarget): Screen {
         cursor: { selected: 0, top: 0 },
         mode: { kind: 'browse' },
         error: null,
+        timing: RECORDED_TIMING,
       };
   }
 }
@@ -168,6 +171,7 @@ const handlers: Handlers = {
   'begin-delete': beginDelete,
   'cancel-mode': cancelMode,
   'library-error': (state, action) => libraryError(state, action.message),
+  'toggle-timing': toggleReplayTiming,
   'timeline-opened': (state, action) => timelineOpened(state, action.recording),
   'replay-started': (state, action) => ({
     ...state,
@@ -178,6 +182,7 @@ const handlers: Handlers = {
       warnings: action.warnings,
       events: action.recording.events,
       view: action.view,
+      timing: action.timing,
       startedAtMs: state.nowMs,
     },
   }),

@@ -223,7 +223,10 @@ class IntentController implements TuiController {
       return;
     }
     const entry = this.library.selectedEntry();
-    if (entry !== null) await this.replay.start(entry.slug);
+    const { screen } = this.deps.store.getState();
+    if (entry !== null && screen.kind === 'library') {
+      await this.replay.start(entry.slug, screen.timing);
+    }
   }
 
   private buildHandlers(): Handlers {
@@ -286,6 +289,9 @@ class IntentController implements TuiController {
       'respond-dialog': (intent) =>
         this.recording.respondToDialog(intent.action),
       'replay-selected': () => this.replaySelected(),
+      'toggle-timing': () => {
+        store.dispatch({ type: 'toggle-timing' });
+      },
       'show-timeline': () => this.library.showTimeline(),
       'begin-rename': () => {
         store.dispatch({ type: 'begin-rename' });

@@ -1,4 +1,5 @@
 import type { BrowserChoice } from '../../shared/domain/browser-choice.ts';
+import type { ReplayTiming } from '../../shared/domain/replay-timing.ts';
 import type { Recording } from '../../shared/domain/recording.ts';
 import type {
   BrowserOptionView,
@@ -56,12 +57,14 @@ export type AppAction =
   | { readonly type: 'begin-delete' }
   | { readonly type: 'cancel-mode' }
   | { readonly type: 'library-error'; readonly message: string | null }
+  | { readonly type: 'toggle-timing' }
   | { readonly type: 'timeline-opened'; readonly recording: Recording }
   | {
       readonly type: 'replay-started';
       readonly recording: Recording;
       readonly view: ReplayView;
       readonly warnings: readonly string[];
+      readonly timing: ReplayTiming;
     }
   | { readonly type: 'replay-updated'; readonly view: ReplayView }
   | { readonly type: 'quit' };

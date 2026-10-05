@@ -8,32 +8,22 @@ import type {
   LiveRecording,
   StartRecordingRequest,
 } from '../recording-capture/application/recording-session.ts';
-import { startReplay } from '../replay/application/replay-runner.ts';
-import type { ProcessSpawner } from '../replay/application/ports/process-spawner.ts';
 import type { Recording } from '../shared/domain/recording.ts';
 import type { LibraryService } from '../script-library/application/library-service.ts';
 import { validateName } from '../script-library/domain/validate-name.ts';
 import { validateStartUrl } from '../script-library/domain/validate-start-url.ts';
 import type { BrowserChoice } from '../shared/domain/browser-choice.ts';
+import type { ReplayTiming } from '../shared/domain/replay-timing.ts';
 import type { AppServices } from '../tui/application/ports/app-services.ts';
 import type {
   EnvironmentView,
   LibraryEntryView,
 } from '../tui/domain/app-views.ts';
 import type { LaunchPlan, LaunchPlanner } from './browser-launch-plan.ts';
-import { toReplayEnvironment } from './browser-launch-plan.ts';
 import type { BrowserViews } from './browser-views.ts';
 import { toLiveRecordingView } from './recording-views.ts';
+import { launchReplay, type ReplayDeps } from './launch-replay.ts';
 import { toLiveReplayView } from './replay-views.ts';
-
-export interface ReplayDeps {
-  readonly spawner: ProcessSpawner;
-  readonly nodePath: string;
-  readonly cancelGraceMs: number;
-  /** The package root: the generated script resolves `patchright` from it. */
-  readonly cwd: string;
-  readonly scriptPathOf: (slug: string) => string;
-}
 
 export interface AppServicesDeps {
   readonly library: LibraryService;
@@ -134,7 +124,7 @@ class Composition {
       recording: {
         start: (request) => this.startRecording(request),
       },
-      replay: { start: (slug) => this.startReplay(slug) },
+      replay: { start: (slug, timing) => this.startReplay(slug, timing) },
       persistActiveRecording: () => this.persistActiveRecording(),
     };
   }
@@ -225,28 +215,14 @@ class Composition {
     return hint === null ? message : `${message}\n${hint}`;
   }
 
-  private async startReplay(slug: string) {
-    const { library, replay, isHeadless, planner } = this.deps;
-    // A script written before Patchright imports a package that is gone.
-    const recording = await library.regenerateScript(slug);
-    const plan = await planner.forReplay(recording.browser);
-    const live = startReplay(
-      {
-        spawner: replay.spawner,
-        nodePath: replay.nodePath,
-        cancelGraceMs: replay.cancelGraceMs,
-      },
-      {
-        scriptPath: replay.scriptPathOf(slug),
-        cwd: replay.cwd,
-        isHeadless,
-        launchEnv: toReplayEnvironment(plan.target),
-        stepOffsetsMs: recording.events.map((event) => event.offsetMs),
-      },
+  private async startReplay(slug: string, timing: ReplayTiming) {
+    const { library, replay, isHeadless, planner, installation } = this.deps;
+    const { live, warnings } = await launchReplay(
+      { library, planner, installation, replay },
+      slug,
+      { timing, isHeadless },
     );
-    const release = () => releaseQuietly(plan);
-    void live.finished.then(release, release);
-    return toLiveReplayView(live, plan.warnings);
+    return toLiveReplayView(live, warnings);
   }
 
   private async persistActiveRecording(): Promise<void> {

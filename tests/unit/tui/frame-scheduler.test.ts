@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { RECORDED_TIMING } from '../../../src/shared/domain/replay-timing.ts';
 import { createAppStore } from '../../../src/tui/application/app-store.ts';
 import { createFrameScheduler } from '../../../src/tui/application/frame-scheduler.ts';
 import type { Screen } from '../../../src/tui/domain/app-state.ts';
@@ -41,6 +42,7 @@ const library: Screen = {
   cursor: { selected: 0, top: 0 },
   mode: { kind: 'browse' },
   error: null,
+  timing: RECORDED_TIMING,
 };
 
 describe('src/tui/application/frame-scheduler.ts', () => {
@@ -91,6 +93,7 @@ describe('src/tui/application/frame-scheduler.ts', () => {
       name: 'n',
       events: [],
       startedAtMs: 0,
+      timing: RECORDED_TIMING,
       view: { status: 'running', steps: [], errorMessage: null },
     };
     for (const screen of [replay, initialState().screen]) {

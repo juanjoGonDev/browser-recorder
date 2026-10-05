@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import type { BrowserContext, Page } from 'patchright';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { RECORDED_TIMING } from '../../src/shared/domain/replay-timing.ts';
 import { createAppServices } from '../../src/composition/create-app-services.ts';
 import type { ComposedServices } from '../../src/composition/create-app-services.ts';
 import {
@@ -117,7 +118,7 @@ describe('record, generate and replay round trip', () => {
     final: ReplayView;
     startedOrder: number[];
   }> {
-    const replay = await services.replay.start(slug);
+    const replay = await services.replay.start(slug, RECORDED_TIMING);
     const startedOrder: number[] = [];
     replay.subscribe((view) => {
       for (const step of view.steps) {

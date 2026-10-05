@@ -1,3 +1,7 @@
+import {
+  RECORDED_TIMING,
+  humanTiming,
+} from '../../../src/shared/domain/replay-timing.ts';
 import { describe, expect, it, vi } from 'vitest';
 import { ProfileInUseError } from '../../../src/browser-profiles/domain/profile-errors.ts';
 import { createLaunchPlanner } from '../../../src/composition/browser-launch-plan.ts';
@@ -318,7 +322,9 @@ describe('src/composition/create-app-services.ts', () => {
       });
       await live.stop();
       expect(live.warnings).toEqual([]);
-      expect((await services.replay.start('quiet')).warnings).toEqual([]);
+      expect(
+        (await services.replay.start('quiet', RECORDED_TIMING)).warnings,
+      ).toEqual([]);
     });
   });
 
@@ -634,7 +640,7 @@ describe('src/composition/create-app-services.ts', () => {
 
     it('spawns node on the script of the recording, without a shell', async () => {
       const { services, spawner } = await recorded({ isHeadless: true });
-      await services.replay.start('replayed');
+      await services.replay.start('replayed', RECORDED_TIMING);
       expect(spawner.children[0]?.request).toEqual({
         command: NODE_PATH,
         args: ['/library/replayed/script.mjs'],
@@ -653,7 +659,7 @@ describe('src/composition/create-app-services.ts', () => {
 
     it('reports step drift as the script prints its markers', async () => {
       const { services, spawner } = await recorded();
-      const live = await services.replay.start('replayed');
+      const live = await services.replay.start('replayed', RECORDED_TIMING);
       const views: ReplayView[] = [];
       live.subscribe((view) => views.push(view));
       spawner.children[0]?.stdout('::step 0 1005\n::step 1 2090\n');
@@ -667,9 +673,29 @@ describe('src/composition/create-app-services.ts', () => {
       });
     });
 
+    it('paces the script by the timing the view asks for and reports no drift', async () => {
+      const { services, spawner } = await recorded();
+      const live = await services.replay.start(
+        'replayed',
+        humanTiming({ minMs: 10, maxMs: 20 }),
+      );
+      const views: ReplayView[] = [];
+      live.subscribe((view) => views.push(view));
+      spawner.children[0]?.stdout('::step 1 2090\n');
+      expect(spawner.children[0]?.request.env).toMatchObject({
+        BROWSER_RECORDER_TIMING: 'human',
+        BROWSER_RECORDER_HUMAN_DELAY: '10-20',
+      });
+      expect(views.at(-1)?.steps[1]).toStrictEqual({
+        index: 1,
+        status: 'running',
+        driftMs: null,
+      });
+    });
+
     it('finishes as succeeded when the script exits cleanly', async () => {
       const { services, spawner } = await recorded();
-      const live = await services.replay.start('replayed');
+      const live = await services.replay.start('replayed', RECORDED_TIMING);
       spawner.children[0]?.stdout(
         '::step 0 1000\n::step 1 2000\n::done 2001\n',
       );
@@ -682,7 +708,7 @@ describe('src/composition/create-app-services.ts', () => {
 
     it('finishes as failed with the script error', async () => {
       const { services, spawner } = await recorded();
-      const live = await services.replay.start('replayed');
+      const live = await services.replay.start('replayed', RECORDED_TIMING);
       spawner.children[0]?.stdout('::error 1 "locator not found"\n');
       spawner.children[0]?.exit(1);
       await expect(live.finished).resolves.toMatchObject({
@@ -693,7 +719,7 @@ describe('src/composition/create-app-services.ts', () => {
 
     it('asks the script to abort when cancelled', async () => {
       const { services, spawner } = await recorded();
-      const live = await services.replay.start('replayed');
+      const live = await services.replay.start('replayed', RECORDED_TIMING);
       const cancelled = live.cancel();
       expect(spawner.children[0]?.stdin).toEqual(['abort\n']);
       spawner.children[0]?.exit(130);
@@ -715,7 +741,7 @@ describe('src/composition/create-app-services.ts', () => {
         browser: BRAVE_CHOICE,
       });
       await live.stop();
-      await rig.services.replay.start('stored');
+      await rig.services.replay.start('stored', RECORDED_TIMING);
       expect(rig.spawner.children[0]?.request.env).toEqual({
         BROWSER_RECORDER_EXECUTABLE_PATH: '/fixture/Brave Browser',
         BROWSER_RECORDER_USER_DATA_DIR: '/fixture/brave/managed',
@@ -733,7 +759,7 @@ describe('src/composition/create-app-services.ts', () => {
         recordingJson: repository.files.get('replayed')?.recordingJson ?? '',
         scriptMjs: "import 'playwright';",
       });
-      await services.replay.start('replayed');
+      await services.replay.start('replayed', RECORDED_TIMING);
       expect(repository.files.get('replayed')?.scriptMjs).toContain(
         'patchright',
       );
@@ -761,7 +787,10 @@ describe('src/composition/create-app-services.ts', () => {
           scriptMjs: '',
         },
       );
-      const replay = await withoutBrave.services.replay.start('was-brave');
+      const replay = await withoutBrave.services.replay.start(
+        'was-brave',
+        RECORDED_TIMING,
+      );
       expect(replay.warnings).toEqual([
         'Brave is not installed here: replaying on the bundled Chromium instead.',
       ]);
@@ -779,7 +808,10 @@ describe('src/composition/create-app-services.ts', () => {
       });
       await live.stop();
       const before = rig.profiles.releases();
-      const replay = await rig.services.replay.start('releasing');
+      const replay = await rig.services.replay.start(
+        'releasing',
+        RECORDED_TIMING,
+      );
       expect(rig.profiles.releases()).toBe(before);
       rig.spawner.children[0]?.exit(0);
       await replay.finished;
@@ -797,15 +829,17 @@ describe('src/composition/create-app-services.ts', () => {
       });
       await live.stop();
       rig.profiles.failNextPrepare(new ProfileInUseError('brave', '/x'));
-      await expect(rig.services.replay.start('busy')).rejects.toThrow(
-        /Brave profile is in use/,
-      );
+      await expect(
+        rig.services.replay.start('busy', RECORDED_TIMING),
+      ).rejects.toThrow(/Brave profile is in use/);
       expect(rig.spawner.children).toEqual([]);
     });
 
     it('rejects an unknown recording with a readable error', async () => {
       const { services } = setup();
-      await expect(services.replay.start('missing')).rejects.toThrow();
+      await expect(
+        services.replay.start('missing', RECORDED_TIMING),
+      ).rejects.toThrow();
     });
   });
 });

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
+import {
+  RECORDED_TIMING,
+  humanTiming,
+} from '../../../src/shared/domain/replay-timing.ts';
 import type { LibraryScreen } from '../../../src/tui/domain/app-state.ts';
 import type { LibraryEntryView } from '../../../src/tui/domain/app-views.ts';
 import { emptyField } from '../../../src/tui/domain/text-input.ts';
@@ -21,6 +25,7 @@ function screen(
     cursor: { selected, top },
     mode: { kind: 'browse' },
     error: null,
+    timing: RECORDED_TIMING,
   };
 }
 
@@ -38,8 +43,35 @@ describe('src/tui/render/screens/library-screen.ts', () => {
         screen([validEntry('a', 'Alpha')]),
         plainContext({ isBrowserAvailable }),
       ).hints.map((hint) => hint.key);
-    expect(keys(true)).toEqual(['↑↓', 'enter', 't', 'r', 'd', 'n', 'esc']);
+    expect(keys(true)).toEqual(['↑↓', 'enter', 'h', 't', 'r', 'd', 'n', 'esc']);
     expect(keys(false)).toEqual(['↑↓', 't', 'r', 'd', 'esc']);
+  });
+
+  it('shows the replay timing mode next to the position', () => {
+    const recorded = renderLibraryScreen(
+      screen([validEntry('a', 'Alpha')]),
+      plainContext(),
+    );
+    const human = renderLibraryScreen(
+      {
+        ...screen([validEntry('a', 'Alpha')]),
+        timing: humanTiming({ minMs: 10, maxMs: 20 }),
+      },
+      plainContext(),
+    );
+    expect(recorded.body.join('\n')).toContain('recorded timing');
+    expect(human.body.join('\n')).toContain('human timing 10-20 ms');
+  });
+
+  it('labels the timing key in the hints', () => {
+    const hints = renderLibraryScreen(
+      screen([validEntry('a', 'Alpha')]),
+      plainContext(),
+    ).hints;
+    expect(hints.find((hint) => hint.key === 'h')).toStrictEqual({
+      key: 'h',
+      label: 'mode',
+    });
   });
 
   it('explains the empty library without offering to record while offline', () => {
@@ -188,6 +220,6 @@ describe('src/tui/render/screens/library-screen.ts', () => {
       screen([validEntry('a')]),
       plainContext(),
     ).hints.map((hint) => hint.key);
-    expect(keys).toEqual(['↑↓', 'enter', 't', 'r', 'd', 'n', 'esc']);
+    expect(keys).toEqual(['↑↓', 'enter', 'h', 't', 'r', 'd', 'n', 'esc']);
   });
 });

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
+import {
+  RECORDED_TIMING,
+  humanTiming,
+} from '../../../src/shared/domain/replay-timing.ts';
 import type {
   ReplayScreen,
   TimelineScreen,
@@ -28,6 +32,7 @@ function replay(view: ReplayView, count = 5): ReplayScreen {
     name: 'Checkout flow',
     events: clicks(count),
     view,
+    timing: RECORDED_TIMING,
     startedAtMs: 0,
   };
 }
@@ -238,5 +243,31 @@ describe('src/tui/render/screens/replay-screen.ts', () => {
       plainContext({ style: createStyle(true) }),
     ).body.join('\n');
     expect(text).toContain('\u001b[33m+250ms');
+  });
+});
+
+describe('src/tui/render/screens/replay-screen.ts (timing)', () => {
+  it('shows the recorded mode label', () => {
+    const text = renderReplayScreen(replay(running), plainContext()).body.join(
+      '\n',
+    );
+    expect(text).toContain('recorded timing');
+  });
+
+  it('shows the human mode label with its range', () => {
+    const screen = { ...replay(running), timing: humanTiming() };
+    const text = renderReplayScreen(screen, plainContext()).body.join('\n');
+    expect(text).toContain('human timing 250-900 ms');
+    expect(text).not.toContain('recorded timing');
+  });
+
+  it('shows no drift column in human mode even if a view carries drift', () => {
+    const recorded = renderReplayScreen(replay(running), plainContext());
+    const human = renderReplayScreen(
+      { ...replay(running), timing: humanTiming() },
+      plainContext(),
+    );
+    expect(recorded.body.join('\n')).toContain('+4ms');
+    expect(human.body.join('\n')).not.toMatch(/[+-]\d+ms/u);
   });
 });

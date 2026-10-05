@@ -6,6 +6,7 @@ import type {
 } from './app-state.ts';
 import type { LibraryEntryView } from './app-views.ts';
 import type { Recording } from '../../shared/domain/recording.ts';
+import { toggleTiming } from '../../shared/domain/replay-timing.ts';
 import { moveCursor, pageCursor, refitCursor } from './list-window.ts';
 import { updateScreen } from './screen-update.ts';
 import { emptyField } from './text-input.ts';
@@ -40,6 +41,13 @@ export function libraryError(
   message: string | null,
 ): AppState {
   return onLibrary(state, (screen) => ({ ...screen, error: message }));
+}
+
+export function toggleReplayTiming(state: AppState): AppState {
+  return onLibrary(state, (screen) => ({
+    ...screen,
+    timing: toggleTiming(screen.timing),
+  }));
 }
 
 export function beginRename(state: AppState): AppState {

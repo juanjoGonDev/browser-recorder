@@ -5,7 +5,7 @@ import { visibleRange } from '../../domain/list-window.ts';
 import type { Style } from '../ansi.ts';
 import { describeBrowser } from '../browser-summary.ts';
 import { renderField } from '../field-view.ts';
-import { formatCreated, formatDuration } from '../format.ts';
+import { formatCreated, formatDuration, formatTiming } from '../format.ts';
 import { padEnd, spread } from '../layout.ts';
 import { sanitize } from '../../../shared/domain/terminal-text.ts';
 import type { RenderContext, ScreenView } from '../screen-view.ts';
@@ -113,7 +113,7 @@ function columnHeader(context: RenderContext): string {
 function statusLine(screen: LibraryScreen, context: RenderContext): string {
   const { style, width } = context;
   const position = style.muted(
-    `${String(screen.cursor.selected + 1)}/${String(screen.entries.length)}`,
+    `${formatTiming(screen.timing)} · ${String(screen.cursor.selected + 1)}/${String(screen.entries.length)}`,
   );
   return spread(promptOf(screen.mode, screen, context), position, width);
 }
@@ -167,7 +167,12 @@ function hintsFor(mode: LibraryMode, isBrowserAvailable: boolean): KeyHint[] {
   }
   return [
     { key: '↑↓', label: 'move' },
-    ...(isBrowserAvailable ? [{ key: 'enter', label: 'replay' }] : []),
+    ...(isBrowserAvailable
+      ? [
+          { key: 'enter', label: 'replay' },
+          { key: 'h', label: 'mode' },
+        ]
+      : []),
     { key: 't', label: 'timeline' },
     { key: 'r', label: 'rename' },
     { key: 'd', label: 'delete' },
