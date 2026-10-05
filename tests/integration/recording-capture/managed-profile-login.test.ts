@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -8,6 +8,7 @@ import type { SessionSignal } from '../../../src/recording-capture/application/p
 import { IN_PAGE_BUNDLE_PATH } from '../../support/build-in-page-bundle.ts';
 import { LOGIN_COOKIE, startLoginSite } from '../../support/login-site.ts';
 import type { LoginSite } from '../../support/login-site.ts';
+import { removeDir } from '../../support/remove-dir.ts';
 
 const WAIT = { timeout: 10_000, interval: 50 };
 
@@ -51,9 +52,7 @@ describe('src/recording-capture/adapters/patchright-browser-launcher.ts (managed
   });
   afterAll(async () => {
     await site.close();
-    await Promise.all(
-      directories.map((dir) => rm(dir, { recursive: true, force: true })),
-    );
+    await Promise.all(directories.map((dir) => removeDir(dir)));
   });
 
   it('keeps a login across two launches on the same managed directory', async () => {

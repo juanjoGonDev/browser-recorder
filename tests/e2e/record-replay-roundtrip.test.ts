@@ -1,4 +1,3 @@
-import { rmSync } from 'node:fs';
 import type { BrowserContext, Page } from 'patchright';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { RECORDED_TIMING } from '../../src/shared/domain/replay-timing.ts';
@@ -22,6 +21,7 @@ import { startFixtureServer } from '../support/fixture-server.ts';
 import { launchPersistent } from '../support/persistent-context.ts';
 import type { PersistentBrowser } from '../support/persistent-context.ts';
 import { createScratchDir } from '../support/scratch-root.ts';
+import { removeDirSync } from '../support/remove-dir.ts';
 
 /** Design: every replayed step starts within this of its recorded offset. */
 const DRIFT_TOLERANCE_MS = 100;
@@ -79,7 +79,7 @@ describe('record, generate and replay round trip', () => {
     await services.persistActiveRecording();
     await browser?.dispose();
     await server.close();
-    rmSync(scratch, { recursive: true, force: true });
+    removeDirSync(scratch);
   });
 
   function recordingPage(): Page {

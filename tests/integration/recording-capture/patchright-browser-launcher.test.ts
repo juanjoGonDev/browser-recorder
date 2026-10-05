@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -17,6 +17,7 @@ import {
 import { IN_PAGE_BUNDLE_PATH } from '../../support/build-in-page-bundle.ts';
 import type { FixtureServer } from '../../support/fixture-server.ts';
 import { startFixtureServer } from '../../support/fixture-server.ts';
+import { removeDir } from '../../support/remove-dir.ts';
 
 const LAUNCH_TIMEOUT_MS = 30_000;
 
@@ -52,9 +53,7 @@ describe('src/recording-capture/adapters/patchright-browser-launcher.ts', () => 
   });
   afterAll(async () => {
     await server.close();
-    await Promise.all(
-      profileDirs.map((dir) => rm(dir, { recursive: true, force: true })),
-    );
+    await Promise.all(profileDirs.map((dir) => removeDir(dir)));
   });
 
   describe('with the bundled browser, headless', () => {

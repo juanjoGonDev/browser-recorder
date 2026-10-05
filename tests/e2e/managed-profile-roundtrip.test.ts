@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -18,6 +18,7 @@ import { startFixtureServer } from '../support/fixture-server.ts';
 import { LOGIN_COOKIE, startLoginSite } from '../support/login-site.ts';
 import type { LoginSite } from '../support/login-site.ts';
 import { createScratchDir } from '../support/scratch-root.ts';
+import { removeDirSync } from '../support/remove-dir.ts';
 
 const WAIT = { timeout: 15_000, interval: 100 };
 const MANAGED: BrowserChoice = {
@@ -56,8 +57,8 @@ describe('record, generate and replay on a managed profile', () => {
     await services.persistActiveRecording();
     await site.close();
     await fixtures.close();
-    rmSync(scratch, { recursive: true, force: true });
-    rmSync(appData, { recursive: true, force: true });
+    removeDirSync(scratch);
+    removeDirSync(appData);
   });
 
   /** Records a visit to one page of the login site and saves it. */

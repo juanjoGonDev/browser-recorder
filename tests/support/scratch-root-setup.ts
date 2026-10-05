@@ -1,11 +1,10 @@
-import { rmSync } from 'node:fs';
-
 import { SCRATCH_ROOT } from './scratch-root.ts';
+import { removeDirSync } from './remove-dir.ts';
 
 const SWEPT_VARIABLE = 'BROWSER_RECORDER_SCRATCH_SWEPT';
 
 function sweep(): void {
-  rmSync(SCRATCH_ROOT, { recursive: true, force: true });
+  removeDirSync(SCRATCH_ROOT);
 }
 
 /**

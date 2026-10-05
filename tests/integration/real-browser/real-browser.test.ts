@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync } from 'node:fs';
 import { access } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -34,6 +34,7 @@ import {
 } from '../../support/real-browser.ts';
 import { snapshotTree } from '../../support/tree-snapshot.ts';
 import { createScratchDir } from '../../support/scratch-root.ts';
+import { removeDirSync } from '../../support/remove-dir.ts';
 
 const WAIT = { timeout: 20_000, interval: 100 };
 const WINDOW = { kind: 'window', width: 1280, height: 800 } as const;
@@ -110,8 +111,8 @@ describe.runIf(isRealBrowserEnabled(process.env))(
     afterAll(async () => {
       await services.persistActiveRecording();
       await site.close();
-      rmSync(scratch, { recursive: true, force: true });
-      rmSync(appData, { recursive: true, force: true });
+      removeDirSync(scratch);
+      removeDirSync(appData);
     });
 
     it('only ever copies from the fixture profile', () => {

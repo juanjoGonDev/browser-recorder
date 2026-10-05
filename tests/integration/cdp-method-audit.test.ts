@@ -1,6 +1,6 @@
 import { chromium } from 'patchright';
 import type { BrowserContext, Frame, Page } from 'patchright';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -16,6 +16,7 @@ import { IN_PAGE_BUNDLE_PATH } from '../support/build-in-page-bundle.ts';
 import { traceSessions } from '../support/cdp-trace.ts';
 import type { FixtureServer } from '../support/fixture-server.ts';
 import { startFixtureServer } from '../support/fixture-server.ts';
+import { removeDir } from '../support/remove-dir.ts';
 
 /** Every method a session was asked to send, before the guard looked at it. */
 const attempted = vi.hoisted((): string[] => []);
@@ -200,7 +201,7 @@ describe('CDP method audit of a recording session', () => {
 
   afterAll(async () => {
     await session.close();
-    await rm(profileDir, { recursive: true, force: true });
+    await removeDir(profileDir);
     await outer.close();
     await inner.close();
   });

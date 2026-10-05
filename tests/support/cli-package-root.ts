@@ -4,7 +4,6 @@ import {
   cpSync,
   mkdirSync,
   mkdtempSync,
-  rmSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
@@ -13,6 +12,7 @@ import path from 'node:path';
 
 import { buildApp } from '../../scripts/build.ts';
 import type { Recording } from '../../src/shared/domain/recording.ts';
+import { removeDirSync } from './remove-dir.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..', '..');
 const BUILD_TIMEOUT_MS = 120_000;
@@ -80,7 +80,7 @@ export async function createTempPackageRoot(): Promise<TempPackageRoot> {
     start,
     run: (args, env) => start(args, env).result,
     dispose() {
-      rmSync(root, { recursive: true, force: true });
+      removeDirSync(root);
     },
   };
 }

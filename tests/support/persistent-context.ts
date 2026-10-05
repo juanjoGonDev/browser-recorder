@@ -1,8 +1,9 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from 'patchright';
 import type { BrowserContext } from 'patchright';
+import { removeDir } from './remove-dir.ts';
 
 export interface PersistentBrowser {
   readonly context: BrowserContext;
@@ -37,7 +38,7 @@ export async function launchPersistent(
     userDataDir,
     async dispose() {
       await context.close().catch(() => undefined);
-      await rm(userDataDir, { recursive: true, force: true });
+      await removeDir(userDataDir);
     },
   };
 }

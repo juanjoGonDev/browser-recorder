@@ -1,6 +1,7 @@
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
+import { removeDirSync } from './remove-dir.ts';
 
 const BROWSERS_PATH_VARIABLE = 'PLAYWRIGHT_BROWSERS_PATH';
 const ISOLATED_ROOT_VARIABLE = 'BROWSER_RECORDER_ISOLATED_HOME';
@@ -69,6 +70,6 @@ export default function isolateHome(): () => void {
   }
   process.env[ISOLATED_ROOT_VARIABLE] = root;
   return () => {
-    rmSync(root, { recursive: true, force: true });
+    removeDirSync(root);
   };
 }
