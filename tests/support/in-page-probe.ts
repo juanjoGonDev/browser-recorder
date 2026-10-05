@@ -1,7 +1,11 @@
-import type { Page } from 'playwright';
+import type { Page } from 'patchright';
 import type * as InPageKit from './in-page-kit.ts';
 import type { ElementFunction } from './in-page-kit.ts';
 import { loadModule } from './bundle-in-page-module.ts';
+
+// Patchright evaluates in an isolated world unless told otherwise; the kit is
+// installed in the page's own world, so the probes must look there.
+const isMainWorld = false;
 
 type KitWindow = typeof globalThis & { inPageKit: typeof InPageKit };
 
@@ -19,6 +23,8 @@ export function probe(
   return page.evaluate(
     ([fn, sel]) => (window as unknown as KitWindow).inPageKit.probe(fn, sel),
     [name, selector] as const,
+    undefined,
+    isMainWorld,
   );
 }
 
@@ -28,6 +34,8 @@ export function deepCount(page: Page, selector: string): Promise<number> {
     (sel) =>
       (window as unknown as KitWindow).inPageKit.deepQueryAll(sel).length,
     selector,
+    undefined,
+    isMainWorld,
   );
 }
 
@@ -38,6 +46,8 @@ export function parentTagOf(
   return page.evaluate(
     (sel) => (window as unknown as KitWindow).inPageKit.parentTag(sel),
     selector,
+    undefined,
+    isMainWorld,
   );
 }
 
@@ -49,5 +59,7 @@ export function containsDeep(
   return page.evaluate(
     ([a, b]) => (window as unknown as KitWindow).inPageKit.containsDeep(a, b),
     [outer, inner] as const,
+    undefined,
+    isMainWorld,
   );
 }

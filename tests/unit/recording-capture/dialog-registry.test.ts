@@ -1,4 +1,4 @@
-import type { Dialog, Page } from 'playwright';
+import type { Dialog, Page } from 'patchright';
 import { describe, expect, it, vi } from 'vitest';
 import { createDialogRegistry } from '../../../src/recording-capture/adapters/dialog-registry.ts';
 

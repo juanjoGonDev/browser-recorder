@@ -182,7 +182,7 @@ jobs:
 
       - name: Install Chromium with system dependencies
         if: steps.baseline.outputs.ready == 'true'
-        run: pnpm exec playwright install --with-deps chromium
+        run: pnpm exec patchright install --with-deps chromium
 
       - name: Run quality checks
         if: steps.baseline.outputs.ready == 'true'

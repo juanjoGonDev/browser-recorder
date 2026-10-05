@@ -1,4 +1,4 @@
-import type { Page } from 'playwright';
+import type { Page } from 'patchright';
 import type { PageId } from '../../shared/domain/recording-event.ts';
 
 export interface PageIds {

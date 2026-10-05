@@ -13,7 +13,7 @@ const LOOPBACK = '127.0.0.1';
 
 /** The prelude's runtime driving a real headless Chromium, one scenario each. */
 function program(scenario: string): string {
-  return `import { chromium } from 'playwright';
+  return `import { chromium } from 'patchright';
 ${scriptPrelude}
 const browser = await chromium.launch({ headless: true, args: ['--site-per-process'] });
 const context = await browser.newContext();
@@ -135,10 +135,11 @@ describe('rt.scrollTo in the generated runtime', () => {
 
     it('runs nothing in the main world', async () => {
       const lines = await shadowTop(`
-        const before = await page.evaluate(() => Object.getOwnPropertyNames(window).length);
+        const inMainWorld = (read) => page.evaluate(read, undefined, undefined, false);
+        const before = await inMainWorld(() => Object.getOwnPropertyNames(window).length);
         await rt.scrollTo(page, [${deepBox}], [0, 150]);
-        const after = await page.evaluate(() => Object.getOwnPropertyNames(window).length);
-        console.log('spy ' + await page.evaluate(() => window.spy.calls));
+        const after = await inMainWorld(() => Object.getOwnPropertyNames(window).length);
+        console.log('spy ' + await inMainWorld(() => window.spy.calls));
         console.log('globals ' + (after - before));
         console.log('own ' + await page.locator('#deep').evaluate((e) => Object.getOwnPropertyNames(e).length));
       `);

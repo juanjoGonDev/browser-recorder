@@ -122,10 +122,10 @@ describe('ci.yml', () => {
   });
 
   it('installs Chromium, with system dependencies on Linux only', () => {
-    expect(ci).toContain('pnpm exec playwright install chromium');
-    expect(ci).toContain('pnpm exec playwright install --with-deps chromium');
+    expect(ci).toContain('pnpm exec patchright install chromium');
+    expect(ci).toContain('pnpm exec patchright install --with-deps chromium');
     expect(ci).toMatch(
-      /if: matrix\.os == 'linux'\n\s+run: pnpm exec playwright install --with-deps chromium/,
+      /if: matrix\.os == 'linux'\n\s+run: pnpm exec patchright install --with-deps chromium/,
     );
   });
 

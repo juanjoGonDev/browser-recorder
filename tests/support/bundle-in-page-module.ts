@@ -1,6 +1,6 @@
 import path from 'node:path';
 import esbuild from 'esbuild';
-import type { Page } from 'playwright';
+import type { Page } from 'patchright';
 
 const ROOT = path.resolve(import.meta.dirname, '..', '..');
 /** The global the bundled module's exports are reachable from in the page. */

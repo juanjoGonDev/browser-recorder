@@ -167,10 +167,18 @@ describe('src/recording-capture/in-page/scroll-listener.ts', () => {
       await harness.waitForDom('scroll');
       const plain = await site.openPlain('scroll-shadow.html');
       const traceOf = (page: typeof plain) =>
-        page.evaluate(() => ({
-          globals: Object.getOwnPropertyNames(window).sort(),
-          spyCalls: (window as unknown as { spy: { calls: number } }).spy.calls,
-        }));
+        page.evaluate(
+          () => ({
+            globals: Object.getOwnPropertyNames(window).sort(),
+            spyCalls: (window as unknown as { spy: { calls: number } }).spy
+              .calls,
+          }),
+          undefined,
+          undefined,
+          // Patchright evaluates in an isolated world by default; this
+          // check is about what the page's own world can see.
+          false,
+        );
       const recorded = await traceOf(harness.page);
       const untouched = await traceOf(plain);
       expect(recorded.spyCalls).toBe(0);

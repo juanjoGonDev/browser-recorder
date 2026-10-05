@@ -1,4 +1,4 @@
-import type { Dialog, Page } from 'playwright';
+import type { Dialog, Page } from 'patchright';
 import type { DialogType } from '../../shared/domain/recording-event.ts';
 import type { DialogResponse } from '../application/ports/browser-launcher.ts';
 

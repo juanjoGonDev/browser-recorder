@@ -48,11 +48,11 @@ function readNpmrc(): Map<string, string> {
 describe('findInexactVersions', () => {
   it('reports caret, tilde and range specifiers with their section', () => {
     const offenders = findInexactVersions({
-      dependencies: { playwright: '^1.63.0' },
+      dependencies: { patchright: '^1.63.0' },
       devDependencies: { vitest: '~5.0.1', eslint: '>=10.0.0', knip: '6.37.0' },
     });
     expect(offenders).toEqual([
-      'dependencies:playwright@^1.63.0',
+      'dependencies:patchright@^1.63.0',
       'devDependencies:vitest@~5.0.1',
       'devDependencies:eslint@>=10.0.0',
     ]);
@@ -70,9 +70,9 @@ describe('package.json dependency hygiene', () => {
     expect(findInexactVersions(readManifest())).toEqual([]);
   });
 
-  it('keeps playwright as the only runtime dependency', () => {
+  it('keeps patchright as the only runtime dependency', () => {
     expect(Object.keys(readManifest().dependencies ?? {})).toEqual([
-      'playwright',
+      'patchright',
     ]);
   });
 

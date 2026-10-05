@@ -1,4 +1,4 @@
-import type { BrowserContext, Frame, Page } from 'playwright';
+import type { BrowserContext, Frame, Page } from 'patchright';
 import type { FrameHosts } from './frame-path-resolver.ts';
 import { attachCapture } from './isolated-world-capture.ts';
 import type { CaptureOptions } from './isolated-world-capture.ts';

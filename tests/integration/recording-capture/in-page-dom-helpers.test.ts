@@ -1,5 +1,5 @@
-import { chromium } from 'playwright';
-import type { Browser, Page } from 'playwright';
+import { chromium } from 'patchright';
+import type { Browser, Page } from 'patchright';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   containsDeep,

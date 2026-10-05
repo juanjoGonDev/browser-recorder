@@ -73,13 +73,13 @@ describe('src/script-generation/domain/generate-script.ts', () => {
   );
 
   it.each(CASES)(
-    'imports only playwright and node builtins in %s',
+    'imports only patchright and node builtins in %s',
     (_name, recording) => {
       const modules = importedModules(generateScript(recording));
-      expect(modules).toContain('playwright');
+      expect(modules).toContain('patchright');
       expect(
         modules.filter(
-          (name) => name !== 'playwright' && !name.startsWith('node:'),
+          (name) => name !== 'patchright' && !name.startsWith('node:'),
         ),
       ).toStrictEqual([]);
     },

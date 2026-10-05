@@ -63,11 +63,11 @@ jobs:
 
       - name: Install Chromium
         if: matrix.os != 'linux'
-        run: pnpm exec playwright install chromium
+        run: pnpm exec patchright install chromium
 
       - name: Install Chromium with system dependencies
         if: matrix.os == 'linux'
-        run: pnpm exec playwright install --with-deps chromium
+        run: pnpm exec patchright install --with-deps chromium
 
       - name: Type safety and authored-source policy
         shell: bash

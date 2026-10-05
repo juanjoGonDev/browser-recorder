@@ -1,4 +1,4 @@
-import type { CDPSession } from 'playwright';
+import type { CDPSession } from 'patchright';
 import { PAGE_API_KEY } from '../domain/in-page-message.ts';
 import type { CaptureWorld } from './isolated-world-capture.ts';
 

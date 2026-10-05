@@ -1,5 +1,5 @@
-import { chromium } from 'playwright';
-import type { Browser } from 'playwright';
+import { chromium } from 'patchright';
+import type { Browser } from 'patchright';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { IN_PAGE_BUNDLE_PATH } from '../../support/build-in-page-bundle.ts';
 import type { FixtureServer } from '../../support/fixture-server.ts';

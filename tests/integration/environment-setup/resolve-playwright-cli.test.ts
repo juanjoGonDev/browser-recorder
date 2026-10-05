@@ -16,23 +16,23 @@ const realDeps: CliResolverDeps = {
 };
 
 describe('resolvePlaywrightCli', () => {
-  it('resolves the real installed playwright CLI to an existing file', () => {
+  it('resolves the real installed patchright CLI to an existing file', () => {
     const cli = resolvePlaywrightCli(realDeps);
 
-    expect(cli).toMatch(/playwright[\\/]cli\.js$/);
+    expect(cli).toMatch(/patchright[\\/]cli\.js$/);
     expect(existsSync(cli)).toBe(true);
   });
 
-  it('documents why: the playwright/cli subpath is not exported', () => {
-    expect(() => nodeRequire.resolve('playwright/cli')).toThrow(
+  it('documents why: the patchright/cli subpath is not exported', () => {
+    expect(() => nodeRequire.resolve('patchright/cli')).toThrow(
       /not defined by "exports"/,
     );
   });
 
-  it('falls back to playwright-core when playwright is absent', () => {
+  it('falls back to patchright-core when patchright is absent', () => {
     const files: Record<string, string> = {
-      '/m/playwright-core/package.json': JSON.stringify({
-        bin: { 'playwright-core': 'cli.js' },
+      '/m/patchright-core/package.json': JSON.stringify({
+        bin: { 'patchright-core': 'cli.js' },
       }),
     };
     const cli = resolvePlaywrightCli({
@@ -45,25 +45,25 @@ describe('resolvePlaywrightCli', () => {
       exists: () => true,
     });
 
-    expect(cli.replaceAll('\\', '/')).toBe('/m/playwright-core/cli.js');
+    expect(cli.replaceAll('\\', '/')).toBe('/m/patchright-core/cli.js');
   });
 
   it('skips a candidate whose CLI file is missing', () => {
     const files: Record<string, string> = {
-      '/m/playwright/package.json': JSON.stringify({
-        bin: { playwright: 'cli.js' },
+      '/m/patchright/package.json': JSON.stringify({
+        bin: { patchright: 'cli.js' },
       }),
-      '/m/playwright-core/package.json': JSON.stringify({
-        bin: { 'playwright-core': 'cli.js' },
+      '/m/patchright-core/package.json': JSON.stringify({
+        bin: { 'patchright-core': 'cli.js' },
       }),
     };
     const cli = resolvePlaywrightCli({
       resolve: (id) => `/m/${id}`,
       readText: (file) => files[file] ?? '',
-      exists: (file) => file.replaceAll('\\', '/').includes('playwright-core'),
+      exists: (file) => file.replaceAll('\\', '/').includes('patchright-core'),
     });
 
-    expect(cli.replaceAll('\\', '/')).toBe('/m/playwright-core/cli.js');
+    expect(cli.replaceAll('\\', '/')).toBe('/m/patchright-core/cli.js');
   });
 
   it('throws a clear error when no candidate resolves', () => {

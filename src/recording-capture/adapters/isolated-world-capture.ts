@@ -1,4 +1,4 @@
-import type { CDPSession } from 'playwright';
+import type { CDPSession } from 'patchright';
 import { BINDING_NAME, parseInPageText } from '../domain/in-page-message.ts';
 import type { InPageMessage } from '../domain/in-page-message.ts';
 import type { MonotonicClock } from '../application/ports/monotonic-clock.ts';

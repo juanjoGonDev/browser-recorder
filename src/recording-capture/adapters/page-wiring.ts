@@ -1,4 +1,4 @@
-import type { BrowserContext, CDPSession, Dialog, Page } from 'playwright';
+import type { BrowserContext, CDPSession, Dialog, Page } from 'patchright';
 import type { Locator } from '../../shared/domain/locator.ts';
 import type { PageId } from '../../shared/domain/recording-event.ts';
 import type { SessionSignal } from '../application/ports/browser-launcher.ts';

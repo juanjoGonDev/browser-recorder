@@ -11,12 +11,12 @@ interface Candidate {
   readonly binName: string;
 }
 
-// `playwright/cli` is not an exported subpath (Node throws
+// `patchright/cli` is not an exported subpath (Node throws
 // ERR_PACKAGE_PATH_NOT_EXPORTED), but `package.json` is, and its `bin` names
-// the CLI file. `playwright-core` ships the same CLI as the fallback.
+// the CLI file. `patchright-core` ships the same CLI as the fallback.
 const CANDIDATES: readonly Candidate[] = [
-  { packageName: 'playwright', binName: 'playwright' },
-  { packageName: 'playwright-core', binName: 'playwright-core' },
+  { packageName: 'patchright', binName: 'patchright' },
+  { packageName: 'patchright-core', binName: 'patchright-core' },
 ];
 
 function readBin(manifest: string, binName: string): string | null {

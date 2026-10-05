@@ -1,4 +1,4 @@
-import type { Browser, BrowserContext, CDPSession, Page } from 'playwright';
+import type { Browser, BrowserContext, CDPSession, Page } from 'patchright';
 import { vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import {

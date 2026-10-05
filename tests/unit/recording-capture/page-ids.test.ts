@@ -1,4 +1,4 @@
-import type { Page } from 'playwright';
+import type { Page } from 'patchright';
 import { describe, expect, it } from 'vitest';
 import { createPageIds } from '../../../src/recording-capture/adapters/page-ids.ts';
 

@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import path from 'node:path';
-import { chromium } from 'playwright';
-import type { BrowserContext, Page } from 'playwright';
+import { chromium } from 'patchright';
+import type { BrowserContext, Page } from 'patchright';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createAppServices } from '../../src/composition/create-app-services.ts';
 import type { ComposedServices } from '../../src/composition/create-app-services.ts';

@@ -2,7 +2,7 @@ import type {
   FrameLocator,
   Locator as PlaywrightLocator,
   Page,
-} from 'playwright';
+} from 'patchright';
 import type { Locator } from '../../shared/domain/locator.ts';
 
 const VERIFY_TIMEOUT_MS = 150;

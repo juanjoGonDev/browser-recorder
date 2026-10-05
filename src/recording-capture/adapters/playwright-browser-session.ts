@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import type { Browser, BrowserContext, Page } from 'playwright';
+import type { Browser, BrowserContext, Page } from 'patchright';
 import type { BrowserSession } from '../application/ports/browser-launcher.ts';
 import type { MonotonicClock } from '../application/ports/monotonic-clock.ts';
 import { createDialogRegistry } from './dialog-registry.ts';

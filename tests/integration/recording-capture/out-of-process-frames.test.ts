@@ -1,5 +1,5 @@
-import { chromium } from 'playwright';
-import type { Browser, BrowserContext, Frame, Page } from 'playwright';
+import { chromium } from 'patchright';
+import type { Browser, BrowserContext, Frame, Page } from 'patchright';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createPerformanceClock } from '../../../src/recording-capture/adapters/performance-clock.ts';
 import { startPlaywrightSession } from '../../../src/recording-capture/adapters/playwright-browser-session.ts';

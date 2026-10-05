@@ -1,4 +1,4 @@
-import type { CDPSession } from 'playwright';
+import type { CDPSession } from 'patchright';
 import type { NavigationType } from '../application/ports/browser-launcher.ts';
 
 export interface NavigationReport {

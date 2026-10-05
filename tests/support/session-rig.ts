@@ -1,5 +1,5 @@
-import { chromium } from 'playwright';
-import type { Browser, BrowserContext, Page } from 'playwright';
+import { chromium } from 'patchright';
+import type { Browser, BrowserContext, Page } from 'patchright';
 import { afterAll, beforeAll, vi } from 'vitest';
 import { startPlaywrightSession } from '../../src/recording-capture/adapters/playwright-browser-session.ts';
 import type {

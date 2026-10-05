@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { chromium } from 'playwright';
+import { chromium } from 'patchright';
 import { describe, expect, it, vi } from 'vitest';
 import { startPlaywrightSession } from '../../../src/recording-capture/adapters/playwright-browser-session.ts';
 import { createPerformanceClock } from '../../../src/recording-capture/adapters/performance-clock.ts';

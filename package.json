@@ -2,7 +2,7 @@
   "name": "browser-recorder",
   "version": "0.1.0",
   "private": true,
-  "description": "Record a real browser session into a faithful, plain Playwright script, managed from a terminal UI",
+  "description": "Record a real browser session into a faithful, plain Patchright script, managed from a terminal UI",
   "license": "PolyForm-Noncommercial-1.0.0",
   "author": "Juan José González (https://github.com/juanjoGonDev)",
   "homepage": "https://github.com/juanjoGonDev/browser-recorder#readme",
@@ -43,7 +43,7 @@
     "postinstall": "node --experimental-strip-types scripts/install-hooks.ts"
   },
   "dependencies": {
-    "playwright": "1.63.0"
+    "patchright": "1.63.0"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.3",
