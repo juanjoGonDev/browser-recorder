@@ -19,9 +19,14 @@ import { startFixtureServer } from '../../support/fixture-server.ts';
 // answer; an answer given natively is not recorded, so a dialog that was
 // already answered is skipped (dialog-registry) instead of blocking the page.
 
+// Headed runs open real windows on the developer's desktop, so they are
+// opt-in only; the default run exercises the headless fallback.
+const isHeadedOptIn = process.env.BROWSER_RECORDER_HEADED_TESTS === '1';
+
 async function canLaunchHeaded(): Promise<boolean> {
+  if (!isHeadedOptIn) return false;
   try {
-    const browser = await chromium.launch({ headless: false });
+    const browser = await chromium.launch({ headless: !isHeadedOptIn });
     await browser.close();
     return true;
   } catch {
