@@ -10,6 +10,7 @@ const SUBMIT: Intent = { kind: 'submit' };
 const NO: Intent = { kind: 'answer-confirm', isYes: false };
 const UP: Intent = { kind: 'move-selection', delta: -1 };
 const DOWN: Intent = { kind: 'move-selection', delta: 1 };
+const OPEN_LIBRARY: Intent = { kind: 'open', target: 'library' };
 const SWITCH_FIELD: Intent = { kind: 'switch-field' };
 const ACCEPT: Intent = { kind: 'respond-dialog', action: 'accept' };
 const DISMISS: Intent = { kind: 'respond-dialog', action: 'dismiss' };
@@ -101,6 +102,7 @@ function textOr(table: KeyTable, key: KeyInput): Intent | null {
 function forSetup(screen: Screen, key: KeyInput): Intent | null {
   const isRetry = screen.kind === 'setup' && screen.phase === 'failed';
   if (isRetry && keyId(key) === 'return') return { kind: 'retry-setup' };
+  if (isRetry && keyId(key) === 'l') return OPEN_LIBRARY;
   return keyId(key) === 'q' ? QUIT : null;
 }
 

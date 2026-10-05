@@ -76,6 +76,14 @@ describe('src/tui/domain/keymap.ts', () => {
       expect(press(initialState(), named('return'))).toBeNull();
       expect(press(failed, char('q'))).toEqual({ kind: 'quit' });
     });
+
+    it('opens the library from a failed setup only', () => {
+      expect(press(failed, char('l'))).toEqual({
+        kind: 'open',
+        target: 'library',
+      });
+      expect(press(initialState(), char('l'))).toBeNull();
+    });
   });
 
   describe('main menu', () => {

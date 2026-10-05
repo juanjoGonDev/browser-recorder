@@ -1,5 +1,6 @@
 import type { LibraryMode, LibraryScreen } from '../../domain/app-state.ts';
 import type { LibraryEntryView } from '../../domain/app-views.ts';
+import { BROWSER_REQUIRED_REASON } from '../../domain/browser-required.ts';
 import { visibleRange } from '../../domain/list-window.ts';
 import type { Style } from '../ansi.ts';
 import { renderField } from '../field-view.ts';
@@ -131,7 +132,7 @@ function errorText(message: string, style: Style): string {
   return `${style.danger('✖')} ${style.danger(sanitize(message))}`;
 }
 
-function hintsFor(mode: LibraryMode): KeyHint[] {
+function hintsFor(mode: LibraryMode, isBrowserAvailable: boolean): KeyHint[] {
   if (mode.kind === 'rename') {
     return [
       { key: 'enter', label: 'save' },
@@ -146,22 +147,21 @@ function hintsFor(mode: LibraryMode): KeyHint[] {
   }
   return [
     { key: '↑↓', label: 'move' },
-    { key: 'enter', label: 'replay' },
+    ...(isBrowserAvailable ? [{ key: 'enter', label: 'replay' }] : []),
     { key: 't', label: 'timeline' },
     { key: 'r', label: 'rename' },
     { key: 'd', label: 'delete' },
-    { key: 'n', label: 'new' },
+    ...(isBrowserAvailable ? [{ key: 'n', label: 'new' }] : []),
     { key: 'esc', label: 'back' },
   ];
 }
 
 function emptyBody(screen: LibraryScreen, context: RenderContext): string[] {
   const { style } = context;
-  const lines = [
-    '',
-    `  ${style.bold('No recordings yet.')}`,
-    `  Press ${style.accent('n')} to create your first recording.`,
-  ];
+  const create = context.isBrowserAvailable
+    ? [`  Press ${style.accent('n')} to create your first recording.`]
+    : [`  ${style.muted(BROWSER_REQUIRED_REASON)}`];
+  const lines = ['', `  ${style.bold('No recordings yet.')}`, ...create];
   return screen.error === null
     ? lines
     : [...lines, '', `  ${errorText(screen.error, style)}`];
@@ -171,7 +171,7 @@ export function renderLibraryScreen(
   screen: LibraryScreen,
   context: RenderContext,
 ): ScreenView {
-  const hints = hintsFor(screen.mode);
+  const hints = hintsFor(screen.mode, context.isBrowserAvailable);
   if (screen.entries.length === 0) {
     return { title: 'Library', body: emptyBody(screen, context), hints };
   }

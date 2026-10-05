@@ -92,5 +92,7 @@ export interface AppState {
   readonly listRows: number;
   /** Shown on the setup screen and the main menu when relevant. */
   readonly linuxHint: string | null;
+  /** False after a failed install: only the library stays usable. */
+  readonly isBrowserAvailable: boolean;
   readonly isQuitting: boolean;
 }

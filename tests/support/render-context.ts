@@ -11,6 +11,7 @@ export function plainContext(
     style: createStyle(false),
     nowMs: 0,
     linuxHint: null,
+    isBrowserAvailable: true,
     ...overrides,
   };
 }

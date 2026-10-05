@@ -42,6 +42,19 @@ describe('src/tui/render/screens (main menu, setup, new recording)', () => {
       ).not.toContain('!');
     });
 
+    it('shows why recording is disabled and leaves the library entry alone', () => {
+      const text = renderMainMenuScreen(
+        screen(0),
+        plainContext({ isBrowserAvailable: false }),
+      ).body.join('\n');
+      expect(text).toContain('New recording (needs Chromium)');
+      expect(text).toContain('recording and replay are disabled');
+      expect(text).toContain('Library');
+      expect(text).not.toContain('Library (');
+      const available = renderMainMenuScreen(screen(0), plainContext()).body;
+      expect(available.join('\n')).not.toContain('needs Chromium');
+    });
+
     it('advertises its keys', () => {
       const keys = renderMainMenuScreen(screen(0), plainContext()).hints.map(
         (hint) => hint.key,
@@ -97,7 +110,16 @@ describe('src/tui/render/screens (main menu, setup, new recording)', () => {
       expect(view.body.join('\n')).toContain(
         'pnpm exec playwright install chromium',
       );
-      expect(view.hints.map((hint) => hint.key)).toEqual(['enter', 'q']);
+      expect(view.hints.map((hint) => hint.key)).toEqual(['enter', 'l', 'q']);
+    });
+
+    it('says the library stays available while recording and replay are off', () => {
+      const text = renderSetupScreen(
+        { ...base, phase: 'failed', manualCommand: 'cmd', exitCode: 1 },
+        plainContext(),
+      ).body.join('\n');
+      expect(text).toContain('library');
+      expect(text).toContain('recording and replay are disabled');
     });
 
     it('displays the installer exit code on failure', () => {

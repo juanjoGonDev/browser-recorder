@@ -66,6 +66,7 @@ export function renderApp(
     style,
     nowMs: state.nowMs,
     linuxHint: state.linuxHint,
+    isBrowserAvailable: state.isBrowserAvailable,
   };
   const view = renderScreen(state.screen, context);
   const framed = box({

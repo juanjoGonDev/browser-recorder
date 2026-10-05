@@ -25,7 +25,12 @@ export function setupReady(
   state: AppState,
   linuxHint: string | null,
 ): AppState {
-  return { ...state, linuxHint, screen: { kind: 'main-menu', selected: 0 } };
+  return {
+    ...state,
+    linuxHint,
+    isBrowserAvailable: true,
+    screen: { kind: 'main-menu', selected: 0 },
+  };
 }
 
 export function setupFailed(
@@ -33,10 +38,11 @@ export function setupFailed(
   manualCommand: string,
   exitCode: number | null,
 ): AppState {
-  return onSetup(state, (screen) => ({
+  const failed = onSetup(state, (screen) => ({
     ...screen,
     phase: 'failed',
     manualCommand,
     exitCode,
   }));
+  return { ...failed, isBrowserAvailable: false };
 }

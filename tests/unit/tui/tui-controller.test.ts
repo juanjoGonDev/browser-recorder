@@ -114,6 +114,87 @@ describe('src/tui/application/tui-controller.ts', () => {
       expect(harness.store.getState().screen.kind).toBe('main-menu');
     });
 
+    describe('after a failed install (offline)', () => {
+      async function offline(): Promise<Harness> {
+        const harness = setup();
+        harness.fake.entries = [
+          validEntry('a', 'Alpha'),
+          validEntry('b', 'Beta'),
+        ];
+        harness.fake.environment = () =>
+          Promise.resolve({
+            kind: 'failed',
+            manualCommand: 'cmd',
+            exitCode: 1,
+          });
+        await harness.controller.start();
+        await harness.press(char('l'));
+        return harness;
+      }
+
+      it('reaches the library with l and lists, renames, deletes and views the timeline', async () => {
+        const harness = await offline();
+        const library = harness.store.getState().screen as LibraryScreen;
+        expect(library.kind).toBe('library');
+        expect(library.entries).toHaveLength(2);
+
+        await harness.press(char('r'));
+        await harness.type('X');
+        await harness.press(named('return'));
+        expect(harness.fake.renamed).toEqual([{ slug: 'a', name: 'AlphaX' }]);
+
+        await harness.press(char('d'), char('y'));
+        expect(harness.fake.removed).toEqual(['a']);
+
+        await harness.press(char('t'));
+        expect(harness.store.getState().screen.kind).toBe('timeline');
+      });
+
+      it('refuses to replay and says why', async () => {
+        const harness = await offline();
+        await harness.press(named('return'));
+        expect(harness.fake.replayed).toEqual([]);
+        expect(harness.store.getState().screen).toMatchObject({
+          kind: 'library',
+          error:
+            'Chromium is not installed: recording and replay are disabled.',
+        });
+        await harness.press(char('p'));
+        expect(harness.fake.replayed).toEqual([]);
+      });
+
+      it('refuses to start a new recording from the library and from the menu', async () => {
+        const harness = await offline();
+        await harness.press(char('n'));
+        expect(harness.store.getState().screen).toMatchObject({
+          kind: 'library',
+          error:
+            'Chromium is not installed: recording and replay are disabled.',
+        });
+        await harness.press(named('escape'));
+        expect(harness.store.getState().screen.kind).toBe('main-menu');
+        await harness.press(named('return'));
+        expect(harness.store.getState().screen.kind).toBe('main-menu');
+        expect(harness.fake.startRequests).toEqual([]);
+      });
+
+      it('comes back to full features after a successful retry', async () => {
+        const harness = setup();
+        harness.fake.environment = () =>
+          Promise.resolve({
+            kind: 'failed',
+            manualCommand: 'cmd',
+            exitCode: 1,
+          });
+        await harness.controller.start();
+        harness.fake.environment = () =>
+          Promise.resolve({ kind: 'ready', linuxHint: null });
+        await harness.press(named('return'));
+        await harness.press(named('return'));
+        expect(harness.store.getState().screen.kind).toBe('new-recording');
+      });
+    });
+
     it('quits on q during the setup', async () => {
       const harness = setup();
       await harness.press(char('q'));

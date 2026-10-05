@@ -27,6 +27,8 @@ function failedBody(screen: SetupScreen, context: RenderContext): string[] {
     '',
     '  Install it yourself, then retry:',
     `    ${style.accent(screen.manualCommand ?? '')}`,
+    '',
+    `  ${style.muted('Meanwhile the library stays open; recording and replay are disabled.')}`,
   ];
 }
 
@@ -49,7 +51,11 @@ export function renderSetupScreen(
     title: 'Setting up',
     body: isFailed ? failedBody(screen, context) : busyBody(screen, context),
     hints: isFailed
-      ? [{ key: 'enter', label: 'retry' }, QUIT_HINT]
+      ? [
+          { key: 'enter', label: 'retry' },
+          { key: 'l', label: 'library' },
+          QUIT_HINT,
+        ]
       : [QUIT_HINT],
   };
 }

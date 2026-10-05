@@ -31,6 +31,25 @@ describe('src/tui/render/screens/library-screen.ts', () => {
     expect(text).toContain('Press n to create your first recording.');
   });
 
+  it('drops replay and new from the hints while the browser is unavailable', () => {
+    const keys = (isBrowserAvailable: boolean): string[] =>
+      renderLibraryScreen(
+        screen([validEntry('a', 'Alpha')]),
+        plainContext({ isBrowserAvailable }),
+      ).hints.map((hint) => hint.key);
+    expect(keys(true)).toEqual(['↑↓', 'enter', 't', 'r', 'd', 'n', 'esc']);
+    expect(keys(false)).toEqual(['↑↓', 't', 'r', 'd', 'esc']);
+  });
+
+  it('explains the empty library without offering to record while offline', () => {
+    const text = renderLibraryScreen(
+      screen([]),
+      plainContext({ isBrowserAvailable: false }),
+    ).body.join('\n');
+    expect(text).toContain('No recordings yet.');
+    expect(text).not.toContain('Press n');
+  });
+
   it('lists name, creation date, duration and steps', () => {
     const view = renderLibraryScreen(
       screen([validEntry('a', 'Checkout')]),

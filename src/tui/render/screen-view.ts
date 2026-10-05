@@ -10,6 +10,8 @@ export interface RenderContext {
   readonly style: Style;
   readonly nowMs: number;
   readonly linuxHint: string | null;
+  /** False after a failed install: recording and replay are disabled. */
+  readonly isBrowserAvailable: boolean;
 }
 
 /** A screen's contribution to a frame: the box content and its key hints. */

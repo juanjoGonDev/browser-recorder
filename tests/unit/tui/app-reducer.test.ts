@@ -156,6 +156,22 @@ describe('src/tui/domain/app-reducer.ts', () => {
     });
   });
 
+  describe('browser availability', () => {
+    it('is unavailable after a failed setup and available again once ready', () => {
+      const failed = reduce(initialState(), {
+        type: 'setup-failed',
+        manualCommand: 'cmd',
+        exitCode: null,
+      });
+      expect(initialState().isBrowserAvailable).toBe(true);
+      expect(failed.isBrowserAvailable).toBe(false);
+      expect(
+        reduce(failed, { type: 'setup-ready', linuxHint: null })
+          .isBrowserAvailable,
+      ).toBe(true);
+    });
+  });
+
   describe('navigation', () => {
     it('moves between menu entries without wrapping', () => {
       const menu = on({ kind: 'main-menu', selected: 0 });

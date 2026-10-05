@@ -1,3 +1,4 @@
+import { BROWSER_REQUIRED_REASON } from '../domain/browser-required.ts';
 import type { Intent } from '../domain/intent.ts';
 import { keymap } from '../domain/keymap.ts';
 import { MAIN_MENU_ITEMS } from '../domain/main-menu-items.ts';
@@ -138,6 +139,10 @@ class IntentController implements TuiController {
     target: 'main-menu' | 'library' | 'new-recording',
   ): Promise<void> | undefined {
     if (target === 'library') return this.library.show();
+    if (target === 'new-recording' && !this.isBrowserAvailable()) {
+      this.explainBrowserRequired();
+      return undefined;
+    }
     this.deps.store.dispatch({ type: 'navigate', target });
     return undefined;
   }
@@ -177,7 +182,26 @@ class IntentController implements TuiController {
     else await this.library.answerDelete(isYes);
   }
 
+  private isBrowserAvailable(): boolean {
+    return this.deps.store.getState().isBrowserAvailable;
+  }
+
+  /** The menu always shows the reason; the library needs an inline error. */
+  private explainBrowserRequired(): void {
+    const { store } = this.deps;
+    if (store.getState().screen.kind === 'library') {
+      store.dispatch({
+        type: 'library-error',
+        message: BROWSER_REQUIRED_REASON,
+      });
+    }
+  }
+
   private async replaySelected(): Promise<void> {
+    if (!this.isBrowserAvailable()) {
+      this.explainBrowserRequired();
+      return;
+    }
     const entry = this.library.selectedEntry();
     if (entry !== null) await this.replay.start(entry.slug);
   }

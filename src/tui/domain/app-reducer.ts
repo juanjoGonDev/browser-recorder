@@ -52,6 +52,7 @@ export function initialState(): AppState {
     nowMs: 0,
     listRows: listRowsFor(INITIAL_TERMINAL_ROWS),
     linuxHint: null,
+    isBrowserAvailable: true,
     isQuitting: false,
   };
 }
