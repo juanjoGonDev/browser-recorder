@@ -9,11 +9,11 @@ Workflows adapted from devbar (CI, CodeQL, Dependabot auto-merge/recreate, cache
 
 The CI workflow MUST also satisfy CI gate parity:
 
-- A `Quality` job MUST run on Linux exactly once per PR revision and MUST contain one named step per static gate: Typecheck, Authored source policy, ESLint, Prettier, knip, dependency-cruiser, Audit, Commitlint.
+- A `Quality` job MUST run on Linux exactly once per PR revision and MUST contain one named step per static gate: Typecheck, Authored source policy, ESLint, Prettier, knip, dependency-cruiser, Audit, Commitlint — commits.
 - The `Test — linux`, `Test — macos` and `Test — win` matrix MUST run only dependency install, Chromium install, tests with coverage and build. It MUST NOT run any static gate.
 - `Quality` and the `Test` matrix MUST start in parallel (neither `needs` the other).
-- Commitlint MUST always check the PR title with the repository commitlint config. It MUST check the PR commits (`base..head`) only when the PR author is not a bot (author type `Bot`).
-- A PR title edit MUST re-check only the title and MUST NOT re-run the OS matrix; it fires only when the title changed.
+- The separate `pr-title` workflow (`Commitlint — PR title`) MUST always check the PR title with the repository commitlint config. The `Commitlint — commits` step in `Quality` MUST check the PR commits (`base..head`) only when the PR author is not a bot (author type `Bot`).
+- A PR title edit MUST re-check only the title and MUST NOT re-run the OS matrix; the title check MUST run on every `edited` event, because a skipped run on the same head SHA could hide an earlier failure.
 - The PR title MUST NOT be interpolated into shell; it MUST be passed through an environment variable.
 - Existing `permissions` (`read-all` / `contents: read`), repository guard, draft guard, concurrency and pinned action SHAs MUST be preserved. Full-history checkout MUST be used only where the commit range is needed.
 
@@ -35,7 +35,7 @@ The CI workflow MUST also satisfy CI gate parity:
 #### Scenario: One named step per static gate
 - GIVEN the `Quality` job steps
 - WHEN step names are listed
-- THEN Typecheck, Authored source policy, ESLint, Prettier, knip, dependency-cruiser, Audit and Commitlint each appear as exactly one separate step
+- THEN Typecheck, Authored source policy, ESLint, Prettier, knip, dependency-cruiser, Audit and Commitlint — commits each appear as exactly one separate step
 
 #### Scenario: No repeated static gate
 - GIVEN the `Test` matrix job steps
@@ -49,18 +49,18 @@ The CI workflow MUST also satisfy CI gate parity:
 
 #### Scenario: Title always checked
 - GIVEN a PR opened by a human or a bot
-- WHEN the Commitlint step or title workflow runs
+- WHEN the `pr-title` workflow runs
 - THEN the PR title is passed to `commitlint` and an invalid title fails the check
 
 #### Scenario: Commits checked for human authors only
-- GIVEN the Commitlint step
+- GIVEN the `Commitlint — commits` step and the `pr-title` workflow
 - WHEN its conditions are inspected
 - THEN the `base..head` commit lint is guarded so it runs only when the PR author type is not `Bot`, while the title lint has no such guard
 
 #### Scenario: Dependabot PR
 - GIVEN a Dependabot PR with a conventional title and long commit body lines
 - WHEN CI runs
-- THEN Commitlint passes because commits are skipped and the title is valid
+- THEN `Commitlint — commits` is skipped and `Commitlint — PR title` passes because the title is valid
 
 #### Scenario: Title edit
 - GIVEN a PR whose title was edited
@@ -70,7 +70,7 @@ The CI workflow MUST also satisfy CI gate parity:
 #### Scenario: Non-title edit
 - GIVEN an `edited` event where the title did not change (for example body only)
 - WHEN workflows are evaluated
-- THEN the title check does not run
+- THEN the title check still runs and passes for a valid title, so no skipped run can hide an earlier failure on the same head SHA
 
 #### Scenario: Title not interpolated
 - GIVEN every `run` script in the workflows

@@ -81,4 +81,4 @@ The `main` ruleset has no required status checks, so renamed checks block nothin
 
 ## Open Questions
 
-- None blocking. Owner to confirm the deviation that the title check always runs on `edited`.
+- None.
