@@ -63,4 +63,4 @@ HARD RULES (all tasks): headless tests only; no main-world code; no `Runtime.ena
 ## WP4: Docs
 
 - [x] 4.1 Update `AGENTS.md` (`cli` feature) and `README.md` (usage, flags, exit codes, timing, Windows note).
-- [ ] 4.2 Final `pnpm quality`; confirm `git diff main -- package.json` has no version change.
+- [x] 4.2 Final `pnpm quality`; confirm `git diff main -- package.json` has no version change.
