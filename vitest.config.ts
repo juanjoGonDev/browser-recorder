@@ -36,6 +36,16 @@ export default defineConfig({
       {
         extends: true,
         test: {
+          // Probes that pin how the browser engine behaves; they run headless.
+          name: 'spike',
+          include: ['tests/spike/**/*.test.ts'],
+          testTimeout: INTEGRATION_TIMEOUT_MS,
+          hookTimeout: INTEGRATION_TIMEOUT_MS,
+        },
+      },
+      {
+        extends: true,
+        test: {
           name: 'e2e',
           globalSetup: ['tests/support/build-in-page-bundle.ts'],
           include: ['tests/e2e/**/*.test.ts'],
