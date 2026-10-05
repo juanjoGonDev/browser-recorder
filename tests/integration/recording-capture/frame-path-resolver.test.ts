@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { createFramePathResolver } from '../../../src/recording-capture/adapters/frame-path-resolver.ts';
+import {
+  createFrameHosts,
+  createFramePathResolver,
+} from '../../../src/recording-capture/adapters/frame-path-resolver.ts';
 import type { CaptureHarness } from '../../support/capture-harness.ts';
 import { useCaptureSite } from '../../support/capture-test-site.ts';
 
@@ -24,19 +27,25 @@ async function frameIdEndingWith(
   return found.id;
 }
 
+function resolverFor(harness: CaptureHarness) {
+  const hosts = createFrameHosts();
+  hosts.add({ cdp: harness.cdp, world: harness.world });
+  return createFramePathResolver(hosts);
+}
+
 describe('src/recording-capture/adapters/frame-path-resolver.ts', () => {
   const site = useCaptureSite();
 
   it('is empty for the main frame', async () => {
     const harness = await site.open('iframe.html');
-    const resolver = createFramePathResolver(harness.cdp, harness.world);
+    const resolver = resolverFor(harness);
     const id = await frameIdEndingWith(harness, 'iframe.html');
     await expect(resolver.resolve(id)).resolves.toEqual([]);
   });
 
   it('names the iframe element by the css path the capture script computes', async () => {
     const harness = await site.open('iframe.html');
-    const resolver = createFramePathResolver(harness.cdp, harness.world);
+    const resolver = resolverFor(harness);
     const id = await frameIdEndingWith(harness, 'iframe-inner.html');
     await expect(resolver.resolve(id)).resolves.toEqual(['#inner']);
   });
@@ -56,7 +65,7 @@ describe('src/recording-capture/adapters/frame-path-resolver.ts', () => {
     await expect
       .poll(() => harness.page.frames().map((frame) => frame.url()))
       .toContainEqual(expect.stringContaining('nav-b.html'));
-    const resolver = createFramePathResolver(harness.cdp, harness.world);
+    const resolver = resolverFor(harness);
     await expect(
       resolver.resolve(await frameIdEndingWith(harness, 'nav-b.html')),
     ).resolves.toEqual(['#inner', '#deeper']);
@@ -64,7 +73,7 @@ describe('src/recording-capture/adapters/frame-path-resolver.ts', () => {
 
   it('answers an iframe that was removed with an empty path instead of failing', async () => {
     const harness = await site.open('iframe.html');
-    const resolver = createFramePathResolver(harness.cdp, harness.world);
+    const resolver = resolverFor(harness);
     const id = await frameIdEndingWith(harness, 'iframe-inner.html');
     await harness.page.evaluate(() =>
       document.getElementById('inner')?.remove(),
@@ -74,7 +83,7 @@ describe('src/recording-capture/adapters/frame-path-resolver.ts', () => {
 
   it('remembers a resolved path', async () => {
     const harness = await site.open('iframe.html');
-    const resolver = createFramePathResolver(harness.cdp, harness.world);
+    const resolver = resolverFor(harness);
     const id = await frameIdEndingWith(harness, 'iframe-inner.html');
     const first = await resolver.resolve(id);
     await harness.page.evaluate(() =>

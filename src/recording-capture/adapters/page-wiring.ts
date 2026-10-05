@@ -5,13 +5,19 @@ import type { SessionSignal } from '../application/ports/browser-launcher.ts';
 import type { MonotonicClock } from '../application/ports/monotonic-clock.ts';
 import type { CapturedEvent } from '../domain/captured-event.ts';
 import type { DialogClosure, DialogRegistry } from './dialog-registry.ts';
-import { createFramePathResolver } from './frame-path-resolver.ts';
-import type { FramePathResolver } from './frame-path-resolver.ts';
+import {
+  createFrameHosts,
+  createFramePathResolver,
+} from './frame-path-resolver.ts';
 import { attachCapture } from './isolated-world-capture.ts';
-import type { CapturedMessage } from './isolated-world-capture.ts';
+import type {
+  CaptureOptions,
+  CapturedMessage,
+} from './isolated-world-capture.ts';
 import { scopeOfFrame, verifyInScope } from './locator-verifier.ts';
 import type { LocatorScope } from './locator-verifier.ts';
 import { trackNavigation } from './navigation-tracker.ts';
+import { captureOutOfProcessFrames } from './out-of-process-frames.ts';
 import type { PageIds } from './page-ids.ts';
 import type { SignalQueue } from './signal-queue.ts';
 
@@ -139,22 +145,24 @@ function watchNativeAnswers(
 export async function wirePage(page: Page, deps: WiringDeps): Promise<void> {
   const pageId = deps.ids.idOf(page);
   const cdp = await deps.context.newCDPSession(page);
-  const resolver: { current: FramePathResolver | null } = { current: null };
-  const world = await attachCapture(cdp, {
+  const hosts = createFrameHosts();
+  const resolver = createFramePathResolver(hosts);
+  const capture: CaptureOptions = {
     scriptSource: deps.scriptSource,
     clock: deps.clock,
     onMessage: (captured) => {
       deps.queue.enqueue(async () => {
         const path = await withDeadline(
-          resolver.current?.resolve(captured.frameId) ?? Promise.resolve([]),
+          resolver.resolve(captured.frameId),
           FRAME_PATH_DEADLINE_MS,
           [],
         );
         deps.emit(await toDomSignal({ page, pageId, captured }, path));
       });
     },
-  });
-  resolver.current = createFramePathResolver(cdp, world);
+  };
+  hosts.add({ cdp, world: await attachCapture(cdp, capture) });
+  captureOutOfProcessFrames(page, { context: deps.context, hosts, capture });
   await trackNavigation(cdp, {
     now: () => deps.clock.now(),
     onNavigation: (report) => {

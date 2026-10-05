@@ -5,20 +5,70 @@ import type { CaptureWorld } from './isolated-world-capture.ts';
 const FALLBACK_SELECTOR = 'iframe';
 
 interface FrameTree {
-  readonly frame: { readonly id: string };
+  readonly frame: { readonly id: string; readonly parentId?: string };
   readonly childFrames?: readonly FrameTree[];
 }
 
-/** child frame id -> parent frame id, for every frame below the root. */
-function parentsOf(
+/** A CDP session that hosts frames, with the capture world running in them. */
+export interface FrameHost {
+  readonly cdp: CDPSession;
+  readonly world: CaptureWorld;
+}
+
+/** The sessions that together hold every frame of one page. */
+export interface FrameHosts {
+  /** Registers a session; the returned function unregisters it. */
+  add(host: FrameHost): () => void;
+  list(): readonly FrameHost[];
+}
+
+export function createFrameHosts(): FrameHosts {
+  const hosts = new Set<FrameHost>();
+  return {
+    add(host) {
+      hosts.add(host);
+      return () => {
+        hosts.delete(host);
+      };
+    },
+    list: () => [...hosts],
+  };
+}
+
+interface FrameLink {
+  readonly frameId: string;
+  /** Absent for the top frame of the page. */
+  readonly parentId: string | undefined;
+  readonly host: FrameHost;
+}
+
+/**
+ * Every frame the hosts hold. A frame in its own process is the root of its
+ * host's tree and still names its parent, which lives in another host.
+ */
+function collectLinks(
   tree: FrameTree,
-  parents = new Map<string, string>(),
-): Map<string, string> {
-  for (const child of tree.childFrames ?? []) {
-    parents.set(child.frame.id, tree.frame.id);
-    parentsOf(child, parents);
+  host: FrameHost,
+  links: Map<string, FrameLink>,
+): void {
+  const { id, parentId } = tree.frame;
+  links.set(id, { frameId: id, parentId, host });
+  for (const child of tree.childFrames ?? []) collectLinks(child, host, links);
+}
+
+async function linksOf(
+  hosts: readonly FrameHost[],
+): Promise<Map<string, FrameLink>> {
+  const links = new Map<string, FrameLink>();
+  for (const host of hosts) {
+    try {
+      const { frameTree } = await host.cdp.send('Page.getFrameTree');
+      collectLinks(frameTree, host, links);
+    } catch {
+      // A session that is gone holds no frames any more.
+    }
   }
-  return parents;
+  return links;
 }
 
 const CALL_CSS_PATH = `function (key) {
@@ -26,16 +76,13 @@ const CALL_CSS_PATH = `function (key) {
   return api ? api.cssPath(this) : null;
 }`;
 
-interface FrameLink {
-  readonly frameId: string;
-  readonly parentId: string;
-}
-
+/** The selector of a frame's owner element, asked of the parent's host. */
 async function selectorOfFrame(
-  cdp: CDPSession,
-  world: CaptureWorld,
-  { frameId, parentId }: FrameLink,
+  host: FrameHost,
+  frameId: string,
+  parentId: string,
 ): Promise<string> {
+  const { cdp, world } = host;
   const contextId = world.isolatedContextOf(parentId);
   if (contextId === undefined) return FALLBACK_SELECTOR;
   const owner = await cdp.send('DOM.getFrameOwner', { frameId });
@@ -59,32 +106,35 @@ export interface FramePathResolver {
   resolve(frameId: string): Promise<readonly string[]>;
 }
 
+/** The frames from the top frame down to `frameId`, outermost first. */
+function chainTo(
+  frameId: string,
+  links: ReadonlyMap<string, FrameLink>,
+): FrameLink[] {
+  const chain: FrameLink[] = [];
+  let link = links.get(frameId);
+  while (link?.parentId !== undefined) {
+    chain.unshift(link);
+    link = links.get(link.parentId);
+  }
+  return chain;
+}
+
 /**
  * Names the iframe elements leading to a frame by asking the capture script
  * of each parent frame, in its isolated world, for their CSS path. A frame
  * keeps its place in its parent, so every answer is remembered. A frame that
  * vanished before it could be resolved answers with an empty path.
  */
-export function createFramePathResolver(
-  cdp: CDPSession,
-  world: CaptureWorld,
-): FramePathResolver {
+export function createFramePathResolver(hosts: FrameHosts): FramePathResolver {
   const known = new Map<string, readonly string[]>();
   const compute = async (frameId: string): Promise<readonly string[]> => {
-    const { frameTree } = await cdp.send('Page.getFrameTree');
-    const parents = parentsOf(frameTree);
-    const chain: string[] = [];
-    for (let id = frameId; parents.has(id); id = parents.get(id) ?? id) {
-      chain.unshift(id);
-    }
+    const links = await linksOf(hosts.list());
     const path: string[] = [];
-    for (const id of chain) {
-      path.push(
-        await selectorOfFrame(cdp, world, {
-          frameId: id,
-          parentId: parents.get(id) ?? id,
-        }),
-      );
+    for (const { frameId: id, parentId } of chainTo(frameId, links)) {
+      const parent = parentId === undefined ? undefined : links.get(parentId);
+      if (parent === undefined || parentId === undefined) return [];
+      path.push(await selectorOfFrame(parent.host, id, parentId));
     }
     return path;
   };

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Cross-origin iframe</title>
+  </head>
+  <body>
+    <p id="outer-status">outer</p>
+    <script>
+      // The inner page is served by a second fixture server (another origin),
+      // named in the query string: ?inner=<url of the inner page>.
+      const frame = document.createElement('iframe');
+      frame.id = 'inner';
+      frame.title = 'Inner frame';
+      frame.src = new URLSearchParams(location.search).get('inner') ?? '';
+      document.body.append(frame);
+    </script>
+  </body>
+</html>
