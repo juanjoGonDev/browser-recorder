@@ -120,6 +120,21 @@ describe('src/recording-capture/adapters/isolated-world-capture.ts', () => {
       });
     });
 
+    it('can be awaited until the frames that are being prepared are done', async () => {
+      const { cdp, world } = await attach();
+      cdp.navigate('kid');
+      cdp.navigate('main');
+      await world.settled();
+      expect(cdp.callsTo('Runtime.evaluate')).toHaveLength(4);
+    });
+
+    it('is already settled when nothing is being prepared', async () => {
+      const { cdp, world } = await attach();
+      const before = cdp.sent.length;
+      await world.settled();
+      expect(cdp.sent).toHaveLength(before);
+    });
+
     it('answers the context of a frame through the world lookup', async () => {
       const { cdp, world } = await attach();
       await expect(world.contextOf('kid')).resolves.toBe(

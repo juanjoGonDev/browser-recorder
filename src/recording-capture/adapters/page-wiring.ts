@@ -138,12 +138,20 @@ function watchNativeAnswers(
   });
 }
 
+export interface WiredPage {
+  /** Resolves once the capture script runs in every frame that exists now. */
+  settled(): Promise<void>;
+}
+
 /**
  * Connects one page to the session: capture in a CDP isolated world,
  * navigation classified over CDP, dialogs from Playwright events. Nothing is
  * evaluated or exposed in the page's own world.
  */
-export async function wirePage(page: Page, deps: WiringDeps): Promise<void> {
+export async function wirePage(
+  page: Page,
+  deps: WiringDeps,
+): Promise<WiredPage> {
   const pageId = deps.ids.idOf(page);
   const cdp = await openGuardedSession(deps.context, page);
   const hosts = createFrameHosts();
@@ -162,7 +170,8 @@ export async function wirePage(page: Page, deps: WiringDeps): Promise<void> {
       });
     },
   };
-  hosts.add({ cdp, world: await attachCapture(cdp, capture) });
+  const world = await attachCapture(cdp, capture);
+  hosts.add({ cdp, world });
   captureOutOfProcessFrames(page, { context: deps.context, hosts, capture });
   await trackNavigation(cdp, {
     now: () => deps.clock.now(),
@@ -175,4 +184,5 @@ export async function wirePage(page: Page, deps: WiringDeps): Promise<void> {
   });
   watchDialogs(page, pageId, deps);
   watchNativeAnswers(cdp, page, deps);
+  return { settled: () => world.settled() };
 }

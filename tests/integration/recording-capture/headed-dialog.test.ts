@@ -1,11 +1,12 @@
 import { execFileSync } from 'node:child_process';
 import { chromium } from 'patchright';
 import { describe, expect, it, vi } from 'vitest';
-import { startPlaywrightSession } from '../../../src/recording-capture/adapters/playwright-browser-session.ts';
+import { startPatchrightSession } from '../../../src/recording-capture/adapters/patchright-browser-session.ts';
 import { createPerformanceClock } from '../../../src/recording-capture/adapters/performance-clock.ts';
 import type { SessionSignal } from '../../../src/recording-capture/application/ports/browser-launcher.ts';
 import { IN_PAGE_BUNDLE_PATH } from '../../support/build-in-page-bundle.ts';
 import { startFixtureServer } from '../../support/fixture-server.ts';
+import { launchPersistent } from '../../support/persistent-context.ts';
 
 // Task 2.12. Design assumption under test: "headed Chromium with a
 // page.on('dialog') listener does not show the native dialog".
@@ -62,10 +63,10 @@ const canCountWindows = isHeadedAvailable && process.platform === 'darwin';
 
 async function openPromptPage() {
   const server = await startFixtureServer();
-  const browser = await chromium.launch({ headless: !isHeadedAvailable });
-  const context = await browser.newContext();
-  const session = await startPlaywrightSession({
-    browser,
+  const { context, dispose } = await launchPersistent({
+    isHeadless: !isHeadedAvailable,
+  });
+  const session = await startPatchrightSession({
     context,
     clock: createPerformanceClock(),
     inPageScriptPath: IN_PAGE_BUNDLE_PATH,
@@ -76,6 +77,7 @@ async function openPromptPage() {
   const [page] = context.pages();
   const finish = async (): Promise<void> => {
     await session.close();
+    await dispose();
     await server.close();
   };
   return { session, signals, page, finish };
@@ -124,10 +126,8 @@ describe('headed dialog assumption (task 2.12)', () => {
 
   it('answers the dialog the same way headless, the documented fallback', async () => {
     const server = await startFixtureServer();
-    const browser = await chromium.launch();
-    const context = await browser.newContext();
-    const session = await startPlaywrightSession({
-      browser,
+    const { context, dispose } = await launchPersistent();
+    const session = await startPatchrightSession({
       context,
       clock: createPerformanceClock(),
       inPageScriptPath: IN_PAGE_BUNDLE_PATH,
@@ -147,6 +147,7 @@ describe('headed dialog assumption (task 2.12)', () => {
       expect(page.url()).toMatch(/#name-xyz$/);
     });
     await session.close();
+    await dispose();
     await server.close();
   });
 });

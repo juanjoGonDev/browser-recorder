@@ -22,6 +22,11 @@ export interface CapturedMessage {
   readonly receivedAt: number;
 }
 
+export interface AttachedCapture extends CaptureWorld {
+  /** Resolves once every frame being prepared right now has its script. */
+  settled(): Promise<void>;
+}
+
 export interface CaptureOptions {
   readonly scriptSource: string;
   readonly clock: MonotonicClock;
@@ -132,16 +137,26 @@ function createDispatcher(
 export async function attachCapture(
   cdp: CDPSession,
   options: CaptureOptions,
-): Promise<CaptureWorld> {
+): Promise<AttachedCapture> {
   const worlds = createWorldContexts(cdp, WORLD_NAME);
   const session = { cdp, worlds, scriptSource: options.scriptSource };
-  const prepare = (frameId: string): Promise<void> =>
-    prepareFrame(session, frameId);
+  const inFlight = new Set<Promise<void>>();
+  const prepare = (frameId: string): Promise<void> => {
+    const preparing = prepareFrame(session, frameId);
+    inFlight.add(preparing);
+    void preparing.then(() => inFlight.delete(preparing));
+    return preparing;
+  };
   cdp.on('Runtime.bindingCalled', createDispatcher(worlds, options));
   cdp.on('Page.frameNavigated', (event) => {
     void prepare(event.frame.id);
   });
   await cdp.send('Page.enable');
   for (const frameId of await listFrameIds(cdp)) await prepare(frameId);
-  return { contextOf: (frameId) => worlds.contextOf(frameId) };
+  return {
+    contextOf: (frameId) => worlds.contextOf(frameId),
+    async settled() {
+      while (inFlight.size > 0) await Promise.all([...inFlight]);
+    },
+  };
 }

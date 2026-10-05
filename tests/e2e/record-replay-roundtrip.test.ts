@@ -1,6 +1,5 @@
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import path from 'node:path';
-import { chromium } from 'patchright';
 import type { BrowserContext, Page } from 'patchright';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createAppServices } from '../../src/composition/create-app-services.ts';
@@ -10,7 +9,7 @@ import {
   resolveProductionPaths,
 } from '../../src/composition/create-production-services.ts';
 import { createPerformanceClock } from '../../src/recording-capture/adapters/performance-clock.ts';
-import { startPlaywrightSession } from '../../src/recording-capture/adapters/playwright-browser-session.ts';
+import { startPatchrightSession } from '../../src/recording-capture/adapters/patchright-browser-session.ts';
 import type { BrowserLauncher } from '../../src/recording-capture/application/ports/browser-launcher.ts';
 import type {
   LiveRecordingView,
@@ -20,6 +19,8 @@ import { BUNDLED_CHOICE } from '../support/browser-fixtures.ts';
 import { IN_PAGE_BUNDLE_PATH } from '../support/build-in-page-bundle.ts';
 import type { FixtureServer } from '../support/fixture-server.ts';
 import { startFixtureServer } from '../support/fixture-server.ts';
+import { launchPersistent } from '../support/persistent-context.ts';
+import type { PersistentBrowser } from '../support/persistent-context.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..', '..');
 const SCRATCH_PARENT = path.join(ROOT, 'recordings');
@@ -35,19 +36,20 @@ describe('record, generate and replay round trip', () => {
   let scratch: string;
   let services: ComposedServices;
   let context: BrowserContext | null = null;
+  let browser: PersistentBrowser | null = null;
 
-  /** The real Playwright session, with the browser's context kept for the test. */
+  /** The real Patchright session, with the browser's context kept for the test. */
   const launcher: BrowserLauncher = {
     async launch(options) {
-      const browser = await chromium.launch({ headless: options.isHeadless });
-      context = await browser.newContext({
+      browser = await launchPersistent({
+        isHeadless: options.isHeadless,
         viewport: {
           width: options.display.width,
           height: options.display.height,
         },
       });
-      return startPlaywrightSession({
-        browser,
+      context = browser.context;
+      return startPatchrightSession({
         context,
         clock: createPerformanceClock(),
         inPageScriptPath: IN_PAGE_BUNDLE_PATH,
@@ -77,6 +79,7 @@ describe('record, generate and replay round trip', () => {
 
   afterAll(async () => {
     await services.persistActiveRecording();
+    await browser?.dispose();
     await server.close();
     rmSync(scratch, { recursive: true, force: true });
   });

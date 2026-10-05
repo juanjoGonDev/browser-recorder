@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import type { Browser, BrowserContext, Page } from 'patchright';
+import type { BrowserContext, Page } from 'patchright';
 import type { BrowserSession } from '../application/ports/browser-launcher.ts';
 import type { MonotonicClock } from '../application/ports/monotonic-clock.ts';
 import { createDialogRegistry } from './dialog-registry.ts';
@@ -11,8 +11,7 @@ import { createSignalHub } from './signal-hub.ts';
 import { createSignalQueue } from './signal-queue.ts';
 import type { SignalQueue } from './signal-queue.ts';
 
-export interface PlaywrightSessionDeps {
-  readonly browser: Browser;
+export interface PatchrightSessionDeps {
   readonly context: BrowserContext;
   readonly clock: MonotonicClock;
   /** The bundled capture script (`dist/in-page/capture-script.js`). */
@@ -62,7 +61,7 @@ function watchNewPages(
   });
 }
 
-function createParts(deps: PlaywrightSessionDeps) {
+function createParts(deps: PatchrightSessionDeps) {
   const hub = createSignalHub();
   const state = { isClosing: false, isEnded: false };
   const emit: WiringDeps['emit'] = (signal) => {
@@ -94,20 +93,22 @@ function createParts(deps: PlaywrightSessionDeps) {
 }
 
 /**
- * Opens the first page of a recorded browser and returns the session that
+ * Takes over the first page of a recorded browser and returns the session that
  * reports what happens in it. A headed browser also shows its own native
  * dialog next to the recorder's prompt (see the headed dialog test): a dialog
  * can be answered from either place and both answers are recorded.
  */
-export async function startPlaywrightSession(
-  deps: PlaywrightSessionDeps,
+export async function startPatchrightSession(
+  deps: PatchrightSessionDeps,
 ): Promise<BrowserSession> {
   const { hub, state, life, dialogs, wiring, end } = createParts(deps);
-  const first = await deps.context.newPage();
+  // A persistent context opens its first page itself; a second one would
+  // leave a stray blank tab in the user's window.
+  const first = deps.context.pages()[0] ?? (await deps.context.newPage());
   watchClosing(first, life, end);
-  await wirePage(first, wiring);
+  const wired = await wirePage(first, wiring);
   watchNewPages(life, wiring, end);
-  deps.browser.on('disconnected', () => {
+  deps.context.on('close', () => {
     life.queue.enqueue(() => {
       end();
       return Promise.resolve();
@@ -116,6 +117,9 @@ export async function startPlaywrightSession(
   // An unreachable start page still leaves a browser the user can work in.
   if (deps.startUrl !== null)
     await first.goto(deps.startUrl).catch(() => undefined);
+  // The page is captured from the moment the recorder is shown, not a few
+  // milliseconds later.
+  await wired.settled();
   return {
     onSignal: (listener) => {
       hub.onSignal(listener);
@@ -125,7 +129,7 @@ export async function startPlaywrightSession(
       if (state.isClosing) return;
       state.isClosing = true;
       await life.queue.idle();
-      await deps.browser.close();
+      await deps.context.close();
     },
   };
 }
