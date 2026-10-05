@@ -83,9 +83,13 @@ class IntentController implements TuiController {
   async handleKey(key: KeyPress): Promise<void> {
     const intent = keymap(this.deps.store.getState(), key);
     if (intent === null || (this.isBusy && intent.kind !== 'quit')) return;
-    this.isBusy = true;
     try {
-      await this.run(intent);
+      const pending = this.run(intent);
+      // Synchronous intents (typing, moving) never block the next key, so a
+      // paste that arrives as many key presses in one tick is not dropped.
+      if (pending === undefined) return;
+      this.isBusy = true;
+      await pending;
     } catch (error) {
       this.report(messageOf(error));
     } finally {
@@ -97,11 +101,12 @@ class IntentController implements TuiController {
     return this.library.refresh();
   }
 
-  private run(intent: Intent): Promise<void> | void {
+  private run(intent: Intent): Promise<void> | undefined {
     const handler = this.handlers[intent.kind] as (
       current: Intent,
     ) => Promise<void> | void;
-    return handler(intent);
+    const result = handler(intent);
+    return result instanceof Promise ? result : undefined;
   }
 
   /** Last resort: show an unexpected failure where the user is looking. */
@@ -124,20 +129,21 @@ class IntentController implements TuiController {
     }
   }
 
-  private async open(
+  private open(
     target: 'main-menu' | 'library' | 'new-recording',
-  ): Promise<void> {
-    if (target === 'library') await this.library.show();
-    else this.deps.store.dispatch({ type: 'navigate', target });
+  ): Promise<void> | undefined {
+    if (target === 'library') return this.library.show();
+    this.deps.store.dispatch({ type: 'navigate', target });
+    return undefined;
   }
 
-  private activate(): Promise<void> {
+  private activate(): Promise<void> | undefined {
     const { screen } = this.deps.store.getState();
     const item =
       screen.kind === 'main-menu'
         ? MAIN_MENU_ITEMS[screen.selected]
         : undefined;
-    if (item === undefined) return Promise.resolve();
+    if (item === undefined) return undefined;
     return item.target === 'quit' ? this.shutdown() : this.open(item.target);
   }
 
@@ -147,13 +153,17 @@ class IntentController implements TuiController {
     else if (kind === 'library') await this.library.rename();
   }
 
-  private async cancel(): Promise<void> {
+  private cancel(): Promise<void> | undefined {
     const { store } = this.deps;
     const { kind } = store.getState().screen;
-    if (kind === 'new-recording')
+    if (kind === 'new-recording') {
       store.dispatch({ type: 'navigate', target: 'main-menu' });
-    else if (kind === 'library') store.dispatch({ type: 'cancel-mode' });
-    else await this.library.show();
+    } else if (kind === 'library') {
+      store.dispatch({ type: 'cancel-mode' });
+    } else {
+      return this.library.show();
+    }
+    return undefined;
   }
 
   private async answerConfirm(isYes: boolean): Promise<void> {

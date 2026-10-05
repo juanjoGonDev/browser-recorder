@@ -207,6 +207,29 @@ describe('src/tui/application/tui-controller.ts', () => {
     });
   });
 
+  describe('rapid input', () => {
+    it('keeps every character of a paste that arrives in one tick', async () => {
+      const harness = setup();
+      await openForm(harness);
+      const pending = Array.from('https://shop.test/a-long-url').map(
+        (character) => harness.controller.handleKey(char(character)),
+      );
+      await Promise.all(pending);
+      const form = harness.store.getState().screen as NewRecordingScreen;
+      expect(form.name.value).toBe('https://shop.test/a-long-url');
+    });
+
+    it('ignores a second submit while the first one is still starting', async () => {
+      const harness = setup();
+      await openForm(harness);
+      await harness.type('Demo');
+      const first = harness.controller.handleKey(named('return'));
+      const second = harness.controller.handleKey(named('return'));
+      await Promise.all([first, second]);
+      expect(harness.fake.startRequests).toHaveLength(1);
+    });
+  });
+
   describe('live recording', () => {
     it('shows each captured event as it streams in', async () => {
       const harness = setup();
