@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Delayed button</title>
+  </head>
+  <body>
+    <p id="status">waiting</p>
+    <script>
+      // Makes the first step slow on purpose: Playwright waits for the button.
+      setTimeout(() => {
+        const button = document.createElement('button');
+        button.textContent = 'Late arrival';
+        button.addEventListener('click', () => {
+          document.getElementById('status').textContent = 'clicked';
+        });
+        document.body.append(button);
+      }, 400);
+    </script>
+  </body>
+</html>
