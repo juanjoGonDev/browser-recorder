@@ -131,9 +131,10 @@ Note: `size:exception` was explicitly accepted by the user, so no decision gate 
 
 ## WP7: Integration (main, last; depends on WP1-WP6 merged)
 
-- [ ] 7.1 RED: `tests/integration/composition/create-app-services.test.ts` verifies each `AppServices` method against real feature use cases with fakes at the ports -> GREEN `src/composition/{resolve-paths,create-app-services}.ts` (package root, recordings root, playwright CLI path).
-- [ ] 7.2 `src/main.ts`: node-version guard, TTY check, wire adapters, start the TUI; Ctrl+C persists the recording (RC Interrupted recording safety: Ctrl+C; ES Old Node; TUI Non-TTY).
-- [ ] 7.3 E2E `tests/e2e/record-replay-roundtrip.test.ts`: trusted input headless -> `generateScript` -> spawn replay -> `::step` order, final fixture state, each step drift <= 100 ms (RP Timing tolerance; SG Offset wait; RC Event coverage).
-- [ ] 7.4 Docs: `README.md` (install, usage, keys, plaintext values warning, Linux deps), `SECURITY.md` (devbar adapted).
-- [ ] 7.5 Reconcile spec drift in docs only if needed: spec/design naming (`sensitive` vs `isSensitive`, `back`/`forward` vs `go-back`/`go-forward`, `uncheck` vs `check:false`, 2 s vs 1000 ms action window).
-- [ ] 7.6 Final gates: `pnpm quality`, `pnpm test:coverage`, `pnpm build`, `pnpm audit`; verify all RQ scenarios; no push.
+- [x] 7.1 RED: `tests/integration/composition/create-app-services.test.ts` verifies each `AppServices` method against real feature use cases with fakes at the ports -> GREEN `src/composition/{resolve-paths,create-app-services}.ts` (package root, recordings root, playwright CLI path).
+- [x] 7.2 `src/main.ts`: node-version guard, TTY check, wire adapters, start the TUI; Ctrl+C persists the recording (RC Interrupted recording safety: Ctrl+C; ES Old Node; TUI Non-TTY).
+- [x] 7.3 E2E `tests/e2e/record-replay-roundtrip.test.ts`: trusted input headless -> `generateScript` -> spawn replay -> `::step` order, final fixture state, each step drift <= 100 ms (RP Timing tolerance; SG Offset wait; RC Event coverage).
+- [x] 7.4 Docs: `README.md` (install, usage, keys, plaintext values warning, Linux deps), `SECURITY.md` (devbar adapted).
+- [x] 7.5 Reconcile spec drift in docs only if needed: spec/design naming (`sensitive` vs `isSensitive`, `back`/`forward` vs `go-back`/`go-forward`, `uncheck` vs `check:false`, 2 s vs 1000 ms action window).
+- [x] 7.6 Final gates: `pnpm quality`, `pnpm test:coverage`, `pnpm build`, `pnpm audit`; verify all RQ scenarios; no push.
+- [x] 7.7 Gap closure from WP2 (contract changes on main): `dialog-closed` signal so dialogs answered in the browser window are recorded; cross-origin (out-of-process) iframes captured through their own frame session in an isolated world; optional `isHeadless` on `StartRecordingDeps`.
