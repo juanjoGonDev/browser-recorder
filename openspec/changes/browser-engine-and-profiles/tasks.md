@@ -54,14 +54,14 @@ Decision already given: user accepted one large PR, `size:exception`, unlimited 
 
 ## WP1: browser-selection (worktree)
 
-- [ ] 1.1 RED: `domain/expand-path.test.ts`: roots filled, missing root -> null.
-- [ ] 1.2 GREEN: `domain/expand-path.ts`.
-- [ ] 1.3 RED: `domain/browser-catalog-table.test.ts` x3 OS, order and templates (macOS Brave, Windows paths, Linux paths).
-- [ ] 1.4 GREEN: `domain/browser-catalog-table.ts`; Opera `userDataDir: null`.
-- [ ] 1.5 RED: `application/browser-catalog.test.ts` with fake probe: bundled last (Always-available bundled; Nothing installed), directory entry not detected, unknown OS -> bundled only.
-- [ ] 1.6 GREEN: `application/browser-catalog.ts`, `adapters/node-file-probe.ts` (X_OK on POSIX; temp-dir integration test).
-- [ ] 1.7 RED->GREEN: `domain/resolve-replay-browser.ts`: Recorded Brave missing, Installed browser, Unknown id -> bundled; managed stays, copy-of-real -> ephemeral.
-- [ ] 1.8 REFACTOR: barrel exports; depcruise clean.
+- [x] 1.1 RED: `domain/expand-path.test.ts`: roots filled, missing root -> null.
+- [x] 1.2 GREEN: `domain/expand-path.ts`.
+- [x] 1.3 RED: `domain/browser-catalog-table.test.ts` x3 OS, order and templates (macOS Brave, Windows paths, Linux paths).
+- [x] 1.4 GREEN: `domain/browser-catalog-table.ts`; Opera `userDataDir: null`.
+- [x] 1.5 RED: `application/browser-catalog.test.ts` with fake probe: bundled last (Always-available bundled; Nothing installed), directory entry not detected, unknown OS -> bundled only.
+- [x] 1.6 GREEN: `application/browser-catalog.ts`, `adapters/node-file-probe.ts` (X_OK on POSIX; temp-dir integration test).
+- [x] 1.7 RED->GREEN: `domain/resolve-replay-browser.ts`: Recorded Brave missing, Installed browser, Unknown id -> bundled; managed stays, copy-of-real -> ephemeral.
+- [x] 1.8 REFACTOR: barrel exports; depcruise clean.
 
 ## WP2: recording-capture (worktree)
 
