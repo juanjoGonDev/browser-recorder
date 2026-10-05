@@ -352,3 +352,22 @@ No migration required. The repository is greenfield and nothing is pushed.
 - [ ] Confirm that `playwright/cli` resolves through the package `exports`; otherwise resolve `playwright-core/cli.js`.
 - [ ] Validate that headed Chromium with a `page.on('dialog')` listener does not show the native dialog. This is the assumption behind TUI-mediated dialogs.
 - [ ] Reconcile the branch naming in AGENTS.md (devbar `feat/…` vs the owner's global branching policy).
+
+## Addendum: no code in the page's main world (user decision, 2026-10-05)
+
+Supersedes the injection parts of "In-page capture script" and the in-page
+navigation classification above.
+
+- Navigation, reload, back and forward are classified in Node from CDP
+  (`Page.frameStartedNavigating.navigationType` plus
+  `Page.getNavigationHistory().currentIndex`). No page code.
+- Dialogs, popups, file choosers and page close come from Playwright events in
+  Node. No page code.
+- CDP has no event that observes user DOM interaction (`Input` only
+  dispatches), so the listener bundle stays, but it runs only in a CDP isolated
+  world (`Page.addScriptToEvaluateOnNewDocument` with `worldName`, and
+  `Runtime.addBinding` with `executionContextName`), the same technique as
+  Chrome's DevTools Recorder. The page's own scripts cannot see the binding or
+  any recorder global, and the page's CSP does not apply to it.
+- Forbidden on the recording path: `page.exposeBinding`, `exposeFunction`,
+  `addInitScript` and `frame.evaluate` in the main world.
