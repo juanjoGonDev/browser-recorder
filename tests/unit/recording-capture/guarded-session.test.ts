@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative, sep } from 'node:path';
 import type { BrowserContext, Frame, Page } from 'patchright';
 import { describe, expect, it } from 'vitest';
 import { ForbiddenCdpMethodError } from '../../../src/recording-capture/adapters/guarded-cdp.ts';
@@ -53,7 +53,8 @@ describe('src/recording-capture/adapters/guarded-session.ts', () => {
     const openers = sourceFiles(ADAPTERS)
       .filter((file) => file.endsWith('.ts'))
       .filter((file) => readFileSync(file, 'utf8').includes('.newCDPSession('))
-      .map((file) => file.slice(ADAPTERS.length + 1));
+      // Compared as a POSIX path so the expectation holds on Windows too.
+      .map((file) => relative(ADAPTERS, file).split(sep).join('/'));
     expect(openers).toEqual(['adapters/guarded-session.ts']);
   });
 });

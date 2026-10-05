@@ -8,7 +8,7 @@ import {
   writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createFileSystemRecordingRepository } from '../../../src/script-library/adapters/file-system-recording-repository.ts';
@@ -154,7 +154,7 @@ describe('FileSystemRecordingRepository', () => {
 describe('resolveInsideRoot', () => {
   it('returns the resolved path of a nested segment', () => {
     expect(resolveInsideRoot('/data/recordings', 'a', 'script.mjs')).toBe(
-      join('/data/recordings', 'a', 'script.mjs'),
+      resolve('/data/recordings', 'a', 'script.mjs'),
     );
   });
 
