@@ -167,6 +167,44 @@ describe('createLibraryService', () => {
       });
     });
 
+    it('keeps the browser, the mode and the source profile through a save', async () => {
+      const { service } = setup();
+      const browser = {
+        browserId: 'brave',
+        profileMode: 'copy-of-real',
+        sourceProfile: 'Profile 2',
+      } as const;
+      await service.save(recordingOf([], { browser }));
+      expect((await service.load('golden')).browser).toEqual(browser);
+    });
+
+    it('loads a version 1 file as bundled and ephemeral without touching its bytes', async () => {
+      const { repository, service } = setup();
+      const legacy = JSON.stringify({
+        ...BASIC_RECORDING,
+        schemaVersion: 1,
+        display: undefined,
+        browser: undefined,
+        viewport: { width: 640, height: 480 },
+      });
+      repository.files.set('golden', { recordingJson: legacy, scriptMjs: '' });
+
+      const loaded = await service.load('golden');
+      await service.list();
+
+      expect(loaded.browser).toEqual({
+        browserId: 'bundled',
+        profileMode: 'ephemeral',
+        sourceProfile: null,
+      });
+      expect(loaded.display).toEqual({
+        kind: 'emulated',
+        width: 640,
+        height: 480,
+      });
+      expect(repository.files.get('golden')?.recordingJson).toBe(legacy);
+    });
+
     it('rejects loading an unsupported schema version', async () => {
       const { repository, service } = setup();
       repository.files.set('old', {
@@ -248,6 +286,34 @@ describe('createLibraryService', () => {
       expect(listing[1]).toHaveProperty('reason');
     });
 
+    it('lists an unknown profile mode as invalid and still returns the valid ones', async () => {
+      const { repository, service } = setup();
+      await seed(service, BASIC_RECORDING);
+      repository.files.set('shared', {
+        recordingJson: JSON.stringify({
+          ...BASIC_RECORDING,
+          slug: 'shared',
+          browser: {
+            browserId: 'brave',
+            profileMode: 'shared',
+            sourceProfile: null,
+          },
+        }),
+        scriptMjs: '',
+      });
+      const listing = await service.list();
+      expect(
+        listing.map((entry) => [
+          entry.kind,
+          entry.kind === 'valid' ? entry.summary.slug : entry.slug,
+        ]),
+      ).toEqual([
+        ['valid', 'golden'],
+        ['invalid', 'shared'],
+      ]);
+      expect(JSON.stringify(listing[1])).toMatch(/profileMode/);
+    });
+
     it('lists an unsupported schema version as invalid with its reason', async () => {
       const { repository, service } = setup();
       repository.files.set('future', {
@@ -285,6 +351,36 @@ describe('createLibraryService', () => {
       const renamed = await service.rename('a', 'Other');
       expect(renamed.browser).toEqual(chrome);
       expect((await service.load('other')).browser).toEqual(chrome);
+    });
+
+    it('upgrades a version 1 file to version 2 on rename and keeps bundled ephemeral', async () => {
+      const { repository, service } = setup();
+      repository.files.set('golden', {
+        recordingJson: JSON.stringify({
+          ...BASIC_RECORDING,
+          schemaVersion: 1,
+          display: undefined,
+          browser: undefined,
+          viewport: { width: 640, height: 480 },
+        }),
+        scriptMjs: '',
+      });
+      await service.rename('golden', 'Golden');
+      const saved = JSON.parse(
+        repository.files.get('golden')?.recordingJson ?? '{}',
+      ) as Record<string, unknown>;
+      expect(saved['schemaVersion']).toBe(2);
+      expect(saved['browser']).toEqual({
+        browserId: 'bundled',
+        profileMode: 'ephemeral',
+        sourceProfile: null,
+      });
+      expect(saved['display']).toEqual({
+        kind: 'emulated',
+        width: 640,
+        height: 480,
+      });
+      expect(saved).not.toHaveProperty('viewport');
     });
 
     it('refuses a name whose slug is taken and leaves both recordings unchanged', async () => {
