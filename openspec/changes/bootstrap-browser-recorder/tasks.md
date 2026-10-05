@@ -121,13 +121,13 @@ Note: `size:exception` was explicitly accepted by the user, so no decision gate 
 
 ## WP6: TUI (parallel; depends on WP0; fake `AppServices`)
 
-- [ ] 6.1 `app-reducer.ts` + `list-window.ts`: Down x2 then Up x1 selects the second, no wrap out of bounds; scrolling keeps the selection visible (TUI Library screen: Navigate; Resize).
-- [ ] 6.2 `text-input.ts` (cursor, Backspace, Ctrl+U) and `keymap.ts` per screen table; delete confirm defaults to no, Enter without choice deletes nothing, Esc cancels (TUI Rename and delete UX: Enter on delete prompt; SL Delete: Declined).
-- [ ] 6.3 Renderers, each pure, line snapshots at 80x24: `ansi.ts` (`NO_COLOR`), `layout.ts`, `describe-event.ts`, `timeline-list.ts`, `status-bar.ts`, then `main-menu`, `setup`, `new-recording`, `recording`, `library` (empty state shows the "new" hint), `timeline`, `replay` screens, `render-app.ts` (TUI Pure rendering: Snapshot; Library screen: Empty library; Self-refresh: Live recording, Replay highlight).
-- [ ] 6.4 `tui-controller.ts` with fakes: intents run against `AppServices`; new-recording validates name/URL inline; rename collision error inline; dialog banner a/d; browser close returns to the library; replay `::step 2` marks steps 0-1 done (TUI Create flow; Rename and delete UX; Self-refresh).
-- [ ] 6.5 `frame-scheduler.ts` (microtask-coalesced renders, 250 ms tick on recording/replay, 2 s library refresh) with a fake timers port; `node-timers.ts`.
-- [ ] 6.6 `node-terminal.ts`: alternate screen, hidden cursor, raw mode; restore on quit, SIGINT and uncaught error; non-TTY exits with an interactive-terminal message; fake streams (TUI Terminal lifecycle: Exit restore, Non-TTY).
-- [ ] 6.7 REFACTOR: lint, depcruise `render-pure`, coverage.
+- [x] 6.1 `app-reducer.ts` + `list-window.ts`: Down x2 then Up x1 selects the second, no wrap out of bounds; scrolling keeps the selection visible (TUI Library screen: Navigate; Resize).
+- [x] 6.2 `text-input.ts` (cursor, Backspace, Ctrl+U) and `keymap.ts` per screen table; delete confirm defaults to no, Enter without choice deletes nothing, Esc cancels (TUI Rename and delete UX: Enter on delete prompt; SL Delete: Declined).
+- [x] 6.3 Renderers, each pure, line snapshots at 80x24: `ansi.ts` (`NO_COLOR`), `layout.ts`, `describe-event.ts`, `timeline-list.ts`, `status-bar.ts`, then `main-menu`, `setup`, `new-recording`, `recording`, `library` (empty state shows the "new" hint), `timeline`, `replay` screens, `render-app.ts` (TUI Pure rendering: Snapshot; Library screen: Empty library; Self-refresh: Live recording, Replay highlight).
+- [x] 6.4 `tui-controller.ts` with fakes: intents run against `AppServices`; new-recording validates name/URL inline; rename collision error inline; dialog banner a/d; browser close returns to the library; replay `::step 2` marks steps 0-1 done (TUI Create flow; Rename and delete UX; Self-refresh).
+- [x] 6.5 `frame-scheduler.ts` (microtask-coalesced renders, 250 ms tick on recording/replay, 2 s library refresh) with a fake timers port; `node-timers.ts`.
+- [x] 6.6 `node-terminal.ts`: alternate screen, hidden cursor, raw mode; restore on quit, SIGINT and uncaught error; non-TTY exits with an interactive-terminal message; fake streams (TUI Terminal lifecycle: Exit restore, Non-TTY).
+- [x] 6.7 REFACTOR: lint, depcruise `render-pure`, coverage.
 
 ## WP7: Integration (main, last; depends on WP1-WP6 merged)
 
