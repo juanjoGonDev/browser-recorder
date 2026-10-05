@@ -181,6 +181,22 @@ export default defineConfig(
     },
   },
   {
+    // Tests and tooling must never pop up browser windows on the developer's
+    // desktop. Headed launches take a variable (recording) or an opt-in env
+    // flag (BROWSER_RECORDER_HEADED_TESTS=1), never a literal.
+    files: typedFiles,
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "Property[key.name='headless'][value.value=false]",
+          message:
+            'Do not hardcode headless: false; tests run headless unless BROWSER_RECORDER_HEADED_TESTS=1.',
+        },
+      ],
+    },
+  },
+  {
     // The console is the TUI's output channel only through the Terminal
     // port; any other console call in product code is a leftover.
     files: ['src/**/*.ts'],

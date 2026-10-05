@@ -29,6 +29,7 @@ describe('eslint repository rules', () => {
     ['four-params.ts', 'max-params'],
     ['deep-nesting.ts', 'max-depth'],
     ['uses-console.ts', 'no-console'],
+    ['headed-browser.ts', 'no-restricted-syntax'],
   ])('reports %s through %s', async (fixture, ruleId) => {
     expect(await lintRuleIds(fixture)).toContain(ruleId);
   });

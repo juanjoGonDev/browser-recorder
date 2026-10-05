@@ -52,6 +52,10 @@ describe('AGENTS.md', () => {
     expect(agents).toContain('git worktree remove');
   });
 
+  it('keeps every test run headless', () => {
+    expect(agents).toContain('BROWSER_RECORDER_HEADED_TESTS=1');
+  });
+
   it('states a self-contained branch naming rule', () => {
     expect(agents).toContain('<type>/<slug>');
     expect(agents).not.toMatch(/OPRS|Jira|Twenix/i);

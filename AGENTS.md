@@ -41,6 +41,11 @@ No production code without a failing test. Assertions must exercise real
 production behavior: no tautologies, no empty-collection assertions without
 setup, no CSS-class assertions.
 
+Tests, probes and scripts never open browser windows. Vitest sets
+`BROWSER_RECORDER_HEADLESS=1` for every spawned replay, and ESLint rejects a
+literal `headless: false`. A test that genuinely needs a headed browser is
+skipped unless `BROWSER_RECORDER_HEADED_TESTS=1` is set.
+
 ## Clean code and SOLID
 
 - Apply SOLID: one reason to change per module (SRP); depend on ports, not adapters (DIP);

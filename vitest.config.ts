@@ -10,6 +10,8 @@ const E2E_TIMEOUT_MS = 90_000;
 export default defineConfig({
   test: {
     reporters: ['tree', 'hanging-process'],
+    // Generated scripts and browsers spawned by tests stay off-screen.
+    env: { BROWSER_RECORDER_HEADLESS: '1' },
     slowTestThreshold: SLOW_TEST_THRESHOLD_MS,
     projects: [
       {
