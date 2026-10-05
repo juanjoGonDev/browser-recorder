@@ -83,15 +83,76 @@ describe('rt.scrollTo in the generated runtime', () => {
     expect(lines.join('\n')).toContain('#nope');
   });
 
-  it('refuses, with a clear message, an element inside a shadow tree', async () => {
-    const lines = await run(`
-      await page.goto(${JSON.stringify(outer.urlFor('shadow-dom.html'))});
-      await rt.scrollTo(page, [page.locator('#shadow-button')], [0, 5]);
-    `);
+  describe('inside shadow trees', () => {
+    const openBox = "page.locator('#box')";
+    const deepBox = "page.locator('#deep')";
 
-    expect(lines).toStrictEqual([
-      'failed: Cannot scroll an element inside a shadow tree',
-    ]);
+    async function shadowTop(scenario: string): Promise<string[]> {
+      return run(`
+        await page.goto(${JSON.stringify(outer.urlFor('scroll-shadow.html'))});
+        ${scenario}
+      `);
+    }
+
+    it('scrolls an element inside an open shadow root to the exact position', async () => {
+      const lines = await shadowTop(`
+        await rt.scrollTo(page, [${openBox}], [0, 333]);
+        console.log('top ' + await page.locator('#box').evaluate((e) => e.scrollTop));
+      `);
+
+      expect(lines).toStrictEqual(['top 333']);
+    });
+
+    it('scrolls an element inside nested open shadow roots', async () => {
+      const lines = await shadowTop(`
+        await rt.scrollTo(page, [${deepBox}], [0, 217]);
+        console.log('top ' + await page.locator('#deep').evaluate((e) => e.scrollTop));
+        console.log('box ' + await page.locator('#box').evaluate((e) => e.scrollTop));
+      `);
+
+      expect(lines).toStrictEqual(['top 217', 'box 0']);
+    });
+
+    it('scrolls an element inside a shadow root of an iframe', async () => {
+      const lines = await shadowTop(`
+        await rt.scrollTo(page, [page.locator('iframe#inner'), page.frameLocator('iframe#inner').locator('#framed')], [0, 123]);
+        const frame = await (await page.locator('iframe#inner').elementHandle()).contentFrame();
+        console.log('top ' + await frame.locator('#framed').evaluate((e) => e.scrollTop));
+      `);
+
+      expect(lines).toStrictEqual(['top 123']);
+    });
+
+    it('scrolls a shadow root that was attached after the page loaded', async () => {
+      const lines = await shadowTop(`
+        await page.locator('#attach').click();
+        await rt.scrollTo(page, [page.locator('#late')], [0, 88]);
+        console.log('top ' + await page.locator('#late').evaluate((e) => e.scrollTop));
+      `);
+
+      expect(lines).toStrictEqual(['top 88']);
+    });
+
+    it('runs nothing in the main world', async () => {
+      const lines = await shadowTop(`
+        const before = await page.evaluate(() => Object.getOwnPropertyNames(window).length);
+        await rt.scrollTo(page, [${deepBox}], [0, 150]);
+        const after = await page.evaluate(() => Object.getOwnPropertyNames(window).length);
+        console.log('spy ' + await page.evaluate(() => window.spy.calls));
+        console.log('globals ' + (after - before));
+        console.log('own ' + await page.locator('#deep').evaluate((e) => Object.getOwnPropertyNames(e).length));
+      `);
+
+      expect(lines).toStrictEqual(['spy 0', 'globals 0', 'own 0']);
+    });
+
+    it('names the missing element inside a shadow tree instead of hanging', async () => {
+      const lines = await shadowTop(`
+        await rt.scrollTo(page, [page.locator('#not-in-the-shadow')], [0, 5]);
+      `);
+
+      expect(lines[0]).toMatch(/^failed: /u);
+    });
   });
 
   it('scrolls the element that nth picks among several matches', async () => {

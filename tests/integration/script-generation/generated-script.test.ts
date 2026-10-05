@@ -284,5 +284,53 @@ describe('generated script against the fixture site', () => {
       expect(outer.panelOwnProperties).toStrictEqual([]);
       expect(inner.panelOwnProperties).toStrictEqual([]);
     });
+
+    describe('inside shadow trees', () => {
+      interface ShadowReport {
+        readonly box: readonly number[];
+        readonly deep: readonly number[];
+        readonly spyCalls: number;
+        readonly addedGlobals: readonly string[];
+        readonly deepOwnProperties: readonly string[];
+      }
+
+      async function replayShadowScrolls(
+        scrolls: readonly RecordingEvent[],
+      ): Promise<{ run: NodeRun; report: ShadowReport }> {
+        server.clearReports();
+        const run = await execute([
+          FIRST_PAGE,
+          goto(0, server.urlFor('scroll-shadow.html')),
+          ...scrolls,
+          reportClick,
+          scrollTo(1400, null, { x: 0, y: 0 }),
+        ]);
+        const [text] = server.reports();
+        return { run, report: JSON.parse(text) as ShadowReport };
+      }
+
+      it('restores the exact position of elements in open and nested shadow roots', async () => {
+        const { run, report } = await replayShadowScrolls([
+          scrollTo(200, css('#box'), { x: 0, y: 333 }),
+          scrollTo(300, css('#deep'), { x: 0, y: 217 }),
+        ]);
+
+        expect(run.stdout).not.toContain('::error');
+        expect(run.exitCode).toBe(0);
+        expect(report.box).toStrictEqual([0, 333]);
+        expect(report.deep).toStrictEqual([0, 217]);
+      });
+
+      it('runs nothing in the main world: no page API call, no new global or property', async () => {
+        const { report } = await replayShadowScrolls([
+          scrollTo(200, css('#deep'), { x: 0, y: 217 }),
+        ]);
+
+        expect(report.deep).toStrictEqual([0, 217]);
+        expect(report.spyCalls).toBe(0);
+        expect(report.addedGlobals).toStrictEqual([]);
+        expect(report.deepOwnProperties).toStrictEqual([]);
+      });
+    });
   });
 });
