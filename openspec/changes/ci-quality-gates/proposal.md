@@ -73,3 +73,6 @@ Auto mode; assumptions for owner review:
 1. Branch protection will be updated manually to the new check names.
 2. Bot detection by PR author type (`Bot`) is sufficient; no allow-list.
 3. Title re-check on `edited` only fires when the title changed.
+   Superseded by design and spec: the title check runs on every `edited`
+   event, because a skipped run on the same head SHA could hide an earlier
+   failure.
