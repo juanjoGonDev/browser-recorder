@@ -18,6 +18,7 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'unit',
+          globalSetup: ['tests/support/isolated-home.ts'],
           include: ['tests/unit/**/*.test.ts'],
           testTimeout: UNIT_TIMEOUT_MS,
           hookTimeout: UNIT_TIMEOUT_MS,
@@ -27,7 +28,10 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'integration',
-          globalSetup: ['tests/support/build-in-page-bundle.ts'],
+          globalSetup: [
+            'tests/support/isolated-home.ts',
+            'tests/support/build-in-page-bundle.ts',
+          ],
           include: ['tests/integration/**/*.test.ts'],
           testTimeout: INTEGRATION_TIMEOUT_MS,
           hookTimeout: INTEGRATION_TIMEOUT_MS,
@@ -38,7 +42,10 @@ export default defineConfig({
         test: {
           // Probes that pin how the browser engine behaves; they run headless.
           name: 'spike',
-          globalSetup: ['tests/support/build-in-page-bundle.ts'],
+          globalSetup: [
+            'tests/support/isolated-home.ts',
+            'tests/support/build-in-page-bundle.ts',
+          ],
           include: ['tests/spike/**/*.test.ts'],
           testTimeout: INTEGRATION_TIMEOUT_MS,
           hookTimeout: INTEGRATION_TIMEOUT_MS,
@@ -48,7 +55,10 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'e2e',
-          globalSetup: ['tests/support/build-in-page-bundle.ts'],
+          globalSetup: [
+            'tests/support/isolated-home.ts',
+            'tests/support/build-in-page-bundle.ts',
+          ],
           include: ['tests/e2e/**/*.test.ts'],
           testTimeout: E2E_TIMEOUT_MS,
           hookTimeout: E2E_TIMEOUT_MS,
