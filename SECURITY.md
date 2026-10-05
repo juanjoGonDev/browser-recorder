@@ -2,6 +2,11 @@
 
 ## Supported versions
 
+| Version                | Supported |
+| ---------------------- | --------- |
+| Latest release (`0.x`) | Yes       |
+| Older releases         | No        |
+
 Only the latest release receives security fixes. Update to it before
 reporting.
 
@@ -14,6 +19,16 @@ Include the browser-recorder version, your OS and Node.js version, the steps to
 reproduce, and the impact you observed. You will get a reply within 7 days.
 Once a fix is released, the advisory is published with credit to you unless you
 prefer otherwise.
+
+## Scope
+
+In scope: code execution through generated scripts, leaking recorded values
+outside the local `recordings/` folder, privilege escalation, and unsafe
+handling of untrusted pages or recordings. Recordings are plaintext by design
+(see below): that alone is documented behavior, not a vulnerability, but a way
+to leak them unexpectedly is. Out of scope: vulnerabilities in Chromium or
+Playwright themselves (report those upstream) and issues that need an already
+compromised local machine.
 
 ## What to know about the data it handles
 

@@ -3,6 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "description": "Record a real browser session into a faithful, plain Playwright script, managed from a terminal UI",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "author": "Juan José González (https://github.com/juanjoGonDev)",
+  "homepage": "https://github.com/juanjoGonDev/browser-recorder#readme",
+  "bugs": {
+    "url": "https://github.com/juanjoGonDev/browser-recorder/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/juanjoGonDev/browser-recorder.git"
+  },
   "type": "module",
   "bin": {
     "browser-recorder": "dist/main.js"

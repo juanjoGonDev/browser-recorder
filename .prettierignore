@@ -11,3 +11,5 @@ package-lock.json
 openspec/
 # Golden generated scripts are compared byte for byte.
 tests/unit/script-generation/goldens/
+# Verbatim third-party texts.
+CODE_OF_CONDUCT.md
