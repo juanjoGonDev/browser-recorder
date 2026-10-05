@@ -1,5 +1,8 @@
 # browser-recorder
 
+[![CI](https://github.com/juanjoGonDev/browser-recorder/actions/workflows/ci.yml/badge.svg)](https://github.com/juanjoGonDev/browser-recorder/actions/workflows/ci.yml)
+[![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-blue)](LICENSE)
+
 Record a real browser session and get a faithful, plain
 [Playwright](https://playwright.dev) script back, managed from a terminal UI.
 You click, type, scroll, drag and answer dialogs in a real Chromium window; the
@@ -110,3 +113,19 @@ Every test and probe runs headless: nothing opens a browser window. A test that
 genuinely needs a headed browser is skipped unless
 `BROWSER_RECORDER_HEADED_TESTS=1` is set. The layout and the working agreements
 are in [AGENTS.md](AGENTS.md).
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) and the
+[Code of Conduct](CODE_OF_CONDUCT.md). Report vulnerabilities privately, as
+described in [SECURITY.md](SECURITY.md).
+
+## License
+
+browser-recorder is source-available under the
+[PolyForm Noncommercial License 1.0.0](LICENSE). It is free to use, modify and
+share for non-commercial purposes. Commercial use requires permission from the
+author: contact the owner through
+[GitHub](https://github.com/juanjoGonDev). This is not an OSI-approved open
+source license (it is not an OSI open-source license), so the software is
+source-available rather than open source.

@@ -147,3 +147,12 @@ Note: `size:exception` was explicitly accepted by the user, so no decision gate 
 - [x] R.4 (WARNING) Coalescing drops a hover right before check, fill and select-option on the same target like before a click; in the page the label of the control counts as the control; the e2e asserts the exact recorded kinds.
 - [x] R.5 (WARNING) Duplicate-id fixture: the label wraps the duplicated-id input and a label locator is asserted; every candidate of the uniqueness test is verified with `count() === 1`.
 - [x] R.6 (SUGGESTION) `.npmrc` header comment no longer mentions Electron.
+
+## GitHub community files (G)
+
+- [x] G.1 `LICENSE` (PolyForm Noncommercial 1.0.0, verbatim, with the Required Notice), package.json `license`, `author`, `repository`, `bugs`, `homepage` (still `private`), README badges and an accurate License section (source-available, not OSI open source).
+- [x] G.2 `.github/ISSUE_TEMPLATE/` forms: `bug_report.yml`, `feature_request.yml`, `config.yml` (blank issues off, private security advisory link).
+- [x] G.3 `.github/pull_request_template.md` rewritten (What and why, How, Testing, Risks and rollback, checklist).
+- [x] G.4 `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1, verbatim), `SECURITY.md` supported versions and scope, `.github/CODEOWNERS`, `.github/FUNDING.yml`.
+- [x] G.5 `.gitattributes` (LF, binaries) and `.editorconfig`; `CODE_OF_CONDUCT.md` kept byte-exact via `.prettierignore`.
+- [x] G.6 Policy tests in `tests/unit/repository/community-files.test.ts`; workflows, dependabot and release configs untouched.
