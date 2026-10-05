@@ -3,7 +3,6 @@ import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
 import { nodeProcessProbe } from '../browser-profiles/adapters/node-process-probe.ts';
 import { nodeProfileFileSystem } from '../browser-profiles/adapters/node-profile-file-system.ts';
-import { checkProfileLock } from '../browser-profiles/application/check-profile-lock.ts';
 import { createProfileStore } from '../browser-profiles/application/profile-store.ts';
 import { createProfileLayout } from '../browser-profiles/domain/profile-layout.ts';
 import { createNodeFileProbe } from '../browser-selection/adapters/node-file-probe.ts';
@@ -22,6 +21,7 @@ import { createLaunchPlanner } from './browser-launch-plan.ts';
 import { createBrowserViews } from './browser-views.ts';
 import { createAppServices } from './create-app-services.ts';
 import { pathRootsFor } from './path-roots.ts';
+import { createRunningCheck, sleep } from './profile-runtime.ts';
 import type {
   AppServicesDeps,
   ComposedServices,
@@ -57,12 +57,6 @@ export function resolveProductionPaths(moduleUrl: string): AppPaths {
   });
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
-}
-
 type BrowserFeatures = Pick<
   AppServicesDeps,
   'planner' | 'browserViews' | 'sweepStaleSessions'
@@ -87,19 +81,13 @@ function createBrowserFeatures(
     roots: pathRootsFor(process.env, homedir()),
     isBundledInstalled: () => installation.isInstalled(),
   });
-  const lockDeps = {
-    fs: nodeProfileFileSystem,
-    processes: nodeProcessProbe,
-    platform,
-  };
   return {
     planner: createLaunchPlanner({ catalog, profiles }),
     browserViews: createBrowserViews({
       catalog,
       profiles,
       platform,
-      isRunning: async (directory) =>
-        (await checkProfileLock(lockDeps, directory)).kind === 'locked',
+      isRunning: createRunningCheck(platform),
     }),
     sweepStaleSessions: () => profiles.sweepStaleSessions(),
   };

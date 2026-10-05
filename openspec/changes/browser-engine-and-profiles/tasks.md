@@ -111,8 +111,8 @@ Decision already given: user accepted one large PR, `size:exception`, unlimited 
 
 ## WP7: Integration (main, last)
 
-- [ ] 7.1 RED->GREEN: `src/composition/browser-launch-plan.ts` planner + `toReplayEnvironment` (all four vars set, empty = unset; fallback warning; release once).
-- [ ] 7.2 RED->GREEN: `browser-views.ts`, `create-app-services.ts`, `create-production-services.ts`, `resolve-paths.ts` (`appDataRoot`, startup sweep, `regenerateScript` before replay).
-- [ ] 7.3 RED->GREEN: e2e roundtrip headless: v2 recording and migrated v1; managed login survives second recording and replay.
-- [ ] 7.4 RED->GREEN: opt-in `describe.runIf(BROWSER_RECORDER_REAL_BROWSER_TESTS === '1')` copy-of-real, lock error, replay from `tests/fixtures/profiles/brave-like` (assert path under `tests/fixtures/`; headless).
-- [ ] 7.5 GREEN: README (Patchright, profiles, opt-in env vars); full `pnpm quality`, coverage, depcruise, knip.
+- [x] 7.1 RED->GREEN: `src/composition/browser-launch-plan.ts` planner + `toReplayEnvironment` (all four vars set, empty = unset; fallback warning; release once).
+- [x] 7.2 RED->GREEN: `browser-views.ts`, `create-app-services.ts`, `create-production-services.ts`, `resolve-paths.ts` (`appDataRoot`, startup sweep, `regenerateScript` before replay).
+- [x] 7.3 RED->GREEN: e2e roundtrip headless: v2 recording and migrated v1; managed login survives second recording and replay.
+- [x] 7.4 RED->GREEN: opt-in `describe.runIf(BROWSER_RECORDER_REAL_BROWSER_TESTS === '1')` copy-of-real, lock error, replay from `tests/fixtures/profiles/brave-like` (assert path under `tests/fixtures/`; headless).
+- [x] 7.5 GREEN: README (Patchright, profiles, opt-in env vars); full `pnpm quality`, coverage, depcruise, knip.
