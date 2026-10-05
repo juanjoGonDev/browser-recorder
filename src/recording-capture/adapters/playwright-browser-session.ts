@@ -96,8 +96,8 @@ function createParts(deps: PlaywrightSessionDeps) {
 /**
  * Opens the first page of a recorded browser and returns the session that
  * reports what happens in it. A headed browser also shows its own native
- * dialog next to the recorder's prompt (see the headed dialog test), so a
- * dialog can be answered from either place.
+ * dialog next to the recorder's prompt (see the headed dialog test): a dialog
+ * can be answered from either place and both answers are recorded.
  */
 export async function startPlaywrightSession(
   deps: PlaywrightSessionDeps,

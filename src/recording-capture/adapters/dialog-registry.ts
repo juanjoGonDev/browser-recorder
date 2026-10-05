@@ -1,10 +1,31 @@
-import type { Dialog } from 'playwright';
+import type { Dialog, Page } from 'playwright';
+import type { DialogType } from '../../shared/domain/recording-event.ts';
 import type { DialogResponse } from '../application/ports/browser-launcher.ts';
+
+/** What the browser itself reports when it closes a dialog (CDP). */
+export interface DialogClosure {
+  readonly isAccepted: boolean;
+  readonly userInput: string;
+}
+
+/** A dialog that was answered in the browser window, not by the recorder. */
+export interface NativeAnswer {
+  readonly dialogType: DialogType;
+  readonly message: string;
+  readonly action: DialogResponse['action'];
+  readonly promptText: string | null;
+}
 
 export interface DialogRegistry {
   add(dialog: Dialog): void;
   /** Answers the oldest dialog still open; a no-op when none is. */
   respond(response: DialogResponse): Promise<void>;
+  /**
+   * Called when the browser reports a dialog of `page` closed. Returns what
+   * was answered when nobody went through `respond` (a headed browser shows
+   * its own native dialog), and `null` when the recorder answered it.
+   */
+  settleNatively(page: Page, closure: DialogClosure): NativeAnswer | null;
 }
 
 async function answer(dialog: Dialog, response: DialogResponse): Promise<void> {
@@ -27,6 +48,20 @@ export function createDialogRegistry(): DialogRegistry {
   return {
     add: (dialog) => {
       open.push(dialog);
+    },
+    settleNatively(page, closure) {
+      const index = open.findIndex((dialog) => dialog.page() === page);
+      const [dialog] = index < 0 ? [] : open.splice(index, 1);
+      if (dialog === undefined) return null;
+      const dialogType = dialog.type() as DialogType;
+      const action = closure.isAccepted ? 'accept' : 'dismiss';
+      const hasText = dialogType === 'prompt' && action === 'accept';
+      return {
+        dialogType,
+        message: dialog.message(),
+        action,
+        promptText: hasText ? closure.userInput : null,
+      };
     },
     async respond(response) {
       let dialog = open.shift();

@@ -15,9 +15,11 @@ import { startFixtureServer } from '../../support/fixture-server.ts';
 // Playwright works exactly as in headless mode, but the browser ALSO shows
 // its own native dialog (the process owns a second on-screen window while the
 // dialog is pending; CDP reports `hasBrowserHandler: true`). Documented
-// behaviour kept by the adapter: the recorder's prompt is the supported way to
-// answer; an answer given natively is not recorded, so a dialog that was
-// already answered is skipped (dialog-registry) instead of blocking the page.
+// behaviour kept by the adapter: the recorder's prompt is the preferred way to
+// answer. An answer given in the native dialog is reported by the browser
+// (`Page.javascriptDialogClosed`) and recorded through a `dialog-closed`
+// signal; the stale dialog is dropped (dialog-registry) instead of blocking
+// the page.
 
 // Headed runs open real windows on the developer's desktop, so they are
 // opt-in only; the default run exercises the headless fallback.

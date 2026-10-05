@@ -1,4 +1,4 @@
-import type { Dialog } from 'playwright';
+import type { Dialog, Page } from 'playwright';
 import { describe, expect, it, vi } from 'vitest';
 import { createDialogRegistry } from '../../../src/recording-capture/adapters/dialog-registry.ts';
 
@@ -8,11 +8,27 @@ interface FakeDialog {
   readonly dismiss: ReturnType<typeof vi.fn>;
 }
 
-function fakeDialog(): FakeDialog {
+interface DialogOptions {
+  readonly page?: Page;
+  readonly type?: string;
+  readonly message?: string;
+}
+
+function fakeDialog(options: DialogOptions = {}): FakeDialog {
   const accept = vi.fn();
   const dismiss = vi.fn();
-  return { dialog: { accept, dismiss } as unknown as Dialog, accept, dismiss };
+  const dialog = {
+    accept,
+    dismiss,
+    page: () => options.page,
+    type: () => options.type ?? 'prompt',
+    message: () => options.message ?? 'Name?',
+  } as unknown as Dialog;
+  return { dialog, accept, dismiss };
 }
+
+const pageOne = { id: 1 } as unknown as Page;
+const pageTwo = { id: 2 } as unknown as Page;
 
 describe('src/recording-capture/adapters/dialog-registry.ts', () => {
   it('accepts the oldest open dialog with the prompt text', async () => {
@@ -73,5 +89,81 @@ describe('src/recording-capture/adapters/dialog-registry.ts', () => {
       registry.respond({ action: 'dismiss', promptText: null }),
     ).resolves.toBeUndefined();
     expect(stale.dismiss).toHaveBeenCalledOnce();
+  });
+
+  describe('answered in the browser itself', () => {
+    it('describes the answer of a dialog nobody answered through the recorder', () => {
+      const registry = createDialogRegistry();
+      registry.add(fakeDialog({ page: pageOne }).dialog);
+      expect(
+        registry.settleNatively(pageOne, {
+          isAccepted: true,
+          userInput: 'abc',
+        }),
+      ).toEqual({
+        dialogType: 'prompt',
+        message: 'Name?',
+        action: 'accept',
+        promptText: 'abc',
+      });
+    });
+
+    it('reports a dismissal when the browser did not accept', () => {
+      const registry = createDialogRegistry();
+      registry.add(
+        fakeDialog({ page: pageOne, type: 'confirm', message: 'Sure?' }).dialog,
+      );
+      expect(
+        registry.settleNatively(pageOne, { isAccepted: false, userInput: '' }),
+      ).toEqual({
+        dialogType: 'confirm',
+        message: 'Sure?',
+        action: 'dismiss',
+        promptText: null,
+      });
+    });
+
+    it('keeps no text for an accepted dialog that is not a prompt', () => {
+      const registry = createDialogRegistry();
+      registry.add(fakeDialog({ page: pageOne, type: 'alert' }).dialog);
+      expect(
+        registry.settleNatively(pageOne, { isAccepted: true, userInput: '' }),
+      ).toMatchObject({ action: 'accept', promptText: null });
+    });
+
+    it('is silent for a dialog the recorder answered itself', async () => {
+      const registry = createDialogRegistry();
+      registry.add(fakeDialog({ page: pageOne }).dialog);
+      await registry.respond({ action: 'accept', promptText: 'abc' });
+      expect(
+        registry.settleNatively(pageOne, {
+          isAccepted: true,
+          userInput: 'abc',
+        }),
+      ).toBeNull();
+    });
+
+    it('settles only the dialog of the page that reported it, once', () => {
+      const registry = createDialogRegistry();
+      registry.add(fakeDialog({ page: pageOne }).dialog);
+      expect(
+        registry.settleNatively(pageTwo, { isAccepted: true, userInput: '' }),
+      ).toBeNull();
+      expect(
+        registry.settleNatively(pageOne, { isAccepted: true, userInput: '' }),
+      ).not.toBeNull();
+      expect(
+        registry.settleNatively(pageOne, { isAccepted: true, userInput: '' }),
+      ).toBeNull();
+    });
+
+    it('leaves a settled dialog out of the recorder answers', async () => {
+      const registry = createDialogRegistry();
+      const settled = fakeDialog({ page: pageOne });
+      registry.add(settled.dialog);
+      registry.settleNatively(pageOne, { isAccepted: true, userInput: '' });
+      await registry.respond({ action: 'accept', promptText: null });
+      expect(settled.accept).not.toHaveBeenCalled();
+    });
   });
 });

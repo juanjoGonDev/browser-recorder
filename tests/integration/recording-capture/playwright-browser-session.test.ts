@@ -206,6 +206,68 @@ describe('src/recording-capture/adapters/playwright-browser-session.ts', () => {
     });
   });
 
+  describe('dialogs answered in the browser itself', () => {
+    // A headed window shows its own dialog; answering it there is the same
+    // browser-side call a second CDP client makes here, headless. That client
+    // must be attached before the dialog opens: a blocked page answers no
+    // `Page.enable`.
+    async function nativeAnswerer(rig: SessionRig) {
+      const other = await rig.context.newCDPSession(rig.firstPage());
+      await other.send('Page.enable');
+      return async (answer: {
+        isAccepted: boolean;
+        promptText?: string;
+      }): Promise<void> => {
+        await other.send('Page.handleJavaScriptDialog', {
+          accept: answer.isAccepted,
+          promptText: answer.promptText,
+        });
+      };
+    }
+
+    it('reports the accepted text when the dialog was answered natively', async () => {
+      const rig = await factory.start('prompt-hash.html');
+      const answerNatively = await nativeAnswerer(rig);
+      void rig.firstPage().locator('#ask').click();
+      await rig.waitForSignal('dialog-opened');
+      await answerNatively({ isAccepted: true, promptText: 'native' });
+      const closed = (await rig.waitForSignal(
+        'dialog-closed',
+      )) as Signal<'dialog-closed'>;
+      expect(closed).toMatchObject({
+        dialogType: 'prompt',
+        message: 'Your name?',
+        action: 'accept',
+        promptText: 'native',
+        pageId: 'page1',
+      });
+    });
+
+    it('reports a native dismissal', async () => {
+      const rig = await factory.start('prompt-hash.html');
+      const answerNatively = await nativeAnswerer(rig);
+      void rig.firstPage().locator('#ask').click();
+      await rig.waitForSignal('dialog-opened');
+      await answerNatively({ isAccepted: false });
+      const closed = (await rig.waitForSignal(
+        'dialog-closed',
+      )) as Signal<'dialog-closed'>;
+      expect(closed).toMatchObject({ action: 'dismiss', promptText: null });
+    });
+
+    it('does not report a dialog the recorder answered itself', async () => {
+      const rig = await factory.start('prompt-hash.html');
+      void rig.firstPage().locator('#ask').click();
+      await rig.waitForSignal('dialog-opened');
+      await rig.session.respondToDialog({
+        action: 'accept',
+        promptText: 'abc',
+      });
+      await waitForNavigations(rig, 2);
+      expect(rig.signalsOfKind('dialog-closed')).toEqual([]);
+    });
+  });
+
   describe('isolation and shutdown', () => {
     it('leaves nothing for page scripts to see', async () => {
       const rig = await factory.start('button.html');

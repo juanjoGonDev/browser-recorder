@@ -1,10 +1,10 @@
-import type { BrowserContext, Dialog, Page } from 'playwright';
+import type { BrowserContext, CDPSession, Dialog, Page } from 'playwright';
 import type { Locator } from '../../shared/domain/locator.ts';
 import type { PageId } from '../../shared/domain/recording-event.ts';
 import type { SessionSignal } from '../application/ports/browser-launcher.ts';
 import type { MonotonicClock } from '../application/ports/monotonic-clock.ts';
 import type { CapturedEvent } from '../domain/captured-event.ts';
-import type { DialogRegistry } from './dialog-registry.ts';
+import type { DialogClosure, DialogRegistry } from './dialog-registry.ts';
 import { createFramePathResolver } from './frame-path-resolver.ts';
 import type { FramePathResolver } from './frame-path-resolver.ts';
 import { attachCapture } from './isolated-world-capture.ts';
@@ -100,6 +100,37 @@ function watchDialogs(page: Page, pageId: PageId, deps: WiringDeps): void {
   });
 }
 
+/** The CDP payload; `result` is whether the dialog was accepted. */
+type CdpDialogClosed = Readonly<
+  Record<'result', boolean> & Record<'userInput', string>
+>;
+
+/**
+ * The browser reports every closed dialog; one the recorder did not answer
+ * was answered in the browser window itself and still belongs in the recording.
+ */
+function watchNativeAnswers(
+  cdp: CDPSession,
+  page: Page,
+  deps: WiringDeps,
+): void {
+  cdp.on('Page.javascriptDialogClosed', (event: CdpDialogClosed) => {
+    const closure: DialogClosure = {
+      isAccepted: event.result,
+      userInput: event.userInput,
+    };
+    const receivedAt = deps.clock.now();
+    const pageId = deps.ids.idOf(page);
+    deps.queue.enqueue(() => {
+      const answer = deps.dialogs.settleNatively(page, closure);
+      if (answer !== null) {
+        deps.emit({ kind: 'dialog-closed', pageId, receivedAt, ...answer });
+      }
+      return Promise.resolve();
+    });
+  });
+}
+
 /**
  * Connects one page to the session: capture in a CDP isolated world,
  * navigation classified over CDP, dialogs from Playwright events. Nothing is
@@ -134,4 +165,5 @@ export async function wirePage(page: Page, deps: WiringDeps): Promise<void> {
     },
   });
   watchDialogs(page, pageId, deps);
+  watchNativeAnswers(cdp, page, deps);
 }
