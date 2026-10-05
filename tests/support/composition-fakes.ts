@@ -1,6 +1,7 @@
 import { vi } from 'vitest';
 import type {
   BrowserLauncher,
+  DialogResponse,
   BrowserSession,
   LaunchOptions,
   SessionSignal,
@@ -15,19 +16,25 @@ import type { BrowserInstallation } from '../../src/environment-setup/applicatio
 export interface FakeSession extends BrowserSession {
   emit(signal: SessionSignal): void;
   readonly closeCount: () => number;
+  readonly responses: DialogResponse[];
 }
 
 function createFakeSession(): FakeSession {
   let listener: (signal: SessionSignal) => void = () => undefined;
   const close = vi.fn(() => Promise.resolve());
+  const responses: DialogResponse[] = [];
   return {
+    responses,
     onSignal: (next) => {
       listener = next;
     },
     emit: (signal) => {
       listener(signal);
     },
-    respondToDialog: () => Promise.resolve(),
+    respondToDialog: (response) => {
+      responses.push(response);
+      return Promise.resolve();
+    },
     close,
     closeCount: () => close.mock.calls.length,
   };

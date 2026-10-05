@@ -248,6 +248,18 @@ describe('src/composition/create-app-services.ts', () => {
       });
     });
 
+    it('forwards the answer to a dialog to the browser', async () => {
+      const { services, launcher } = setup();
+      const live = await services.recording.start({
+        name: 'Answers',
+        startUrl: null,
+      });
+      await live.respondToDialog({ action: 'accept', promptText: 'abc' });
+      expect(launcher.sessions[0]?.responses).toEqual([
+        { action: 'accept', promptText: 'abc' },
+      ]);
+    });
+
     it('saves a complete recording and its script when stopped', async () => {
       const { services, launcher, clock, repository } = setup();
       const live = await services.recording.start({
