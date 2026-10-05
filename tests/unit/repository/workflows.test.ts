@@ -158,11 +158,6 @@ describe('ci.yml', () => {
     );
     expect(ci.match(/pnpm audit/g)).toHaveLength(1);
   });
-
-  it('runs coverage and a build on every platform', () => {
-    expect(ci).toContain('run: pnpm test:coverage');
-    expect(ci).toContain('run: pnpm build');
-  });
 });
 
 const PINNED_ACTION = /uses: \S+@[0-9a-f]{40} # v/;
@@ -255,6 +250,12 @@ describe('pr-title.workflow.yml', () => {
     expect(title).toContain('types: [opened, edited, reopened, synchronize]');
   });
 
+  it('has no bot guard on the title lint', () => {
+    const title = readWorkflow('pr-title.workflow.yml');
+    expect(title).not.toMatch(/user\.type/);
+    expect(title).not.toMatch(/'Bot'/);
+  });
+
   it('has its own concurrency group and read-only token', () => {
     const title = readWorkflow('pr-title.workflow.yml');
     expect(title).toContain('group: pr-title-');
@@ -276,6 +277,24 @@ describe('pr-title.workflow.yml', () => {
     expect(title).toContain(
       `run: printf '%s\\n' "$PR_TITLE" | pnpm exec commitlint --verbose`,
     );
+  });
+});
+
+describe('preserved guards and permissions', () => {
+  it.each(['ci.yml', 'pr-title.workflow.yml'])(
+    '%s keeps permissions read-all and job-level contents: read',
+    (name) => {
+      const text = readWorkflow(name);
+      expect(text).toMatch(/^permissions: read-all$/m);
+      expect(text).toMatch(/^ {4}permissions:\n {6}contents: read$/m);
+    },
+  );
+
+  it('keeps the draft guard on both ci.yml jobs', () => {
+    const { quality, test } = ciJobs();
+    for (const block of [quality, test]) {
+      expect(block).toContain('github.event.pull_request.draft == false');
+    }
   });
 });
 

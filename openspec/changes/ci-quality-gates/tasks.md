@@ -53,3 +53,10 @@ Chain strategy: pending
 
 - [x] 4.1 Run `pnpm test`, `pnpm typecheck`, `pnpm lint:strict`, `pnpm format:check`, `pnpm deadcode`, `pnpm deps:check`; all pass.
 - [x] 4.2 Verify `package.json` `version` unchanged via `git diff main -- package.json` (Version untouched).
+
+## Phase R: Verify remediation (R)
+
+- [x] R.1 (CRITICAL) `specs/repository-quality/spec.md`: title check runs on every `edited` event (requirement line and "Non-title edit" scenario); remove the open owner-confirmation note in `design.md`.
+- [x] R.2 (WARNING) `workflows.test.ts`: assert the ci.yml draft guard, `permissions: read-all` plus job-level `contents: read` in both files, and no bot guard in pr-title. Guard verified by mutation.
+- [x] R.3 (WARNING) Spec wording: "Commitlint — commits" in `Quality`; title checking attributed to the separate `pr-title` workflow (`Commitlint — PR title`).
+- [x] R.4 (SUGGESTION) Remove the redundant whole-file "runs coverage and a build on every platform" test (the test-job block assertion covers it).
