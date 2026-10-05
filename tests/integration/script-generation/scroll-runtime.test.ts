@@ -1,14 +1,12 @@
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
-import path from 'node:path';
+import { rmSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { scriptPrelude } from '../../../src/script-generation/domain/script-prelude.ts';
 import type { FixtureServer } from '../../support/fixture-server.ts';
 import { startFixtureServer } from '../../support/fixture-server.ts';
 import { runNodeModule } from '../../support/run-node-module.ts';
+import { createScratchDir } from '../../support/scratch-root.ts';
 
-const ROOT = path.resolve(import.meta.dirname, '..', '..', '..');
-const SCRATCH_PARENT = path.join(ROOT, 'recordings');
 const LOOPBACK = '127.0.0.1';
 
 /** The prelude's runtime driving a real headless Chromium, one scenario each. */
@@ -37,8 +35,7 @@ describe('rt.scrollTo in the generated runtime', () => {
   beforeAll(async () => {
     outer = await startFixtureServer();
     inner = await startFixtureServer();
-    mkdirSync(SCRATCH_PARENT, { recursive: true });
-    scratch = mkdtempSync(path.join(SCRATCH_PARENT, 'scroll-runtime-'));
+    scratch = createScratchDir('scroll-runtime-');
   });
 
   afterAll(async () => {

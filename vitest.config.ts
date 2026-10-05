@@ -18,7 +18,10 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'unit',
-          globalSetup: ['tests/support/isolated-home.ts'],
+          globalSetup: [
+            'tests/support/isolated-home.ts',
+            'tests/support/scratch-root-setup.ts',
+          ],
           include: ['tests/unit/**/*.test.ts'],
           testTimeout: UNIT_TIMEOUT_MS,
           hookTimeout: UNIT_TIMEOUT_MS,
@@ -30,6 +33,7 @@ export default defineConfig({
           name: 'integration',
           globalSetup: [
             'tests/support/isolated-home.ts',
+            'tests/support/scratch-root-setup.ts',
             'tests/support/build-in-page-bundle.ts',
           ],
           include: ['tests/integration/**/*.test.ts'],
@@ -44,6 +48,7 @@ export default defineConfig({
           name: 'spike',
           globalSetup: [
             'tests/support/isolated-home.ts',
+            'tests/support/scratch-root-setup.ts',
             'tests/support/build-in-page-bundle.ts',
           ],
           include: ['tests/spike/**/*.test.ts'],
@@ -57,6 +62,7 @@ export default defineConfig({
           name: 'e2e',
           globalSetup: [
             'tests/support/isolated-home.ts',
+            'tests/support/scratch-root-setup.ts',
             'tests/support/build-in-page-bundle.ts',
           ],
           include: ['tests/e2e/**/*.test.ts'],

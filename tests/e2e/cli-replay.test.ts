@@ -19,8 +19,6 @@ const REAL_RECORDINGS = path.resolve(
   '..',
   'recordings',
 );
-/** Scratch folders other test files create under the real recordings folder. */
-const TRANSIENT_FOLDER = /^(?:e2e|build-out|scroll-runtime)-/u;
 const TYPED = 'a"b\n€';
 const MIN_PAUSE_MS = 300;
 /** Clock granularity between the script's timers and the page's `Date.now`. */
@@ -261,15 +259,11 @@ describe('node dist/main.js replay (temporary package root, headless)', () => {
   );
 
   it('leaves the real recordings folder as it found it', () => {
-    // Other test files create and remove their own scratch folders there while
-    // this one runs, so only the entries that are not theirs are compared.
+    // No test uses it as scratch, so it must be exactly as it was.
     const after = realRecordings();
     for (const slug of ['typing', 'secret', 'unreachable']) {
       expect(after).not.toContain(slug);
     }
-    const owned = recordingsBefore.filter(
-      (name) => !TRANSIENT_FOLDER.test(name),
-    );
-    expect(after).toStrictEqual(expect.arrayContaining(owned));
+    expect(after).toStrictEqual(recordingsBefore);
   });
 });

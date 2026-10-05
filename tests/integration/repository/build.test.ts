@@ -1,13 +1,13 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../../../scripts/build.ts';
+import { createScratchDir } from '../../support/scratch-root.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..', '..', '..');
 // Inside the repository so the emitted entry resolves `playwright` like the
 // real build does.
-const SCRATCH_PARENT = path.join(ROOT, 'recordings');
 // A real tsc run: seconds alone, much longer while the whole suite shares the
 // CPU with its browsers.
 const BUILD_TIMEOUT_MS = 120_000;
@@ -16,8 +16,7 @@ describe('scripts/build.ts against the real toolchain', () => {
   let outDir = '';
 
   beforeAll(async () => {
-    mkdirSync(SCRATCH_PARENT, { recursive: true });
-    outDir = mkdtempSync(path.join(SCRATCH_PARENT, 'build-out-'));
+    outDir = createScratchDir('build-out-');
     await buildApp({ root: ROOT, outDir });
   }, BUILD_TIMEOUT_MS);
 

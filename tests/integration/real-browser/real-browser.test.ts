@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { access } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -33,9 +33,8 @@ import {
   isRealBrowserEnabled,
 } from '../../support/real-browser.ts';
 import { snapshotTree } from '../../support/tree-snapshot.ts';
+import { createScratchDir } from '../../support/scratch-root.ts';
 
-const ROOT = path.resolve(import.meta.dirname, '..', '..', '..');
-const SCRATCH_PARENT = path.join(ROOT, 'recordings');
 const WAIT = { timeout: 20_000, interval: 100 };
 const WINDOW = { kind: 'window', width: 1280, height: 800 } as const;
 const FIXTURE_PROFILE = 'Default';
@@ -74,8 +73,7 @@ describe.runIf(isRealBrowserEnabled(process.env))(
 
     beforeAll(async () => {
       site = await startFixtureServer();
-      mkdirSync(SCRATCH_PARENT, { recursive: true });
-      scratch = mkdtempSync(path.join(SCRATCH_PARENT, 'e2e-real-'));
+      scratch = createScratchDir('e2e-real-');
       appData = mkdtempSync(path.join(tmpdir(), 'br-real-app-data-'));
       real = await detectRealBrowser(process.env, BRAVE_LIKE_PROFILE);
       const catalog = catalogOf(browser());

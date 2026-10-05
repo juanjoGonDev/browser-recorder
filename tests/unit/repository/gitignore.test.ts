@@ -15,6 +15,7 @@ describe('.gitignore', () => {
   it.each([
     'recordings/x/script.mjs',
     'recordings/x/recording.json',
+    '.test-scratch/build-out-x/script.mjs',
     'dist/main.js',
     'script.json.123.abc.tmp',
     'node_modules/.bin/tsc',

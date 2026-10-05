@@ -1,5 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
-import path from 'node:path';
+import { rmSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { generateScript } from '../../../src/script-generation/domain/generate-script.ts';
@@ -10,9 +9,8 @@ import { startFixtureServer } from '../../support/fixture-server.ts';
 import { recordingOf } from '../../support/golden-recordings.ts';
 import { runNodeModule } from '../../support/run-node-module.ts';
 import type { NodeRun } from '../../support/run-node-module.ts';
+import { createScratchDir } from '../../support/scratch-root.ts';
 
-const ROOT = path.resolve(import.meta.dirname, '..', '..', '..');
-const SCRATCH_PARENT = path.join(ROOT, 'recordings');
 const TIMING_TOLERANCE_MS = 100;
 const HEADLESS = { BROWSER_RECORDER_HEADLESS: '1' };
 
@@ -43,8 +41,7 @@ describe('generated script against the fixture site', () => {
   beforeAll(async () => {
     server = await startFixtureServer();
     // Inside the repository so `import 'patchright'` resolves like a replay.
-    mkdirSync(SCRATCH_PARENT, { recursive: true });
-    scratch = mkdtempSync(path.join(SCRATCH_PARENT, 'script-generation-'));
+    scratch = createScratchDir('script-generation-');
   });
 
   afterAll(async () => {

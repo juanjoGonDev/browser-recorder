@@ -19,3 +19,6 @@ recordings/
 
 # Atomic-write temp files left behind by an interrupted write.
 *.tmp
+
+# Scratch folder of the test suite (swept by a vitest global setup)
+.test-scratch/

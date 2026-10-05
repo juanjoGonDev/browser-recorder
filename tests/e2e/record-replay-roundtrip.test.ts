@@ -1,5 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
-import path from 'node:path';
+import { rmSync } from 'node:fs';
 import type { BrowserContext, Page } from 'patchright';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { RECORDED_TIMING } from '../../src/shared/domain/replay-timing.ts';
@@ -22,9 +21,8 @@ import type { FixtureServer } from '../support/fixture-server.ts';
 import { startFixtureServer } from '../support/fixture-server.ts';
 import { launchPersistent } from '../support/persistent-context.ts';
 import type { PersistentBrowser } from '../support/persistent-context.ts';
+import { createScratchDir } from '../support/scratch-root.ts';
 
-const ROOT = path.resolve(import.meta.dirname, '..', '..');
-const SCRATCH_PARENT = path.join(ROOT, 'recordings');
 /** Design: every replayed step starts within this of its recorded offset. */
 const DRIFT_TOLERANCE_MS = 100;
 /** Gaps between the user's actions: long enough that no step is late. */
@@ -62,8 +60,7 @@ describe('record, generate and replay round trip', () => {
   beforeAll(async () => {
     server = await startFixtureServer();
     // Inside the repository so the generated script resolves `playwright`.
-    mkdirSync(SCRATCH_PARENT, { recursive: true });
-    scratch = mkdtempSync(path.join(SCRATCH_PARENT, 'e2e-'));
+    scratch = createScratchDir('e2e-');
     const paths = resolveProductionPaths(import.meta.url);
     services = createAppServices(
       createProductionDeps({

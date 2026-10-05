@@ -73,3 +73,4 @@ HARD RULES (all tasks): headless tests only; no main-world code; no `Runtime.ena
 - [x] R.4 `proposal.md`: no version bump; the owner decides.
 - [x] R.5 Color: ANSI only when stdout is a TTY and `NO_COLOR` unset, same decision for stderr; both piped/TTY cases tested.
 - [x] R.6 `-d -5-10` maps to the range rule (exit 2); README documents `pnpm -s replay`; an early script failure promotes its first stderr error line into the summary.
+- [x] R.7 Tests never touch the real `recordings/`: shared gitignored `.test-scratch/` (`tests/support/scratch-root.ts`), swept at setup and removed at teardown by a vitest globalSetup; guard test `scratch-policy.test.ts` scans `tests/**`; leftover `recordings/build-out-*` scratch deleted.

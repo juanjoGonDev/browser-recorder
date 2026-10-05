@@ -17,9 +17,8 @@ import type { FixtureServer } from '../support/fixture-server.ts';
 import { startFixtureServer } from '../support/fixture-server.ts';
 import { LOGIN_COOKIE, startLoginSite } from '../support/login-site.ts';
 import type { LoginSite } from '../support/login-site.ts';
+import { createScratchDir } from '../support/scratch-root.ts';
 
-const ROOT = path.resolve(import.meta.dirname, '..', '..');
-const SCRATCH_PARENT = path.join(ROOT, 'recordings');
 const WAIT = { timeout: 15_000, interval: 100 };
 const MANAGED: BrowserChoice = {
   browserId: 'bundled',
@@ -38,8 +37,7 @@ describe('record, generate and replay on a managed profile', () => {
     site = await startLoginSite();
     fixtures = await startFixtureServer();
     // Inside the repository so a generated script resolves `patchright`.
-    mkdirSync(SCRATCH_PARENT, { recursive: true });
-    scratch = mkdtempSync(path.join(SCRATCH_PARENT, 'e2e-managed-'));
+    scratch = createScratchDir('e2e-managed-');
     appData = mkdtempSync(path.join(tmpdir(), 'br-e2e-app-data-'));
     services = createAppServices(
       createProductionDeps({
