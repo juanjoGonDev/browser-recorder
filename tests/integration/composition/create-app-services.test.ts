@@ -104,7 +104,7 @@ describe('src/composition/create-app-services.ts', () => {
         services.environment.ensureBrowser(() => undefined),
       ).resolves.toEqual({
         kind: 'failed',
-        manualCommand: 'pnpm exec playwright install chromium',
+        manualCommand: 'pnpm exec patchright install chromium',
         exitCode: 1,
       });
     });
@@ -114,7 +114,7 @@ describe('src/composition/create-app-services.ts', () => {
       const view = await services.environment.ensureBrowser(() => undefined);
       expect(view).toMatchObject({ kind: 'ready' });
       expect(view.kind === 'ready' ? view.linuxHint : null).toContain(
-        'playwright install-deps chromium',
+        'patchright install-deps chromium',
       );
     });
   });

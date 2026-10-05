@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 export interface PathDeps {
   readText(file: string): string;
   exists(file: string): boolean;
-  /** Locates the Playwright CLI script; throws when it cannot. */
+  /** Locates the Patchright CLI script; throws when it cannot. */
   resolveCli(): string;
 }
 

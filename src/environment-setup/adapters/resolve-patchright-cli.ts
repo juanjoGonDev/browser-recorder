@@ -42,11 +42,11 @@ function tryCandidate(
   }
 }
 
-/** Finds the Playwright CLI script to run with `node`, never a `.cmd` shim. */
-export function resolvePlaywrightCli(deps: CliResolverDeps): string {
+/** Finds the Patchright CLI script to run with `node`, never a `.cmd` shim. */
+export function resolvePatchrightCli(deps: CliResolverDeps): string {
   for (const candidate of CANDIDATES) {
     const cli = tryCandidate(deps, candidate);
     if (cli !== null) return cli;
   }
-  throw new Error('Could not locate the Playwright CLI (playwright/cli.js).');
+  throw new Error('Could not locate the Patchright CLI (patchright/cli.js).');
 }

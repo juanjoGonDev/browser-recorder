@@ -1,7 +1,7 @@
 /** Printed for the user to run; this app never runs it or escalates itself. */
 export const LINUX_DEPS_COMMAND =
-  'sudo pnpm exec playwright install-deps chromium';
-const WITH_DEPS_COMMAND = 'pnpm exec playwright install --with-deps chromium';
+  'sudo pnpm exec patchright install-deps chromium';
+const WITH_DEPS_COMMAND = 'pnpm exec patchright install --with-deps chromium';
 const LINUX_PLATFORM = 'linux';
 const MISSING_LIBRARIES =
   /missing dependencies|error while loading shared libraries|cannot open shared object file/i;

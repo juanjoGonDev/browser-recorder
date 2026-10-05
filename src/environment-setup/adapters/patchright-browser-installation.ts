@@ -8,8 +8,8 @@ import type {
   InstallResult,
 } from '../application/ports/browser-installation.ts';
 
-export interface PlaywrightInstallationOptions {
-  /** Playwright CLI script, see `resolvePlaywrightCli`. */
+export interface PatchrightInstallationOptions {
+  /** Patchright CLI script, see `resolvePatchrightCli`. */
   readonly cliPath: string;
   /** Always `process.execPath` in production: no shell, no `.cmd` shim. */
   readonly nodePath: string;
@@ -28,7 +28,7 @@ function streamLines(
 }
 
 function runInstaller(
-  options: PlaywrightInstallationOptions,
+  options: PatchrightInstallationOptions,
   onLine: (line: string) => void,
 ): Promise<InstallResult> {
   return new Promise((resolve, reject) => {
@@ -45,9 +45,9 @@ function runInstaller(
   });
 }
 
-/** Detects Chromium on disk and installs it through the Playwright CLI. */
-export function createPlaywrightBrowserInstallation(
-  options: PlaywrightInstallationOptions,
+/** Detects Chromium on disk and installs it through the Patchright CLI. */
+export function createPatchrightBrowserInstallation(
+  options: PatchrightInstallationOptions,
 ): BrowserInstallation {
   const executablePath =
     options.executablePath ?? (() => chromium.executablePath());

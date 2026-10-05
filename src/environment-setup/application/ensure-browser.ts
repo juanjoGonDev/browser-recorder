@@ -21,7 +21,7 @@ export interface EnsureBrowserDeps {
   readonly onEvent: (event: EnsureBrowserEvent) => void;
 }
 
-export const MANUAL_INSTALL_COMMAND = 'pnpm exec playwright install chromium';
+export const MANUAL_INSTALL_COMMAND = 'pnpm exec patchright install chromium';
 
 function failed(exitCode: number | null): EnsureBrowserResult {
   return { kind: 'failed', manualCommand: MANUAL_INSTALL_COMMAND, exitCode };

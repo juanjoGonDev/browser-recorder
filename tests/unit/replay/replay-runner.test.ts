@@ -149,6 +149,35 @@ describe('startReplay', () => {
     });
   });
 
+  it('hands over the four browser variables verbatim, an empty value included', () => {
+    const requests: SpawnRequest[] = [];
+    const spawner: ProcessSpawner = {
+      spawn: (request) => {
+        requests.push(request);
+        return fakeProcess();
+      },
+    };
+    const launchEnv = {
+      BROWSER_RECORDER_REAL_KEYCHAIN: '1',
+      BROWSER_RECORDER_BROWSER_ARGS: '["--profile-directory=Profile 1"]',
+      BROWSER_RECORDER_EXECUTABLE_PATH: '',
+      BROWSER_RECORDER_USER_DATA_DIR: '/data/profiles/brave',
+    };
+
+    startReplay(
+      { spawner, nodePath: 'node', cancelGraceMs: GRACE_MS },
+      {
+        scriptPath: 's',
+        cwd: 'c',
+        isHeadless: false,
+        launchEnv,
+        stepOffsetsMs: [],
+      },
+    );
+
+    expect(requests[0]?.env).toEqual(launchEnv);
+  });
+
   it('never lets the launch environment turn headless off', () => {
     const requests: SpawnRequest[] = [];
     const spawner: ProcessSpawner = {
