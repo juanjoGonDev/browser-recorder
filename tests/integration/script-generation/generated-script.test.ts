@@ -12,6 +12,12 @@ import type { NodeRun } from '../../support/run-node-module.ts';
 import { createScratchDir } from '../../support/scratch-root.ts';
 
 const TIMING_TOLERANCE_MS = 100;
+// The slow step (a click waiting for a button created 400 ms after load)
+// finishes after ~1.4 s on a cold Windows runner, so the steps after it are
+// scheduled far enough away to stay "on time" on any CI machine; the
+// assertion is still about absolute offsets, not about machine speed.
+const RELOAD_OFFSET_MS = 3000;
+const GO_BACK_OFFSET_MS = 3500;
 const HEADLESS = { BROWSER_RECORDER_HEADLESS: '1' };
 
 const FIRST_PAGE: RecordingEvent = {
@@ -78,17 +84,19 @@ describe('generated script against the fixture site', () => {
         button: 'left',
         modifiers: [],
       },
-      { kind: 'reload', offsetMs: 1000, pageId: 'page1' },
-      { kind: 'go-back', offsetMs: 1500, pageId: 'page1' },
+      { kind: 'reload', offsetMs: RELOAD_OFFSET_MS, pageId: 'page1' },
+      { kind: 'go-back', offsetMs: GO_BACK_OFFSET_MS, pageId: 'page1' },
     ]);
 
     const byIndex = new Map(markers(run).map((m) => [m.index, m.elapsedMs]));
     expect(run.exitCode).toBe(0);
     expect([...byIndex.keys()]).toStrictEqual([0, 1, 2, 3, 4]);
-    expect(byIndex.get(3)).toBeGreaterThanOrEqual(1000);
-    expect(byIndex.get(3)).toBeLessThan(1000 + TIMING_TOLERANCE_MS);
-    expect(byIndex.get(4)).toBeGreaterThanOrEqual(1500);
-    expect(byIndex.get(4)).toBeLessThan(1500 + TIMING_TOLERANCE_MS);
+    expect(byIndex.get(3)).toBeGreaterThanOrEqual(RELOAD_OFFSET_MS);
+    expect(byIndex.get(3)).toBeLessThan(RELOAD_OFFSET_MS + TIMING_TOLERANCE_MS);
+    expect(byIndex.get(4)).toBeGreaterThanOrEqual(GO_BACK_OFFSET_MS);
+    expect(byIndex.get(4)).toBeLessThan(
+      GO_BACK_OFFSET_MS + TIMING_TOLERANCE_MS,
+    );
     expect(run.stdout).toMatch(/^::done \d+$/mu);
   });
 
