@@ -72,6 +72,8 @@ describe('src/tui (session over a fake terminal)', () => {
     const app = start();
     await app.settle();
     app.terminal.press('return');
+    // Browser detection finishes before the user has typed a name.
+    await app.settle();
     app.terminal.type('Demo');
     app.terminal.press('return');
     await app.settle();
@@ -91,6 +93,8 @@ describe('src/tui (session over a fake terminal)', () => {
     const app = start();
     await app.settle();
     app.terminal.press('return');
+    // Browser detection finishes before the user has typed a name.
+    await app.settle();
     app.terminal.type('Demo');
     app.terminal.press('tab');
     app.terminal.type('ftp://x');
