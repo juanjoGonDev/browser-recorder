@@ -16,7 +16,10 @@
       const result = document.getElementById('result');
       let isSent = false;
       // Every change tells the fixture server what the page shows, so a test
-      // can compare a recording session with its replay from outside.
+      // can compare a recording session with its replay from outside. The
+      // request is synchronous: the change, and so the step that caused it,
+      // ends only once the server has the report, even when the browser is
+      // closed right after the last step.
       function show() {
         const parts = [
           name.value,
@@ -24,7 +27,10 @@
           isSent ? 'sent' : '',
         ];
         result.textContent = parts.join('|');
-        void fetch('/__report?state=' + encodeURIComponent(result.textContent));
+        const request = new XMLHttpRequest();
+        const state = encodeURIComponent(result.textContent);
+        request.open('GET', '/__report?state=' + state, false);
+        request.send();
       }
       name.addEventListener('input', show);
       agree.addEventListener('change', show);

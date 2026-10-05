@@ -11,10 +11,20 @@
     <script>
       const notes = document.getElementById('notes');
       // Each event tells the fixture server what happened and when, so a test
-      // can measure the pauses between actions from outside the browser.
+      // can measure the pauses between actions from outside the browser. The
+      // request is synchronous: the event, and so the replay step that caused
+      // it, ends only once the server has the report. A replay closes the
+      // browser right after its last step, which would drop a request that
+      // was still on its way (it did on Windows), and reports arrive in order.
       function report(kind, value) {
         const state = [kind, Date.now(), value].join('|');
-        void fetch('/__report?state=' + encodeURIComponent(state));
+        const request = new XMLHttpRequest();
+        request.open(
+          'GET',
+          '/__report?state=' + encodeURIComponent(state),
+          false,
+        );
+        request.send();
       }
       report('load', '');
       notes.addEventListener('input', () => {

@@ -85,16 +85,31 @@ function listen(server: Server): Promise<number> {
   });
 }
 
+export interface FixtureServerOptions {
+  /**
+   * How long a `/__report` call takes to arrive: the report counts, and is
+   * answered, only after this delay. Stands in for a slow machine.
+   */
+  readonly reportDelayMs?: number;
+}
+
 /** Serves `tests/fixtures/site` on an ephemeral loopback port. */
-export async function startFixtureServer(): Promise<FixtureServer> {
+export async function startFixtureServer(
+  options: FixtureServerOptions = {},
+): Promise<FixtureServer> {
   const reports: string[] = [];
   const server = createServer((request, response) => {
     const url = new URL(request.url ?? '/', 'http://fixture.invalid');
     if (url.pathname === REPORT_PATH) {
       // Pages tell the test what they show, so a replay can be checked from
       // outside the browser that is closed when the script ends.
-      reports.push(url.searchParams.get('state') ?? '');
-      response.writeHead(NO_CONTENT).end();
+      const record = (): void => {
+        reports.push(url.searchParams.get('state') ?? '');
+        response.writeHead(NO_CONTENT).end();
+      };
+      const delayMs = options.reportDelayMs ?? 0;
+      if (delayMs > 0) setTimeout(record, delayMs);
+      else record();
       return;
     }
     void serve(request.url ?? '/', response);

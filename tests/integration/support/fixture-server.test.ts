@@ -5,8 +5,10 @@ import { startFixtureServer } from '../../support/fixture-server.ts';
 describe('tests/support/fixture-server.ts', () => {
   const servers: FixtureServer[] = [];
 
-  async function start(): Promise<FixtureServer> {
-    const server = await startFixtureServer();
+  async function start(
+    options?: Parameters<typeof startFixtureServer>[0],
+  ): Promise<FixtureServer> {
+    const server = await startFixtureServer(options);
     servers.push(server);
     return server;
   }
@@ -61,6 +63,19 @@ describe('tests/support/fixture-server.ts', () => {
 
     expect(first.status).toBe(204);
     expect(server.reports()).toEqual(['a b', 'c']);
+  });
+
+  it('counts a delayed report only when it answers it', async () => {
+    const delayMs = 200;
+    const server = await start({ reportDelayMs: delayMs });
+    const startedAt = performance.now();
+    const answer = fetch(`${server.baseUrl}/__report?state=late`);
+    await new Promise((resolve) => setTimeout(resolve, delayMs / 2));
+    expect(server.reports()).toEqual([]);
+
+    expect((await answer).status).toBe(204);
+    expect(performance.now() - startedAt).toBeGreaterThanOrEqual(delayMs - 5);
+    expect(server.reports()).toEqual(['late']);
   });
 
   it('forgets reports once they are cleared', async () => {
