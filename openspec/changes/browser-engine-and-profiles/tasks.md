@@ -65,14 +65,14 @@ Decision already given: user accepted one large PR, `size:exception`, unlimited 
 
 ## WP2: recording-capture (worktree)
 
-- [ ] 2.1 RED->GREEN: `domain/launch-arguments.ts` pure (window -> `viewport:null` + `--window-size`; emulated; real keychain -> `ignoreDefaultArgs`); tests.
-- [ ] 2.2 RED->GREEN: `domain/is-profile-in-use-error.ts` classifier tests (Locked).
-- [ ] 2.3 RED->GREEN: `adapters/world-contexts.ts`: on-demand map via `createIsolatedWorld`, drop on `frameNavigated`/`frameDetached`; fake CDP unit tests.
-- [ ] 2.4 RED: `isolated-world-capture` tests: no `Runtime.enable`, miss -> refresh `Page.getFrameTree` -> retry -> drop. GREEN: rewrite per S0 transport; async `contextOf` in `frame-path-resolver.ts`, `page-wiring.ts`, `out-of-process-frames.ts`; `guardCdp` on every session.
-- [ ] 2.5 RED->GREEN: rename to `patchright-browser-launcher.ts` / `patchright-browser-session.ts`: `launchPersistentContext`, `context.pages()[0]`, end on context close; 30 s timeout (Patchright persistent context, Stored browser, Fallback).
-- [ ] 2.6 RED->GREEN: `recording-session.ts` request gains `browser`, `target`; saves v2 (Saved fields); `ProfileInUseError`-like launch error surfaced (Locked at start).
-- [ ] 2.7 RED->GREEN: `tests/integration/cdp-method-audit.test.ts` (headless): wraps `newCDPSession`, same/cross-origin frames, navigation, dialog, scroll; asserts no forbidden method (Protocol trace). Managed login survives second launch (cookie via fixture server).
-- [ ] 2.8 REFACTOR: existing capture suite green on Patchright.
+- [x] 2.1 RED->GREEN: `domain/launch-arguments.ts` pure (window -> `viewport:null` + `--window-size`; emulated; real keychain -> `ignoreDefaultArgs`); tests.
+- [x] 2.2 RED->GREEN: `domain/is-profile-in-use-error.ts` classifier tests (Locked).
+- [x] 2.3 RED->GREEN: `adapters/world-contexts.ts`: on-demand map via `createIsolatedWorld`, drop on `frameNavigated`/`frameDetached`; fake CDP unit tests.
+- [x] 2.4 RED: `isolated-world-capture` tests: no `Runtime.enable`, miss -> refresh `Page.getFrameTree` -> retry -> drop. GREEN: rewrite per S0 transport; async `contextOf` in `frame-path-resolver.ts`, `page-wiring.ts`, `out-of-process-frames.ts`; `guardCdp` on every session.
+- [x] 2.5 RED->GREEN: rename to `patchright-browser-launcher.ts` / `patchright-browser-session.ts`: `launchPersistentContext`, `context.pages()[0]`, end on context close; 30 s timeout (Patchright persistent context, Stored browser, Fallback).
+- [x] 2.6 RED->GREEN: `recording-session.ts` request gains `browser`, `target`; saves v2 (Saved fields); `ProfileInUseError`-like launch error surfaced (Locked at start).
+- [x] 2.7 RED->GREEN: `tests/integration/cdp-method-audit.test.ts` (headless): wraps `newCDPSession`, same/cross-origin frames, navigation, dialog, scroll; asserts no forbidden method (Protocol trace). Managed login survives second launch (cookie via fixture server).
+- [x] 2.8 REFACTOR: existing capture suite green on Patchright.
 
 ## WP3: browser-profiles (worktree)
 
