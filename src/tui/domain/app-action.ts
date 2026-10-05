@@ -9,6 +9,7 @@ import type { MenuTarget, TextEdit } from './intent.ts';
 /** Every state change goes through one of these; the reducer is pure. */
 export type AppAction =
   | { readonly type: 'tick'; readonly nowMs: number }
+  | { readonly type: 'resize'; readonly listRows: number }
   | { readonly type: 'setup-output'; readonly line: string }
   | { readonly type: 'setup-installing' }
   | { readonly type: 'setup-ready'; readonly linuxHint: string | null }
