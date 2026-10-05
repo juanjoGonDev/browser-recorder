@@ -89,8 +89,15 @@ under test.
 
 Parallel agents each get their own git worktree under
 `../browser-recorder-worktrees/<name>`, on a branch `feat/<name>-<slug>`.
-Size the pool as `min(floor((freeRAM_GB - 4) / 3), cpuCores - 2)` with a minimum
-of 1; when there are more packages than slots, run in waves.
+Size the pool as `min(floor((freeRAM_GB - 2) / 1.5), cpuCores - 2)` with a
+minimum of 1; when there are more packages than slots, run in waves. Each slot
+budgets ~1.5 GB (Vitest workers plus one headless Chromium) and 2 GB stay
+reserved for the OS and the orchestrator. Measure `freeRAM_GB` right before
+each wave:
+
+- macOS: `memory_pressure` "System-wide memory free percentage" × total RAM.
+- Linux: `MemAvailable` from `/proc/meminfo`.
+- Windows: `(Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory` (KB).
 
 After a worktree finishes: `git merge` its branch into the main worktree, verify
 the merged files are actually present, then `git worktree remove` it and delete

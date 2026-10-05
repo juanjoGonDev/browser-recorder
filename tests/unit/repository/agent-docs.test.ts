@@ -21,7 +21,7 @@ const REQUIRED_SECTIONS: readonly (readonly [string, RegExp])[] = [
   ['## Naming and lint rules', /kebab-case/],
   [
     '## Parallel agents and worktrees',
-    /min\(floor\(\(freeRAM_GB - 4\) \/ 3\), cpuCores - 2\)/,
+    /min\(floor\(\(freeRAM_GB - 2\) \/ 1\.5\), cpuCores - 2\)/,
   ],
   ['## Branching and pull requests', /squash \+ merge/i],
   ['## Never push', /never push/i],
