@@ -93,8 +93,13 @@ describe('ensureBrowser', () => {
       exitCode: 1,
     });
     expect(MANUAL_INSTALL_COMMAND).toBe(
-      'pnpm exec playwright install chromium',
+      'pnpm exec patchright install chromium',
     );
+  });
+
+  it('prints a manual command that goes through patchright, never playwright', () => {
+    expect(MANUAL_INSTALL_COMMAND).toMatch(/\bpatchright install chromium$/);
+    expect(MANUAL_INSTALL_COMMAND).not.toMatch(/playwright/i);
   });
 
   it('carries whatever non-zero exit code the installer returned', async () => {

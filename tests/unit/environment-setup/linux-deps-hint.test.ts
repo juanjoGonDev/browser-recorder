@@ -14,9 +14,18 @@ describe('linuxDepsHint', () => {
   it('prints the install-deps and with-deps commands for missing libraries on linux', () => {
     const hint = linuxDepsHint('linux', MISSING_LIBS);
 
-    expect(hint).toContain('sudo pnpm exec playwright install-deps chromium');
-    expect(hint).toContain('playwright install --with-deps chromium');
+    expect(hint).toContain('sudo pnpm exec patchright install-deps chromium');
+    expect(hint).toContain('patchright install --with-deps chromium');
     expect(hint).toContain(LINUX_DEPS_COMMAND);
+  });
+
+  it('never names the Playwright CLI in the commands it prints', () => {
+    const hint = linuxDepsHint('linux', MISSING_LIBS) ?? '';
+
+    expect(hint).not.toMatch(/playwright/i);
+    expect(LINUX_DEPS_COMMAND).toBe(
+      'sudo pnpm exec patchright install-deps chromium',
+    );
   });
 
   it('recognises a dynamic loader error', () => {

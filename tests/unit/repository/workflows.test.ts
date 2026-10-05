@@ -129,6 +129,13 @@ describe('ci.yml', () => {
     );
   });
 
+  it('never installs browsers through the Playwright CLI', () => {
+    expect(ci).not.toMatch(/exec playwright\b/);
+    expect(readWorkflow('auto-release.workflow.yml')).not.toMatch(
+      /exec playwright\b/,
+    );
+  });
+
   it('audits dependencies on Linux only', () => {
     expect(ci).toMatch(
       /name: Audit dependencies\n\s+if: matrix\.os == 'linux'\n\s+run: pnpm audit --audit-level=moderate/,
