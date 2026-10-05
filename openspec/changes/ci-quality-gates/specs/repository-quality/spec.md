@@ -92,6 +92,11 @@ The CI workflow MUST also satisfy CI gate parity:
 - WHEN `CI — <os>` is replaced by `Quality` and `Test — <os>`
 - THEN no merge is blocked; the owner MAY add `Quality` and `Test — <os>` as required checks after merge
 
+#### Scenario: Any base branch and restart on push
+- GIVEN `ci.yml` and `pr-title.workflow.yml`
+- WHEN their `pull_request` triggers and concurrency are inspected
+- THEN neither has a `branches` or `branches-ignore` filter, both include the `synchronize` type (the title workflow also `edited`), and each concurrency group is keyed per PR or branch with `cancel-in-progress: true`, so a new push cancels the stale run and starts a fresh one
+
 #### Scenario: Version untouched
 - GIVEN the change diff
 - WHEN `package.json` is compared with main
