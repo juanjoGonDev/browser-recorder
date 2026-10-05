@@ -1,0 +1,66 @@
+{
+  "name": "browser-recorder",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Record a real browser session into a faithful, plain Playwright script, managed from a terminal UI",
+  "type": "module",
+  "bin": {
+    "browser-recorder": "dist/main.js"
+  },
+  "packageManager": "pnpm@10.34.4",
+  "engines": {
+    "node": ">=22.13.0",
+    "pnpm": ">=10.16.0"
+  },
+  "scripts": {
+    "start": "pnpm run build && node dist/main.js",
+    "build": "node --experimental-strip-types scripts/build.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint .",
+    "lint:strict": "eslint . --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "deadcode": "knip",
+    "deps:check": "depcruise src scripts --config .dependency-cruiser.json --ts-config tsconfig.node.json",
+    "typecheck": "pnpm typecheck:node && pnpm typecheck:in-page && pnpm typecheck:tests",
+    "typecheck:node": "tsc -p tsconfig.node.json --noEmit",
+    "typecheck:in-page": "tsc -p tsconfig.in-page.json",
+    "typecheck:tests": "tsc -p tsconfig.tests.json --noEmit",
+    "quality": "pnpm typecheck && pnpm lint:strict && pnpm format:check && pnpm deadcode && pnpm deps:check && pnpm test",
+    "audit": "pnpm audit --audit-level=moderate",
+    "postinstall": "node --experimental-strip-types scripts/install-hooks.ts"
+  },
+  "dependencies": {
+    "playwright": "1.63.0"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "21.2.3",
+    "@commitlint/config-conventional": "21.2.3",
+    "@types/node": "22.20.5",
+    "@vitest/coverage-v8": "5.0.1",
+    "@vitest/eslint-plugin": "1.6.27",
+    "dependency-cruiser": "18.4.0",
+    "esbuild": "0.28.2",
+    "eslint": "10.11.0",
+    "eslint-plugin-unicorn": "76.0.0",
+    "jiti": "2.7.0",
+    "knip": "6.37.0",
+    "lefthook": "2.1.14",
+    "prettier": "3.9.8",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.70.1",
+    "vitest": "5.0.1"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "lefthook"
+    ]
+  },
+  "commitlint": {
+    "extends": [
+      "@commitlint/config-conventional"
+    ]
+  }
+}
