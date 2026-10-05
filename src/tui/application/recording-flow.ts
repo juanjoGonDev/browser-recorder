@@ -7,10 +7,13 @@ import {
   syncClock,
   type ControllerDeps,
 } from './controller-deps.ts';
-import { BUNDLED_EPHEMERAL } from '../../shared/domain/browser-choice.ts';
+import type { BrowserChoice } from '../../shared/domain/browser-choice.ts';
+import type { NewRecordingScreen } from '../domain/app-state.ts';
 import type { NewRecordingRequest } from './ports/app-services.ts';
 
 export interface RecordingFlow {
+  /** Detects the browsers for the open form; never rejects. */
+  loadBrowsers(): Promise<void>;
   /** Validates the form and starts recording. */
   submitForm(): Promise<void>;
   /** Saves and ends the session; a second call while stopping is ignored. */
@@ -26,6 +29,17 @@ export function createRecordingFlow(
   showLibrary: () => Promise<void>,
 ): RecordingFlow {
   return new LiveRecordingFlow(deps, showLibrary);
+}
+
+const DETECTING_MESSAGE = 'Detecting browsers…';
+const NO_BROWSER_MESSAGE = 'No browser is available to record with.';
+
+/** The picked choice, or the reason the form cannot start yet. */
+function chosenBrowser(screen: NewRecordingScreen): BrowserChoice | string {
+  if (screen.browsers === null) return DETECTING_MESSAGE;
+  const profile =
+    screen.browsers[screen.browserIndex]?.profiles[screen.profileIndex];
+  return profile === undefined ? NO_BROWSER_MESSAGE : profile.choice;
 }
 
 class LiveRecordingFlow implements RecordingFlow {
@@ -45,9 +59,24 @@ class LiveRecordingFlow implements RecordingFlow {
     return this.live !== null;
   }
 
+  async loadBrowsers(): Promise<void> {
+    const { store, services } = this.deps;
+    try {
+      const browsers = await services.browsers.list();
+      store.dispatch({ type: 'browsers-loaded', browsers });
+    } catch (error) {
+      store.dispatch({ type: 'browsers-failed', message: messageOf(error) });
+    }
+  }
+
   async submitForm(): Promise<void> {
     const { screen } = this.deps.store.getState();
     if (screen.kind !== 'new-recording') return;
+    const choice = chosenBrowser(screen);
+    if (typeof choice === 'string') {
+      this.deps.store.dispatch({ type: 'form-error', message: choice });
+      return;
+    }
     const name = screen.name.value.trim();
     const url = screen.startUrl.value.trim();
     const { library } = this.deps.services;
@@ -56,7 +85,7 @@ class LiveRecordingFlow implements RecordingFlow {
       this.deps.store.dispatch({ type: 'form-error', message: invalid });
       return;
     }
-    await this.begin({ name, startUrl: url === '' ? null : url });
+    await this.begin({ name, startUrl: url === '' ? null : url }, choice);
   }
 
   async stop(): Promise<void> {
@@ -99,13 +128,15 @@ class LiveRecordingFlow implements RecordingFlow {
     });
   }
 
-  private async begin(request: NewRecordingRequest): Promise<void> {
+  private async begin(
+    request: NewRecordingRequest,
+    browser: BrowserChoice,
+  ): Promise<void> {
     syncClock(this.deps);
     try {
       this.live = await this.deps.services.recording.start({
         ...request,
-        // Until the form offers a picker, every recording uses the default.
-        browser: BUNDLED_EPHEMERAL,
+        browser,
       });
     } catch (error) {
       this.deps.store.dispatch({

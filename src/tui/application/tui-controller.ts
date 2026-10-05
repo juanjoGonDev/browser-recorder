@@ -144,6 +144,8 @@ class IntentController implements TuiController {
       return undefined;
     }
     this.deps.store.dispatch({ type: 'navigate', target });
+    // Detection never blocks typing: Enter is refused until the list arrives.
+    if (target === 'new-recording') void this.recording.loadBrowsers();
     return undefined;
   }
 

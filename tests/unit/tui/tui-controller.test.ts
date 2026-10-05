@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createAppStore } from '../../../src/tui/application/app-store.ts';
 import { createTuiController } from '../../../src/tui/application/tui-controller.ts';
@@ -12,8 +12,15 @@ import type { KeyPress } from '../../../src/tui/application/ports/terminal.ts';
 import { createFakeClock, createFakeTimers } from '../../support/fake-clock.ts';
 import { createFakeServices } from '../../support/fake-app-services.ts';
 import { char, named } from '../../support/keys.ts';
-import { BUNDLED_CHOICE } from '../../support/browser-fixtures.ts';
-import { clickAt, validEntry } from '../../support/tui-fixtures.ts';
+import {
+  BRAVE_CHOICE,
+  BUNDLED_CHOICE,
+} from '../../support/browser-fixtures.ts';
+import {
+  BROWSER_VIEWS,
+  clickAt,
+  validEntry,
+} from '../../support/tui-fixtures.ts';
 
 function setup() {
   const fake = createFakeServices();
@@ -252,7 +259,7 @@ describe('src/tui/application/tui-controller.ts', () => {
       const harness = setup();
       await startRecording(harness);
       expect(harness.fake.startRequests).toEqual([
-        { name: 'Demo', startUrl: null, browser: BUNDLED_CHOICE },
+        { name: 'Demo', startUrl: null, browser: BRAVE_CHOICE },
       ]);
       expect(harness.store.getState().screen).toMatchObject({
         kind: 'recording',
@@ -271,7 +278,7 @@ describe('src/tui/application/tui-controller.ts', () => {
         {
           name: 'Shop',
           startUrl: 'https://shop.test/',
-          browser: BUNDLED_CHOICE,
+          browser: BRAVE_CHOICE,
         },
       ]);
     });
@@ -292,6 +299,88 @@ describe('src/tui/application/tui-controller.ts', () => {
       const form = harness.store.getState().screen as NewRecordingScreen;
       expect(form.kind).toBe('new-recording');
       expect(form.error).toBe('Could not launch Chromium');
+    });
+  });
+
+  describe('browser pickers', () => {
+    function form(harness: Harness): NewRecordingScreen {
+      return harness.store.getState().screen as NewRecordingScreen;
+    }
+
+    it('loads the detected browsers when the form opens', async () => {
+      const harness = setup();
+      await openForm(harness);
+      expect(form(harness).browsers).toEqual(BROWSER_VIEWS);
+    });
+
+    it('explains the failure and refuses to start when detection fails', async () => {
+      const harness = setup();
+      harness.fake.browsersError = new Error('Detection broke');
+      await openForm(harness);
+      await harness.type('Demo');
+      await harness.press(named('return'));
+      expect(form(harness).browsers).toEqual([]);
+      expect(form(harness).error).toBe(
+        'No browser is available to record with.',
+      );
+      expect(harness.fake.startRequests).toEqual([]);
+    });
+
+    it('refuses Enter with "Detecting browsers…" until the list arrives', async () => {
+      const harness = setup();
+      let open: () => void = () => undefined;
+      harness.fake.browsersGate = new Promise((resolve) => {
+        open = resolve;
+      });
+      await openForm(harness);
+      await harness.type('Demo');
+      await harness.press(named('return'));
+      expect(form(harness).error).toBe('Detecting browsers…');
+      expect(harness.fake.startRequests).toEqual([]);
+      open();
+      await vi.waitFor(() => {
+        expect(form(harness).browsers).toEqual(BROWSER_VIEWS);
+      });
+      await harness.press(named('return'));
+      expect(harness.fake.startRequests).toHaveLength(1);
+    });
+
+    it('starts with the browser and profile the user picked', async () => {
+      const harness = setup();
+      await openForm(harness);
+      await harness.type('Demo');
+      await harness.press(named('tab'), named('tab'), named('tab'));
+      await harness.press(named('right'));
+      expect(form(harness).focus).toBe('profile');
+      await harness.press(named('return'));
+      expect(harness.fake.startRequests).toEqual([
+        {
+          name: 'Demo',
+          startUrl: null,
+          browser: {
+            browserId: 'brave',
+            profileMode: 'copy-of-real',
+            sourceProfile: 'Default',
+          },
+        },
+      ]);
+    });
+
+    it('restarts the profile choice when another browser is picked', async () => {
+      const harness = setup();
+      await openForm(harness);
+      await harness.type('Demo');
+      await harness.press(named('tab'), named('tab'));
+      await harness.press(named('right'));
+      await harness.press(named('return'));
+      expect(harness.fake.startRequests[0]?.browser).toEqual(BUNDLED_CHOICE);
+    });
+
+    it('preselects the bundled browser when it is the only one', async () => {
+      const harness = setup();
+      harness.fake.browsers = BROWSER_VIEWS.slice(1);
+      await startRecording(harness);
+      expect(harness.fake.startRequests[0]?.browser).toEqual(BUNDLED_CHOICE);
     });
   });
 
