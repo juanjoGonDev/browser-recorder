@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Duplicate id</title>
+  </head>
+  <body>
+    <button id="x">First</button>
+    <label>Second field <input id="x" name="second" /></label>
+    <p id="state">idle</p>
+    <script>
+      document.querySelectorAll('[id="x"]').forEach((element) => {
+        element.addEventListener('click', () => {
+          document.getElementById('state').textContent = 'clicked';
+        });
+      });
+    </script>
+  </body>
+</html>

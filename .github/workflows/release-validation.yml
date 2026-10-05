@@ -1,0 +1,93 @@
+name: Release validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    # No base filter: a pull request stacked on another branch must be
+    # validated too — without this it merges with no CI having run.
+    types: [opened, reopened, synchronize, ready_for_review]
+    paths:
+      - '.github/workflows/auto-release.workflow.yml'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/release-validation.yml'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'scripts/build.ts'
+      - 'scripts/lib/script-runtime.ts'
+      - 'scripts/release-impact-policy.ts'
+      - 'tests/unit/repository/release-impact-policy.test.ts'
+      - 'tests/unit/repository/release-workflow-impact.test.ts'
+      - 'tsconfig*.json'
+
+permissions: read-all
+
+concurrency:
+  group: release-validation-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Release dry run
+    if: >-
+      github.repository == 'juanjoGonDev/browser-recorder' &&
+      (github.event_name == 'workflow_dispatch' ||
+       github.event.pull_request.draft == false)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout candidate commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Audit release dependency graph
+        run: pnpm audit --audit-level=moderate
+
+      - name: Run release policy regression tests
+        run: >-
+          pnpm exec vitest run
+          tests/unit/repository/release-impact-policy.test.ts
+          tests/unit/repository/release-workflow-impact.test.ts
+
+      - name: Build without publishing
+        run: pnpm run build
+
+      - name: Record release plan
+        env:
+          TARGET_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./package.json').version")
+          mkdir -p dist/validation
+          {
+            echo "tag=v$version"
+            echo "target=$TARGET_SHA"
+            echo 'publication=false'
+            echo 'assets: none'
+          } > dist/validation/RELEASE_VALIDATION.txt
+
+      - name: Upload dry-run evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-validation-${{ github.sha }}
+          retention-days: 3
+          # Evidence must survive a failed step (that is exactly when it is
+          # needed) — always() — and an early failure may have produced no
+          # file at all — warn, don't fail.
+          if-no-files-found: warn
+          path: dist/validation/RELEASE_VALIDATION.txt

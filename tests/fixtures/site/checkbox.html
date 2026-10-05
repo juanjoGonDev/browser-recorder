@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Checkbox</title>
+  </head>
+  <body>
+    <label><input type="checkbox" id="newsletter" /> Subscribe</label>
+    <label><input type="radio" name="plan" value="free" /> Free</label>
+    <label><input type="radio" name="plan" value="pro" /> Pro</label>
+    <p id="state">unchecked</p>
+    <script>
+      const box = document.getElementById('newsletter');
+      box.addEventListener('change', () => {
+        document.getElementById('state').textContent = box.checked
+          ? 'checked'
+          : 'unchecked';
+      });
+    </script>
+  </body>
+</html>

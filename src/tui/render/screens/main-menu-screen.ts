@@ -1,0 +1,66 @@
+import type { MainMenuScreen } from '../../domain/app-state.ts';
+import { BROWSER_REQUIRED_REASON } from '../../domain/browser-required.ts';
+import {
+  MAIN_MENU_ITEMS,
+  type MainMenuItem,
+} from '../../domain/main-menu-items.ts';
+import { sanitize } from '../../../shared/domain/terminal-text.ts';
+import type { RenderContext, ScreenView } from '../screen-view.ts';
+
+const TAGLINE = 'Record a browser session, replay it as a Patchright script.';
+
+function menuLine(
+  item: MainMenuItem,
+  isSelected: boolean,
+  context: RenderContext,
+): string {
+  const { style } = context;
+  const isDisabled = !context.isBrowserAvailable && item.isBrowserRequired;
+  const label = isDisabled ? `${item.label} (needs Chromium)` : item.label;
+  const text = isDisabled ? style.muted(label) : label;
+  return isSelected
+    ? `  ${style.accent('❯')} ${isDisabled ? text : style.bold(text)}`
+    : `    ${text}`;
+}
+
+function reasonLines(context: RenderContext): string[] {
+  return context.isBrowserAvailable
+    ? []
+    : ['', `  ${context.style.warning(`! ${BROWSER_REQUIRED_REASON}`)}`];
+}
+
+function browserLines(context: RenderContext): string[] {
+  if (context.detectedBrowsers.length === 0) return [];
+  const text = sanitize(`Browsers: ${context.detectedBrowsers.join(', ')}`);
+  return ['', `  ${context.style.muted(text)}`];
+}
+
+export function renderMainMenuScreen(
+  screen: MainMenuScreen,
+  context: RenderContext,
+): ScreenView {
+  const items = MAIN_MENU_ITEMS.map((item, index) =>
+    menuLine(item, index === screen.selected, context),
+  );
+  const hint =
+    context.linuxHint === null
+      ? []
+      : ['', `  ${context.style.warning(`! ${context.linuxHint}`)}`];
+  return {
+    title: 'browser-recorder',
+    body: [
+      '',
+      `  ${context.style.muted(TAGLINE)}`,
+      '',
+      ...items,
+      ...browserLines(context),
+      ...reasonLines(context),
+      ...hint,
+    ],
+    hints: [
+      { key: '↑↓', label: 'move' },
+      { key: 'enter', label: 'select' },
+      { key: 'q', label: 'quit' },
+    ],
+  };
+}

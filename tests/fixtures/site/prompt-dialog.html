@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Dialogs</title>
+  </head>
+  <body>
+    <button id="ask-name">Ask name</button>
+    <button id="confirm-delete">Confirm delete</button>
+    <button id="say-hello">Say hello</button>
+    <p id="result"></p>
+    <script>
+      const result = document.getElementById('result');
+      document.getElementById('ask-name').addEventListener('click', () => {
+        result.textContent =
+          'name: ' + String(prompt('Your name?', 'anonymous'));
+      });
+      document
+        .getElementById('confirm-delete')
+        .addEventListener('click', () => {
+          result.textContent = 'confirmed: ' + String(confirm('Delete it?'));
+        });
+      document.getElementById('say-hello').addEventListener('click', () => {
+        alert('Hello');
+        result.textContent = 'alerted';
+      });
+    </script>
+  </body>
+</html>

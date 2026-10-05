@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Hover menu</title>
+    <style>
+      .menu {
+        position: relative;
+        display: inline-block;
+        padding: 8px 16px;
+        background: #eee;
+      }
+      .menu .items {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        min-width: 160px;
+        background: #fff;
+        border: 1px solid #ccc;
+      }
+      .menu:hover .items {
+        display: block;
+      }
+      #popover-anchor {
+        display: inline-block;
+        margin-left: 40px;
+        padding: 8px 16px;
+        background: #def;
+      }
+      #popover {
+        display: none;
+        margin-top: 8px;
+        padding: 8px;
+        border: 1px solid #99c;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="menu" id="products-menu">
+      Products
+      <div class="items">
+        <a href="#reports" id="reports-link">Reports</a>
+      </div>
+    </nav>
+    <span id="popover-anchor">Details</span>
+    <div id="popover"><button id="popover-action">Open details</button></div>
+    <p id="landed"></p>
+    <script>
+      document
+        .getElementById('reports-link')
+        .addEventListener('click', (event) => {
+          event.preventDefault();
+          document.getElementById('landed').textContent = 'reports';
+        });
+      const anchor = document.getElementById('popover-anchor');
+      const popover = document.getElementById('popover');
+      anchor.addEventListener('mouseenter', () => {
+        popover.style.display = 'block';
+      });
+      document
+        .getElementById('popover-action')
+        .addEventListener('click', () => {
+          document.getElementById('landed').textContent = 'details';
+        });
+    </script>
+  </body>
+</html>

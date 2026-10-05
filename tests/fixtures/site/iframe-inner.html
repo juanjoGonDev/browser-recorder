@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Inner frame</title>
+  </head>
+  <body>
+    <button id="inner-button">Inner action</button>
+    <p id="inner-status">idle</p>
+    <script>
+      document.getElementById('inner-button').addEventListener('click', () => {
+        document.getElementById('inner-status').textContent = 'clicked';
+      });
+    </script>
+  </body>
+</html>

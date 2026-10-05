@@ -1,0 +1,40 @@
+pre-commit:
+  parallel: false
+  jobs:
+    - name: prettier
+      run: pnpm prettier --write {staged_files}
+      glob:
+        - '*.{ts,mts,cts,js,cjs,mjs,json,md,yml,yaml,css,html}'
+      stage_fixed: true
+
+    - name: eslint
+      run: pnpm lint:strict
+
+    - name: typecheck
+      run: pnpm typecheck
+
+    - name: build
+      run: pnpm build
+
+commit-msg:
+  jobs:
+    - name: commitlint
+      run: pnpm exec commitlint --edit {1}
+
+pre-push:
+  parallel: false
+  jobs:
+    - name: format-check
+      run: pnpm format:check
+
+    - name: test-coverage
+      run: pnpm test:coverage
+
+    - name: deadcode
+      run: pnpm deadcode
+
+    - name: deps-check
+      run: pnpm deps:check
+
+    - name: audit
+      run: pnpm audit --audit-level=moderate

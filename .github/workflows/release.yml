@@ -1,0 +1,277 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+  # No dispatch inputs: any workflow input is a CodeQL taint source, and a
+  # tainted ref reaching a checkout/cache step in this default-branch
+  # workflow is a cache-poisoning alert. The dispatch path recovers the
+  # version currently in package.json on main (detect resolves and verifies
+  # the introducing commit against the live tag and release state), so it
+  # needs no operator-supplied data.
+  workflow_dispatch:
+
+permissions: read-all
+
+concurrency:
+  group: release-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  detect:
+    name: Resolve version-introducing commit
+    if: >-
+      github.repository == 'juanjoGonDev/browser-recorder' &&
+      github.event.repository.fork == false &&
+      github.ref_name == github.event.repository.default_branch &&
+      (github.event_name != 'workflow_dispatch' || github.actor == github.repository_owner)
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    outputs:
+      publish: ${{ steps.release.outputs.publish }}
+      version: ${{ steps.release.outputs.version }}
+      release_sha: ${{ steps.release.outputs.release_sha }}
+      release_tag: ${{ steps.release.outputs.release_tag }}
+      tag_exists: ${{ steps.release.outputs.tag_exists }}
+    steps:
+      - name: Checkout trusted default branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js for release policy
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      - name: Resolve version change or recovery release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+
+          read_package_version() {
+            git show "$1:package.json" 2>/dev/null \
+              | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).version" \
+              2>/dev/null || true
+          }
+
+          current_version=$(node -p "require('./package.json').version")
+          if ! [[ "$current_version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "::error title=Invalid release version::$current_version is not a stable semantic version."
+            exit 1
+          fi
+
+          # Recovery (workflow_dispatch) re-resolves the version currently in
+          # package.json against the full first-parent history; a push
+          # resolves only the version that push introduced.
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            release_range="$GITHUB_SHA"
+          else
+            zero_sha=0000000000000000000000000000000000000000
+            previous_version=
+            if [[ -n "$BEFORE_SHA" && "$BEFORE_SHA" != "$zero_sha" ]]; then
+              previous_version=$(read_package_version "$BEFORE_SHA")
+            fi
+            if [[ -z "$previous_version" || "$previous_version" == "$current_version" ]]; then
+              echo "publish=false" >> "$GITHUB_OUTPUT"
+              echo "package.json version did not change on this push."
+              exit 0
+            fi
+            release_range="${BEFORE_SHA}..${GITHUB_SHA}"
+          fi
+
+          release_sha=
+          while IFS= read -r candidate_sha; do
+            candidate_version=$(read_package_version "$candidate_sha")
+            if [[ "$candidate_version" != "$current_version" ]]; then
+              continue
+            fi
+
+            parent_sha=$(git rev-parse "${candidate_sha}^1" 2>/dev/null || true)
+            parent_version=
+            if [[ -n "$parent_sha" ]]; then
+              parent_version=$(read_package_version "$parent_sha")
+            fi
+            if [[ "$parent_version" != "$current_version" ]]; then
+              release_sha="$candidate_sha"
+              break
+            fi
+          done < <(git rev-list --first-parent "$release_range" -- package.json)
+
+          if [[ -z "$release_sha" ]]; then
+            echo "::error title=Unresolved release commit::No default-branch commit introduced package version $current_version."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$release_sha" "$GITHUB_SHA"; then
+            echo "::error title=Invalid release commit::$release_sha is not an ancestor of $GITHUB_SHA."
+            exit 1
+          fi
+
+          if [[ "$release_sha" != "$GITHUB_SHA" ]]; then
+            echo "::warning title=Release commit is not HEAD::The version-introducing commit $release_sha differs from the push HEAD $GITHUB_SHA; the release notes cover HEAD."
+          fi
+
+          release_tag="v${current_version}"
+          if release_json=$(gh release view "$release_tag" --json tagName,isDraft,isPrerelease,assets 2>/dev/null); then
+            if [[ "$(jq -r .isDraft <<<"$release_json")" != "false" || "$(jq -r .isPrerelease <<<"$release_json")" != "false" ]]; then
+              echo "::error title=Release metadata mismatch::$release_tag must be a published stable release."
+              exit 1
+            fi
+
+            git fetch --force origin "refs/tags/${release_tag}:refs/tags/${release_tag}"
+            existing_sha=$(git rev-list -n 1 "$release_tag")
+            if [[ "$existing_sha" != "$release_sha" ]]; then
+              echo "::error title=Release target mismatch::$release_tag points to $existing_sha instead of $release_sha."
+              exit 1
+            fi
+
+            # A browser-recorder release ships no binaries: the GitHub-generated
+            # source archives are its only downloads.
+            if [[ "$(jq -r '.assets | length' <<<"$release_json")" != "0" ]]; then
+              echo "::error title=Release asset mismatch::$release_tag must not carry any uploaded asset."
+              exit 1
+            fi
+
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "GitHub Release $release_tag already exists with the expected target and no assets."
+            exit 0
+          fi
+
+          if [[ "$EVENT_NAME" != "workflow_dispatch" ]]; then
+            latest_release_tag=$(gh release list --exclude-drafts --exclude-pre-releases --limit 1 --json tagName --jq '.[0].tagName // empty')
+            if [[ -n "$latest_release_tag" ]]; then
+              if [[ "$latest_release_tag" == "$release_tag" ]]; then
+                echo "::error title=Release state mismatch::$release_tag is listed as the latest stable release but could not be resolved by tag."
+                exit 1
+              fi
+              git fetch --force origin "refs/tags/${latest_release_tag}:refs/tags/${latest_release_tag}"
+              latest_release_sha=$(git rev-list -n 1 "$latest_release_tag")
+              if ! git merge-base --is-ancestor "$latest_release_sha" "$release_sha"; then
+                echo "::error title=Invalid release impact baseline::$latest_release_tag is not an ancestor of $release_sha."
+                exit 1
+              fi
+              impact_json=$(node --experimental-strip-types scripts/release-impact-policy.ts pending "$latest_release_tag" "$release_sha")
+              if [[ "$(jq -r .publish <<<"$impact_json")" != "true" ]]; then
+                echo "publish=false" >> "$GITHUB_OUTPUT"
+                echo "No release-impacting commits exist between $latest_release_tag and $release_sha; release skipped."
+                exit 0
+              fi
+            fi
+          fi
+
+          tag_exists=false
+          if git ls-remote --exit-code --tags origin "refs/tags/${release_tag}" >/dev/null 2>&1; then
+            git fetch --force origin "refs/tags/${release_tag}:refs/tags/${release_tag}"
+            existing_sha=$(git rev-list -n 1 "$release_tag")
+            if [[ "$existing_sha" != "$release_sha" ]]; then
+              echo "::error title=Release tag collision::$release_tag points to $existing_sha instead of $release_sha."
+              exit 1
+            fi
+            tag_exists=true
+          fi
+
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+          echo "version=$current_version" >> "$GITHUB_OUTPUT"
+          echo "release_sha=$release_sha" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
+          echo "tag_exists=$tag_exists" >> "$GITHUB_OUTPUT"
+
+  publish:
+    name: Publish release
+    # Deliberately no checkout: a privileged job must never check out a ref
+    # derived from another job's outputs (CodeQL privileged-checkout rule).
+    # Nothing is built or uploaded: a release is a tag plus generated notes,
+    # and tag/release operations use the GitHub API instead of local git.
+    needs: ['detect']
+    if: needs.detect.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: admin
+    permissions:
+      contents: write
+    # No checkout in this job, so `gh` has no local .git to infer the repo
+    # from. GH_REPO gives every invocation — including `gh release view` in
+    # the Verify published release step, which omits --repo — the context.
+    env:
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Create immutable release tag
+        if: needs.detect.outputs.tag_exists != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.detect.outputs.release_tag }}
+          RELEASE_SHA: ${{ needs.detect.outputs.release_sha }}
+        run: |
+          set -euo pipefail
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
+            # commits/tags/{tag} resolves the ref (dereferencing annotated
+            # tags) and returns the commit — .sha matches detect's
+            # 'git rev-list -n 1' comparison for both lightweight and
+            # annotated tags.
+            existing_sha=$(gh api "repos/${GITHUB_REPOSITORY}/commits/tags/${RELEASE_TAG}" --jq '.sha')
+            [[ "$existing_sha" == "$RELEASE_SHA" ]]
+            exit 0
+          fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+            -f ref="refs/tags/${RELEASE_TAG}" \
+            -f sha="$RELEASE_SHA" >/dev/null
+
+      - name: Create or validate GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.detect.outputs.release_tag }}
+          RELEASE_SHA: ${{ needs.detect.outputs.release_sha }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$RELEASE_SHA" \
+              --title "browser-recorder $RELEASE_TAG" \
+              --generate-notes
+          fi
+          # The tag targets the version-introducing commit while the workflow
+          # runs at the event HEAD. When the two differ, say so in the notes.
+          if [ "$RELEASE_SHA" != "$GITHUB_SHA" ]; then
+            body=$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json body -q .body)
+            gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+              --notes "$(printf '%s\n\n---\nReleased from workflow run at commit: %s (release tag targets %s, the version-introducing commit).' "$body" "$GITHUB_SHA" "$RELEASE_SHA")"
+          fi
+
+      - name: Verify published release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.detect.outputs.release_tag }}
+          RELEASE_SHA: ${{ needs.detect.outputs.release_sha }}
+        run: |
+          set -euo pipefail
+          release_json=$(gh release view "$RELEASE_TAG" --json tagName,isDraft,isPrerelease,assets,url)
+          [[ "$(jq -r .tagName <<<"$release_json")" == "$RELEASE_TAG" ]]
+          [[ "$(jq -r .isDraft <<<"$release_json")" == "false" ]]
+          [[ "$(jq -r .isPrerelease <<<"$release_json")" == "false" ]]
+
+          # No binaries: the release must carry no uploaded asset at all.
+          [[ "$(jq -r '.assets | length' <<<"$release_json")" == "0" ]]
+
+          # commits/tags/{tag} resolves the ref (dereferencing annotated
+          # tags): compare the tag's COMMIT, matching detect's
+          # 'git rev-list -n 1'.
+          tag_sha=$(gh api "repos/${GITHUB_REPOSITORY}/commits/tags/${RELEASE_TAG}" --jq '.sha')
+          [[ "$tag_sha" == "$RELEASE_SHA" ]]
+
+          release_url=$(jq -r .url <<<"$release_json")
+          {
+            echo "### browser-recorder release published"
+            echo "- Release: $release_url"
+            echo "- Tag: $RELEASE_TAG"
+            echo "- Commit: $RELEASE_SHA"
+            echo "- Assets: none"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Drag and drop</title>
+    <style>
+      #item,
+      #zone {
+        display: inline-block;
+        width: 120px;
+        height: 60px;
+        margin: 16px;
+        border: 1px solid #333;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="item" draggable="true">Drag me</div>
+    <div id="zone">Drop here</div>
+    <p id="dropped">no</p>
+    <script>
+      const zone = document.getElementById('zone');
+      document.getElementById('item').addEventListener('dragstart', (event) => {
+        event.dataTransfer.setData('text/plain', 'item');
+      });
+      zone.addEventListener('dragover', (event) => event.preventDefault());
+      zone.addEventListener('drop', (event) => {
+        event.preventDefault();
+        document.getElementById('dropped').textContent = 'yes';
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Prompt with a visible answer</title>
+  </head>
+  <body>
+    <button id="ask">Ask</button>
+    <script>
+      // The answer lands in the url, so a navigation signal proves the page
+      // received exactly what the dialog was answered with.
+      document.getElementById('ask').addEventListener('click', () => {
+        const answer = prompt('Your name?', 'anonymous');
+        location.hash = 'name-' + String(answer);
+      });
+    </script>
+  </body>
+</html>

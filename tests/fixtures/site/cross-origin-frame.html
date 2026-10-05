@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Cross-origin iframe</title>
+  </head>
+  <body>
+    <p id="outer-status">outer</p>
+    <script>
+      // The inner page is served by a second fixture server (another origin),
+      // named in the query string: ?inner=<url of the inner page>. Only an
+      // http(s) page on a loopback host is framed, rebuilt from known parts,
+      // so the query can never load a script URL or another site.
+      const WEB_PROTOCOLS = ['http:', 'https:'];
+      const LOOPBACK_HOSTS = ['localhost', '127.0.0.1'];
+
+      function loopbackPage(value) {
+        let url;
+        try {
+          url = new URL(value ?? '');
+        } catch {
+          return null;
+        }
+        const protocol = WEB_PROTOCOLS.find((known) => known === url.protocol);
+        const host = LOOPBACK_HOSTS.find((known) => known === url.hostname);
+        if (protocol === undefined || host === undefined) return null;
+        const port = url.port === '' ? '' : ':' + String(Number(url.port));
+        return protocol + '//' + host + port + url.pathname;
+      }
+
+      const frame = document.createElement('iframe');
+      frame.id = 'inner';
+      frame.title = 'Inner frame';
+      const inner = loopbackPage(
+        new URLSearchParams(location.search).get('inner'),
+      );
+      if (inner !== null) frame.src = inner;
+      document.body.append(frame);
+    </script>
+  </body>
+</html>

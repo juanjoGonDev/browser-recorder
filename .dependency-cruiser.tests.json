@@ -1,0 +1,42 @@
+{
+  "forbidden": [
+    {
+      "name": "no-playwright",
+      "comment": "Playwright was replaced by Patchright and must not come back, not even in tests.",
+      "severity": "error",
+      "from": {},
+      "to": {
+        "path": "node_modules/(@)?playwright(-core|/test)?/"
+      }
+    },
+    {
+      "name": "no-playwright-unresolved",
+      "comment": "An uninstalled Playwright import is still a Playwright import.",
+      "severity": "error",
+      "from": {},
+      "to": {
+        "couldNotResolve": true,
+        "path": "^(@playwright/|playwright)"
+      }
+    }
+  ],
+  "options": {
+    "exclude": { "path": "^tests/fixtures/lint/" },
+    "doNotFollow": {
+      "path": "node_modules",
+      "dependencyTypes": [
+        "npm",
+        "npm-dev",
+        "npm-optional",
+        "npm-peer",
+        "npm-bundled",
+        "npm-no-pkg"
+      ]
+    },
+    "enhancedResolveOptions": {
+      "conditionNames": ["import", "node", "default"],
+      "exportsFields": ["exports"]
+    },
+    "tsPreCompilationDeps": true
+  }
+}
