@@ -257,6 +257,7 @@ New recording screen focus order: `name → url → browser → profile`. Tab an
 - [x] S0: `Runtime.bindingCalled` without `Runtime.enable`, and `Page.createIsolatedWorld` reusing the named world. Resolved: transport (b), see the S0 addendum.
 - [x] S0: the `patchright-core` bin name; whether Patchright still adds `--use-mock-keychain`. Resolved: `patchright-core`, and yes it still adds both keychain switches; see the S0 addendum.
 - [ ] Whether a Windows app-bound encrypted copy actually fails on Chrome, Brave and Edge. For now the design only warns, before launch; the opt-in test on Windows confirms.
+  Post-launch cookie-count detection was evaluated and rejected (it needs a SQLite reader and a zero count can be legitimate); the spec is warning-only.
 
 ## S0 Addendum: spike outcomes (WP0, Patchright 1.63.0, bundled Chromium, headless)
 

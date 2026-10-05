@@ -50,12 +50,19 @@ The system MUST list profiles from the browser's `Local State` (`profile.info_ca
 
 ### Requirement: Copy of real profile
 
-Mode `copy-of-real` MUST, before each launch, copy the chosen profile directory plus `Local State` into a tool-owned directory, skipping lock files (`SingletonLock`, `SingletonCookie`, `SingletonSocket`, `lockfile`) and caches (`Cache`, `Code Cache`, `GPUCache`). It MUST copy each SQLite `-wal`, `-shm` and `-journal` sibling together with its database and retry the copy of a file that changes or fails mid-read. The browser executable launched on the copy MUST be the same browser the profile came from.
+Mode `copy-of-real` MUST, before each launch, copy the chosen profile directory plus `Local State` into a tool-owned directory, skipping lock files (`SingletonLock`, `SingletonCookie`, `SingletonSocket`, `lockfile`) and caches (`Cache`, `Code Cache`, `GPUCache`). It MUST copy each SQLite `-wal` and `-journal` sibling together with its database and retry the copy of a file that changes or fails mid-read. The browser executable launched on the copy MUST be the same browser the profile came from.
+
+It MUST NOT copy `-shm` files: they are a rebuildable shared-memory index of the WAL, SQLite recreates them from the `-wal` file on first open, and a `-shm` captured from a live database can disagree with the copied `-wal` and corrupt the copy.
 
 #### Scenario: WAL sibling
 - GIVEN `Cookies` and `Cookies-wal` exist
 - WHEN copied
 - THEN both exist in the copy with identical bytes
+
+#### Scenario: Shared-memory sibling
+- GIVEN `Cookies`, `Cookies-wal` and `Cookies-shm` exist
+- WHEN copied
+- THEN `Cookies` and `Cookies-wal` exist in the copy and `Cookies-shm` does not
 
 #### Scenario: Torn read
 - GIVEN a file changes during the first read attempt
@@ -97,9 +104,9 @@ Before launching on a managed or copied directory the system MUST detect a lock 
 
 ### Requirement: Encryption failure reporting
 
-When a copied profile cannot be decrypted by the browser (e.g. Windows app-bound encryption), the system SHOULD report that the session could not be reused instead of failing silently.
+When a copied profile is likely to be undecryptable by the browser (Windows app-bound encryption, flagged in `Local State`), the system SHOULD warn before launch that the copy will probably not be logged in, instead of failing silently. Detecting rejected cookies after launch is out of scope: it would require reading the source cookie database (no SQLite dependency exists) and a zero count is also legitimate (session-only or expired cookies), so a post-launch check would give false alarms.
 
 #### Scenario: Unreadable cookies
-- GIVEN the browser rejects the copied cookie store
-- WHEN detected after launch
-- THEN a message states logins were not carried over
+- GIVEN the profile source is a Windows browser whose `Local State` reports app-bound encryption
+- WHEN a copy of it is prepared
+- THEN a warning states the copy will probably not be logged in
