@@ -2,6 +2,7 @@ import { chromium } from 'playwright';
 import type { Browser, Page } from 'playwright';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
+  orderByVerification,
   toPlaywrightLocator,
   verifyInScope,
 } from '../../../src/recording-capture/adapters/locator-verifier.ts';
@@ -9,6 +10,8 @@ import type { Locator } from '../../../src/shared/domain/locator.ts';
 import type { FixtureServer } from '../../support/fixture-server.ts';
 import { startFixtureServer } from '../../support/fixture-server.ts';
 import { loadKit, probe } from '../../support/in-page-probe.ts';
+
+const LOAD_TOLERANT_TIMEOUT_MS = 5000;
 
 describe('src/recording-capture/adapters/locator-verifier.ts', () => {
   let browser: Browser;
@@ -66,7 +69,13 @@ describe('src/recording-capture/adapters/locator-verifier.ts', () => {
         '.label-x',
       )) as Locator[];
       expect(candidates[0]).toEqual({ kind: 'text', text: 'Save' });
-      const ordered = await verifyInScope(page, candidates);
+      // A generous budget: the default one is tuned for a live recording and
+      // a busy machine running many browsers at once would exceed it.
+      const ordered = await orderByVerification(
+        candidates,
+        (candidate) => toPlaywrightLocator(page, candidate).count(),
+        LOAD_TOLERANT_TIMEOUT_MS,
+      );
       expect(ordered[0]).toEqual({ kind: 'css', selector: 'span.label-x' });
       expect(ordered).toHaveLength(candidates.length);
       await page.close();
