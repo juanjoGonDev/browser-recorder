@@ -67,6 +67,11 @@ Delete MUST remove the whole directory only after explicit confirmation.
 - WHEN delete runs
 - THEN the directory no longer exists
 
+#### Scenario: Windows file locks on delete
+- GIVEN a replay's browser has just exited and still holds a file under the recording directory, so deleting it fails with EBUSY or EPERM for a moment
+- WHEN delete runs
+- THEN the deletion is retried (up to 10 retries, 100 ms linear backoff) and the directory no longer exists once the lock is gone
+
 ### Requirement: Crash-safe writes
 
 All JSON and script writes MUST use temp file plus rename, and leftover temp files MUST be ignored on listing.

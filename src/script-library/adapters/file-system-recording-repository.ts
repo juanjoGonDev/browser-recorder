@@ -1,6 +1,7 @@
 import { mkdir, readdir, readFile, rm, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
+import { BROWSER_DIRECTORY_REMOVAL } from '../../shared/domain/browser-directory-removal.ts';
 import type {
   RecordingFiles,
   RecordingRepository,
@@ -101,7 +102,7 @@ class FileSystemRecordingRepository implements RecordingRepository {
   }
 
   async remove(slug: string): Promise<void> {
-    await rm(this.slugDir(slug), { recursive: true, force: true });
+    await rm(this.slugDir(slug), BROWSER_DIRECTORY_REMOVAL);
   }
 
   scriptPath(slug: string): string {

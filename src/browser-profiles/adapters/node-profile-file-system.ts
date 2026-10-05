@@ -12,6 +12,7 @@ import {
   stat,
 } from 'node:fs/promises';
 
+import { BROWSER_DIRECTORY_REMOVAL } from '../../shared/domain/browser-directory-removal.ts';
 import type {
   DirEntry,
   FileStamp,
@@ -76,6 +77,6 @@ export const nodeProfileFileSystem: ProfileFileSystem = {
   },
   // The source is only read and the destination is never overwritten.
   copyFile: (from, to) => copyFile(from, to, constants.COPYFILE_EXCL),
-  remove: (path) => rm(path, { recursive: true, force: true }),
+  remove: (path) => rm(path, BROWSER_DIRECTORY_REMOVAL),
   randomName: () => randomUUID(),
 };

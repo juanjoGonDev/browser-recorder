@@ -34,6 +34,12 @@ Mode `ephemeral` MUST use a fresh temporary directory deleted after the session,
 - WHEN cleanup runs
 - THEN the directory no longer exists
 
+#### Scenario: Windows file locks on cleanup
+- GIVEN a browser that has just exited still holds a file of its session directory (for example `chrome_debug.log`), so deleting it fails with EBUSY or EPERM for a moment
+- WHEN cleanup runs
+- THEN the deletion is retried (up to 10 retries, 100 ms linear backoff) and the directory no longer exists once the lock is gone
+- AND a directory that stays locked never makes the session fail: it is left for the startup sweep
+
 ### Requirement: Real profile listing
 
 The system MUST list profiles from the browser's `Local State` (`profile.info_cache`) with their directory name and display name.

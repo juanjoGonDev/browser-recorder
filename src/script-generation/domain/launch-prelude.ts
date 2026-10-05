@@ -2,7 +2,7 @@
 // string, like the rest of the prelude: no backticks and no dollar-brace.
 export const launchPrelude = String.raw`const LAUNCH_TIMEOUT_MS = 30000;
 const TEMP_PROFILE_PREFIX = 'browser-recorder-profile-';
-const REMOVE_RETRIES = 5;
+const REMOVE_RETRIES = 10;
 const REMOVE_RETRY_DELAY_MS = 100;
 // The engine's own defaults that keep it away from the real keychain.
 const KEYCHAIN_SWITCHES = ['--use-mock-keychain', '--password-store=basic'];
@@ -57,6 +57,17 @@ function readLaunchTarget(env) {
 
 // Launches on the profile the environment names, or on a temporary one that
 // close() removes. close() may be called more than once.
+// Same policy as the app (browser-directory-removal.ts): a browser that has
+// just exited can hold a profile file for a moment on Windows.
+function removeTemporaryDir(directory) {
+  rmSync(directory, {
+    recursive: true,
+    force: true,
+    maxRetries: REMOVE_RETRIES,
+    retryDelay: REMOVE_RETRY_DELAY_MS,
+  });
+}
+
 async function openContext(chromium, display, env = process.env) {
   const target = readLaunchTarget(env);
   const temporaryDir = target.userDataDir
@@ -73,7 +84,7 @@ async function openContext(chromium, display, env = process.env) {
       ...buildLaunchOptions(display, target),
     })
     .catch((error) => {
-      if (temporaryDir) rmSync(temporaryDir, { recursive: true, force: true });
+      if (temporaryDir) removeTemporaryDir(temporaryDir);
       throw error;
     });
   let isClosed = false;
@@ -83,14 +94,7 @@ async function openContext(chromium, display, env = process.env) {
     try {
       await context.close();
     } finally {
-      if (temporaryDir) {
-        rmSync(temporaryDir, {
-          recursive: true,
-          force: true,
-          maxRetries: REMOVE_RETRIES,
-          retryDelay: REMOVE_RETRY_DELAY_MS,
-        });
-      }
+      if (temporaryDir) removeTemporaryDir(temporaryDir);
     }
   };
   return { context, close };
