@@ -38,3 +38,10 @@ Goldens regenerated with the generator changes (tasks 4-5) so every commit stays
 | Task | Test file | Layer | Safety net | RED | GREEN | Triangulate | Refactor |
 |---|---|---|---|---|---|---|---|
 | R.1 | tests/integration/script-generation/generated-script.test.ts | Integration | 16/16 | Mutation: old `waitForURL` rendering restored → `expected [ 'loaded' ] to have a length of 2 but got 1` | 17/17 with `rt.waitForNavigation` | late reload (1500 ms) vs existing early reload (0 ms) | n/a |
+
+## CI flake remediation
+
+| Task | Test file | Layer | Root cause | RED | GREEN |
+|---|---|---|---|---|---|
+| F.1 | tests/unit/recording-capture/navigation-tracker.test.ts, tests/integration/recording-capture/patchright-browser-session.test.ts | Unit + Integration | Product: the renderer reports the commit before the browser activates the new document; the single history read failed and was swallowed as `null`. | Fake CDP answering "Not attached to an active page" once → `expected null to be 3`; `Emulation.setCPUThrottlingRate` 30x from a test-only session → `[1, null, null, null]` on every run. Ordering test RED with retries but no serialization (`second` before `first`). | Bounded retry (40 × 25 ms) and a serial report chain: `[1, 2, 1, 2]`. |
+| F.2 | tests/integration/script-generation/generated-script.test.ts | Integration | Test: the trailing "keep-alive" scroll to 0 ran before the page read its window position whenever the report click was late. | Report click due at the same offset as the trailing scroll → `expected [0, 0] to strictly equal [0, 713]` on every run. | Trailing scroll removed (the settle after the last step keeps the browser open). Under 30x CPU throttling the replay keeps `[0, 713]`, so the product was not at fault. |

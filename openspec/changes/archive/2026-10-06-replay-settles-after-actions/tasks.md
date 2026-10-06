@@ -42,3 +42,12 @@ Chain strategy: size-exception
 ## Verify remediation (R)
 
 - [x] R.1 (WARNING W1) The confirm-modal integration tests could not detect a regression in the same-URL navigation wait, because the 500 ms settle also caught the 300 ms-delayed POST and the reload. Added `?reloadAfterMs=` to `tests/fixtures/site/confirm-modal.html` and the test "waits for a same-URL reload that comes after the network went quiet" (reload 1500 ms after the POST, past the quiet window). RED with the old `waitForURL` rendering (`expected [ 'loaded' ] to have a length of 2 but got 1`), GREEN with `rt.waitForNavigation`.
+
+## CI flake remediation (F)
+
+Two timing-sensitive tests failed on GitHub runners (run 37448963480). No
+spec behavior changes: F.1 makes the recorder meet the existing "Back and
+forward" scenario on a slow machine; F.2 changes only a test.
+
+- [x] F.1 (product) `Page.getNavigationHistory` failed with "Not attached to an active page" when read right after the main-frame commit, so a back or forward was recorded with a `null` index and classified as `goto`. `navigation-tracker.ts` retries the read a bounded number of times and reports navigations one at a time, in commit order.
+- [x] F.2 (test) The scroll replay tests ended with a window scroll to 0 that raced the page's asynchronous report on a loaded runner. The report click is now the last step; the runtime settle keeps the browser open until the report request is done.
