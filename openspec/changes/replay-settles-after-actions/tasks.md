@@ -37,4 +37,4 @@ Chain strategy: size-exception
 - [x] 7. Surfacing. RED then GREEN: `RunView.warnings` printed via `formatWarning` to stderr after the run (`run-replay-command.ts`, `replay-command-services.ts`, `create-replay-command-services.ts`); `ReplayView.warnings` (`app-views.ts`, `replay-views.ts`, `replay-flow.ts`, `replay-screen.ts`). Specs: Cap warning in CLI, Cap warning in TUI, No settle on cancel. Run `pnpm deps:check`.
 - [x] 8. Goldens. Update `tests/unit/script-generation/goldens/*.mjs` (basic, brave-managed, legacy-emulated) byte-for-byte; review diff is limited to prelude text, `rt.settle()`, `waitForNavigation`.
 - [x] 9. Docs and version. Update README/SECURITY notes (settle, `::warn`, no page code); reconcile specs/design names if apply diverged; bump `package.json` 0.1.0 -> 0.1.1 per `scripts/release-impact-policy.ts`.
-- [ ] 10. Final gates. `pnpm quality`, `pnpm test:coverage`, `pnpm build`; fix with `pnpm format`; no hook bypass.
+- [x] 10. Final gates. `pnpm quality`, `pnpm test:coverage`, `pnpm build`; fix with `pnpm format`; no hook bypass.
