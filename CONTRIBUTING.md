@@ -39,6 +39,22 @@ Lefthook runs Prettier, ESLint, typecheck and build on commit, commitlint on
 the message, and the format check and coverage on push. Never bypass them with
 `--no-verify`; fix the cause instead.
 
+## Continuous integration
+
+Every pull request runs three independent checks in parallel:
+
+- `Quality` runs once on Linux with one step per gate: typecheck, authored
+  source policy, ESLint, Prettier, knip, dependency-cruiser, audit and
+  commitlint on the pull request commits. Every gate runs even if an earlier
+  one fails.
+- `Test — linux`, `Test — macos` and `Test — win` install Chromium, run the
+  tests with coverage and build. They repeat no static gate.
+- `Commitlint — PR title` checks the pull request title (it becomes the squash
+  commit message) and re-runs when the title is edited.
+
+Commits from bot authors, such as Dependabot, skip the per-commit check; their
+title is still checked.
+
 ## Workflow
 
 Work is spec-driven (SDD) and test-first (strict TDD: write a failing test,
