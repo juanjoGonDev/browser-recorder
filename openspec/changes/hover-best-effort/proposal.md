@@ -9,7 +9,6 @@ A real replay dies at step 15: a `hover` on a table header recorded 9 ms after t
 ### In Scope
 - Replay: hovers render as `rt.hover(locator)`, tried with a short timeout (~2 s); on failure print `::warn` naming the step and continue.
 - Capture: DOM mutations within a short window (300–500 ms) after a click or keyboard activation are attributed to that action, so hover rule 2 does not fire for them.
-- Coalescing: drop a hover recorded inside that window after a click when its target is not an ancestor of the next action target.
 - Fixtures reproducing both defects (RED first).
 
 ### Out of Scope
@@ -18,20 +17,23 @@ A real replay dies at step 15: a `hover` on a table header recorded 9 ms after t
 - Rewriting existing recordings; changing recorded/human timing.
 - Version bump: the branch already bumps 0.1.0 -> 0.1.1 for this unreleased PR (overrides explore decision 5).
 
+## Reconciliation note
+
+Node-side coalescing is not implemented: the coalescer sees `Target` locators, not DOM ancestry, so "not an ancestor of the next target" cannot be evaluated there (see `design.md`). The in-page activation window (400 ms) covers the same case.
+
 ## Capabilities
 
 ### New Capabilities
 None.
 
 ### Modified Capabilities
-- `recording-capture`: "Deterministic hover" rule 2 ignores mutations caused by an action; coalescing drops post-click noise hovers.
+- `recording-capture`: "Deterministic hover" rule 2 ignores mutations caused by an action.
 - `script-generation`: hover steps render through a best-effort runtime helper that emits `::warn` instead of failing.
 - `replay`: a hover warning is surfaced (CLI stderr, TUI warnings) without changing the success result.
 
 ## Approach
 
 - `hover-tracker.ts`: record the last activation time; `onMutation` skips `didMutate` inside the window.
-- `coalesce-events.ts`: new rule using event offsets, pure and tested.
 - `script-prelude.ts`: `hover` helper on the runtime, reusing the existing `::warn` channel; `render-step.ts` emits `await rt.hover(...)`.
 - Replay already parses `::warn`; extend only if the message needs a step reference.
 
@@ -40,7 +42,6 @@ None.
 | Area | Impact | Description |
 |------|--------|-------------|
 | `src/recording-capture/in-page/hover-tracker.ts` | Modified | Activation window |
-| `src/recording-capture/domain/coalesce-events.ts` | Modified | Drop noise hover |
 | `src/script-generation/domain/{render-step,script-prelude}.ts` | Modified | `rt.hover` |
 | `src/replay/` | Possibly modified | Warning surfacing |
 
@@ -54,7 +55,7 @@ None.
 
 ## Rollback Plan
 
-Revert the change's commits: `render-step` returns to `locator.hover()`, the tracker and coalescer lose the window rule. No data migration; recordings are unchanged.
+Revert the change's commits: `render-step` returns to `locator.hover()`, the tracker loses the window rule. No data migration; recordings are unchanged.
 
 ## Dependencies
 
