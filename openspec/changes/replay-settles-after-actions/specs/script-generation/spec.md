@@ -51,7 +51,7 @@ Every event type MUST map to a Patchright call: reload to `page.reload`, back/fo
 
 ### Requirement: Settle before close
 
-On success the script MUST wait for network quiet (no in-flight requests for 500 ms) before `::done` and closing the browser, capped at 5 s. Reaching the cap MUST NOT fail the replay and MUST print a warning to stderr. The wait MUST NOT run on failure, abort or cancel, MUST apply in `recorded` and `human` modes, and MUST NOT delay any step (recorded-timing drift unaffected). Tracking MUST happen in Node from request events: no page code, no `Runtime.enable`/`Console.enable`. WebSockets MUST NOT block quiet.
+On success the script MUST wait for network quiet (no in-flight requests for 500 ms) before `::done` and closing the browser, capped at 5 s. Reaching the cap MUST NOT fail the replay and MUST report a warning: the script prints `::warn <JSON string>` on stdout, and the replay surfaces it (the CLI writes it to stderr). The wait MUST NOT run on failure, abort or cancel, MUST apply in `recorded` and `human` modes, and MUST NOT delay any step (recorded-timing drift unaffected). Tracking MUST happen in Node from request events: no page code, no `Runtime.enable`/`Console.enable`. WebSockets MUST NOT block quiet.
 
 #### Scenario: Pending request completes
 - GIVEN the last click starts a request finishing after 800 ms
@@ -61,7 +61,7 @@ On success the script MUST wait for network quiet (no in-flight requests for 500
 #### Scenario: Long-polling hits cap
 - GIVEN a request that never completes
 - WHEN the last step ends
-- THEN `::done` follows at about 5 s, exit code is 0 and stderr has a warning
+- THEN `::done` follows at about 5 s, exit code is 0 and a `::warn` line is printed
 
 #### Scenario: WebSocket open
 - GIVEN an open WebSocket and no other traffic

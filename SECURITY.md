@@ -46,7 +46,11 @@ compromised local machine.
   in a separate Chromium isolated world: page scripts cannot see it, its channel
   or its globals, and the page's Content-Security-Policy does not apply to it.
   The same holds for replay: generated scripts set scroll positions through a
-  DevTools isolated world and never call `evaluate` in the page.
+  DevTools isolated world and never call `evaluate` in the page. Waiting for
+  navigations and for the network to settle before closing is tracked from
+  Node through Patchright events, so it adds no page code and never enables the
+  `Runtime` or `Console` domains. Its warning counts requests and never prints
+  their URLs, which may carry tokens.
 - **Copied browser profiles contain your sessions.** A copy of a real profile
   holds that profile's session cookies and other logins, so anyone who can read
   the copy can act as you on those sites. Copies are made only under the tool's

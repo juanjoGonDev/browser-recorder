@@ -114,7 +114,8 @@ looking delay needs the equals form: `--delay=-5-10` (it is refused anyway).
 
 **Output.** Each step prints one line on stdout (`[3/12] click Save button
 (1.2s)`) and the run ends with `✔ <name> replayed in <s>`. Warnings, such as
-falling back to the bundled Chromium, errors and the usage after a mistake go
+falling back to the bundled Chromium or the network never going quiet before
+the browser closed, errors and the usage after a mistake go
 to stderr. A failure prints `✖ <name> failed at step <n> (<kind>): <message>`
 and the last stderr lines of the script, also on stderr. Typed values, passwords
 included, are never printed: a step shows what it acts on, not what it types.
@@ -213,7 +214,12 @@ the browser through four environment variables
 own it uses the bundled Chromium on a temporary profile. A script written by an
 older version is regenerated before every replay. It prints
 `::step <index> <ms>` before each step, `::done <ms>` at the end and
-`::error ...` on failure. In the default recorded mode it sleeps until each
+`::error ...` on failure. Before closing the browser on success it waits until
+the network is quiet (no request in flight for 500 ms, at most 5 s) and prints
+`::warn "..."` when it gave up at the cap; the warning counts the requests
+still in flight and never lists URLs. A step that follows a click waiting for a
+page change waits for a NEW navigation, even to the same URL. All of it is
+tracked from Node through Patchright events, never with code in the page. In the default recorded mode it sleeps until each
 step's recorded offset, so a slow step does not shift the ones after it; see
 Human timing for the other mode. Run one yourself with
 `node recordings/<slug>/script.mjs`; set `BROWSER_RECORDER_HEADLESS=1` to run

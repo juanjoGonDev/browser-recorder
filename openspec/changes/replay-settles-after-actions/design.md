@@ -92,3 +92,18 @@ No migration required: scripts regenerate before every replay. Patch bump.
 ## Open Questions
 
 - None blocking. Same-document navigations (hash, `pushState`) also emit `framenavigated`; an earlier same-path one could satisfy the wait. Accepted.
+
+## Reconciliation (apply)
+
+- `createSettling` also takes `settlePollMs`, `sleep`, `print` and a
+  `describeStep` callback (the runtime passes them), so the timeout message can
+  name the step: `Timed out waiting for the navigation of step N to <url>`.
+- `rt.at` now delegates pacing to an internal `pace` helper and arms after it
+  when the step is not a follow-up.
+- `::warn` text for a cap shorter than a whole number of seconds keeps the
+  fraction (`0.3 s`); the default renders `5 s`.
+- The golden scripts were regenerated in the same commits that changed the
+  generator (so every commit stays green); their diff against the base is
+  limited to the prelude text, `rt.waitForNavigation` and `rt.settle()`.
+- A cancelled replay is covered at runtime level: a signal during a pending
+  settle exits 130 with no `::warn` and no `::done`.
