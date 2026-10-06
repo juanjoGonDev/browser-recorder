@@ -18,6 +18,20 @@ function readWorkflow(name: string): string {
   return readFileSync(path.join(WORKFLOWS, name), 'utf8');
 }
 
+const QUALITY_JOB = /^ {2}quality:$/m;
+const TEST_JOB = /^ {2}test:$/m;
+
+// ci.yml lists `quality` before `test`; the split keeps each job's own text.
+function ciJobs(): { quality: string; test: string } {
+  const [, afterQuality = ''] = readWorkflow('ci.yml').split(QUALITY_JOB);
+  const [quality = '', test = ''] = afterQuality.split(TEST_JOB);
+  return { quality, test };
+}
+
+function stepsOf(block: string): string[] {
+  return block.split(/^ {6}- name: /m).slice(1);
+}
+
 function workflowNames(): string[] {
   return readdirSync(WORKFLOWS).filter((name) => name.endsWith('.yml'));
 }
@@ -64,6 +78,7 @@ describe('workflow set', () => {
       'delete-cache.workflow.yml',
       'dependabot-auto-merge.workflow.yml',
       'dependabot-recreate-on-conflict.workflow.yml',
+      'pr-title.workflow.yml',
       'release-auto-merge.workflow.yml',
       'release-impact-label.workflow.yml',
       'release-validation.yml',
@@ -91,6 +106,7 @@ describe('workflow set', () => {
 
   it.each([
     'ci.yml',
+    'pr-title.workflow.yml',
     'release.yml',
     'release-validation.yml',
     'auto-release.workflow.yml',
@@ -136,16 +152,200 @@ describe('ci.yml', () => {
     );
   });
 
-  it('audits dependencies on Linux only', () => {
-    expect(ci).toMatch(
-      /name: Audit dependencies\n\s+if: matrix\.os == 'linux'\n\s+run: pnpm audit --audit-level=moderate/,
+  it('audits once, in the quality job', () => {
+    expect(ciJobs().quality).toMatch(
+      /name: Audit\n\s+if: [^\n]+\n\s+run: pnpm audit --audit-level=moderate/,
+    );
+    expect(ci.match(/pnpm audit/g)).toHaveLength(1);
+  });
+});
+
+const PINNED_ACTION = /uses: \S+@[0-9a-f]{40} # v/;
+const STATIC_GATE_COMMANDS = [
+  'typecheck',
+  'lint:strict',
+  'format:check',
+  'deadcode',
+  'deps:check',
+  'audit',
+  'commitlint',
+];
+
+describe('ci.yml quality job', () => {
+  const qualityBlock = ciJobs().quality;
+
+  it('runs once on ubuntu with full history and no matrix', () => {
+    expect(qualityBlock).toContain('runs-on: ubuntu-latest');
+    expect(qualityBlock).toContain('fetch-depth: 0');
+    expect(qualityBlock).not.toContain('matrix');
+  });
+
+  it.each([
+    ['Typecheck', 'pnpm typecheck'],
+    ['Authored source policy', "git ls-files '*.js'"],
+    ['ESLint', 'pnpm lint:strict'],
+    ['Prettier', 'pnpm format:check'],
+    ['knip', 'pnpm deadcode'],
+    ['dependency-cruiser', 'pnpm deps:check'],
+    ['Audit', 'pnpm audit --audit-level=moderate'],
+    ['Commitlint — commits', 'pnpm exec commitlint'],
+  ])('has one named step %s running %s', (name, command) => {
+    const steps = stepsOf(qualityBlock);
+    const matching = steps.filter((step) => step.startsWith(`${name}\n`));
+    expect(matching).toHaveLength(1);
+    expect(matching[0]).toContain(command);
+  });
+
+  it('reports every failing gate instead of stopping at the first', () => {
+    expect(qualityBlock).toContain(
+      "if: ${{ !cancelled() && steps.install.outcome == 'success' }}",
+    );
+    expect(qualityBlock).toContain('id: install');
+  });
+
+  it('lints commits for human authors only, from the PR base to head', () => {
+    const step = qualityBlock.split('- name: Commitlint — commits')[1];
+    expect(step).toContain("github.event.pull_request.user.type != 'Bot'");
+    expect(step).toContain('--from "$BASE_SHA" --to "$HEAD_SHA"');
+    expect(step).toContain(
+      'BASE_SHA: ${{ github.event.pull_request.base.sha }}',
+    );
+    expect(step).toContain(
+      'HEAD_SHA: ${{ github.event.pull_request.head.sha }}',
+    );
+  });
+});
+
+describe('ci.yml test job', () => {
+  const ci = readWorkflow('ci.yml');
+  const testBlock = ciJobs().test;
+
+  it('keeps coverage, build and both Chromium installs', () => {
+    expect(testBlock).toContain('run: pnpm test:coverage');
+    expect(testBlock).toContain('run: pnpm build');
+    expect(testBlock).toContain('pnpm exec patchright install chromium');
+    expect(testBlock).toContain(
+      'pnpm exec patchright install --with-deps chromium',
     );
   });
 
-  it('runs coverage and a build on every platform', () => {
-    expect(ci).toContain('run: pnpm test:coverage');
-    expect(ci).toContain('run: pnpm build');
+  it.each(STATIC_GATE_COMMANDS)('does not repeat %s', (command) => {
+    expect(testBlock).not.toContain(command);
   });
+
+  it('uses the default checkout depth', () => {
+    expect(testBlock).not.toContain('fetch-depth');
+  });
+
+  it('runs jobs in parallel and ignores title edits', () => {
+    expect(ci).not.toMatch(/^\s+needs:/m);
+    expect(ci).not.toContain('edited');
+    expect(ci).not.toContain('pull_request.title');
+  });
+});
+
+describe('pr-title.workflow.yml', () => {
+  it('re-checks on every title-relevant event, including edits', () => {
+    const title = readWorkflow('pr-title.workflow.yml');
+    expect(title).toContain('types: [opened, edited, reopened, synchronize]');
+  });
+
+  it('has no bot guard on the title lint', () => {
+    const title = readWorkflow('pr-title.workflow.yml');
+    expect(title).not.toMatch(/user\.type/);
+    expect(title).not.toMatch(/'Bot'/);
+  });
+
+  it('has its own concurrency group and read-only token', () => {
+    const title = readWorkflow('pr-title.workflow.yml');
+    expect(title).toContain('group: pr-title-');
+    expect(title).toContain('contents: read');
+  });
+
+  it('always runs, whether or not the title changed', () => {
+    const title = readWorkflow('pr-title.workflow.yml');
+    expect(title).not.toContain('changes.title');
+  });
+
+  it('reads the title only through an env entry and pipes it with printf', () => {
+    const title = readWorkflow('pr-title.workflow.yml');
+    const occurrences = title.match(/pull_request\.title/g) ?? [];
+    expect(occurrences).toHaveLength(1);
+    expect(title).toMatch(
+      /PR_TITLE: \$\{\{ github\.event\.pull_request\.title \}\}/,
+    );
+    expect(title).toContain(
+      `run: printf '%s\\n' "$PR_TITLE" | pnpm exec commitlint --verbose`,
+    );
+  });
+});
+
+describe('preserved guards and permissions', () => {
+  it.each(['ci.yml', 'pr-title.workflow.yml'])(
+    '%s keeps permissions read-all and job-level contents: read',
+    (name) => {
+      const text = readWorkflow(name);
+      expect(text).toMatch(/^permissions: read-all$/m);
+      expect(text).toMatch(/^ {4}permissions:\n {6}contents: read$/m);
+    },
+  );
+
+  it('keeps the draft guard on both ci.yml jobs', () => {
+    const { quality, test } = ciJobs();
+    for (const block of [quality, test]) {
+      expect(block).toContain('github.event.pull_request.draft == false');
+    }
+  });
+});
+
+describe('pull request triggers', () => {
+  it.each([
+    [
+      'ci.yml',
+      'synchronize',
+      '${{ github.workflow }}-${{ github.head_ref || github.ref }}',
+    ],
+    [
+      'pr-title.workflow.yml',
+      'synchronize',
+      'pr-title-${{ github.event.pull_request.number }}',
+    ],
+    [
+      'pr-title.workflow.yml',
+      'edited',
+      'pr-title-${{ github.event.pull_request.number }}',
+    ],
+  ])(
+    '%s restarts on %s with a per-PR cancelling group',
+    (name, type, group) => {
+      const text = readWorkflow(name);
+      expect(text).toMatch(new RegExp(`types: \\[[^\\]]*\\b${type}\\b`));
+      expect(text).toContain(`group: ${group}`);
+      expect(text).toMatch(/cancel-in-progress: true/);
+    },
+  );
+
+  it.each(['ci.yml', 'pr-title.workflow.yml'])(
+    '%s runs for pull requests targeting any branch',
+    (name) => {
+      const text = readWorkflow(name);
+      expect(text).toMatch(/^ {2}pull_request:$/m);
+      expect(text).not.toMatch(/^\s+branches(-ignore)?:/m);
+    },
+  );
+});
+
+describe('workflow action pinning', () => {
+  it.each(['ci.yml', 'pr-title.workflow.yml'])(
+    'pins every action in %s to a commit SHA with a version comment',
+    (name) => {
+      const uses = readWorkflow(name)
+        .split('\n')
+        .filter((line) => /^\s+(- )?uses:/.test(line));
+      expect(uses.length).toBeGreaterThan(0);
+      expect(uses.filter((line) => !PINNED_ACTION.test(line))).toEqual([]);
+    },
+  );
 });
 
 describe('release.yml', () => {
