@@ -1,7 +1,8 @@
 // The part of the runtime that performs recorded hovers. A hover only reveals
 // something, so one that cannot be performed is skipped with a warning
 // instead of failing the replay. Plain JavaScript inside a string, like the
-// rest of the prelude: no backticks and no dollar-brace.
+// rest of the prelude: no backticks and no dollar-brace. The step in the
+// warning text is 1-based for people; ::step and ::error markers are 0-based.
 export const hoverPrelude = String.raw`const HOVER_TIMEOUT_MS = 2000;
 const MISSING_HOVER_TARGET = 'the target was not found';
 

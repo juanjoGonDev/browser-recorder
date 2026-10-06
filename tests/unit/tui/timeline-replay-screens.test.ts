@@ -92,6 +92,22 @@ describe('src/tui/render/screens/replay-screen.ts (browser)', () => {
     );
   });
 
+  it('lists the warning of a skipped hover while the replay succeeds', () => {
+    const text = renderReplayScreen(
+      replay({
+        ...running,
+        status: 'succeeded',
+        warnings: [
+          'Skipped the hover of step 4: locator.hover: Timeout 2000ms exceeded.',
+        ],
+      }),
+      plainContext(),
+    ).body.join('\n');
+    expect(text).toContain(
+      '! Skipped the hover of step 4: locator.hover: Timeout 2000ms exceeded.',
+    );
+  });
+
   it('keeps the running step visible below the run warnings too', () => {
     const text = renderReplayScreen(
       replay({ ...running, warnings: ['one', 'two'] }, 40),

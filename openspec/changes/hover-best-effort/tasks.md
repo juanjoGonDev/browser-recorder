@@ -62,3 +62,11 @@ Order is sequential. Hard rules: headless only, no page main-world code, no Runt
 ## Phase 6: Final gates
 
 - [x] 6.1 `pnpm quality`, `pnpm test:coverage`, `pnpm build`; confirm no headed browser and no change under `recordings/`.
+
+## Verify remediation (R)
+
+- [x] R.1 (CRITICAL) Test "Keyboard activation opens a modal" (`hover-tracker.test.ts`, new fixture `key-opens-modal.html`): Enter on a focused non-button element opens a modal while the pointer rests over the menu; no hover on the uncovered header is recorded. Mutation proof: removing `'key'` from `ACTIVATING_KINDS` makes exactly this test fail; restored.
+- [x] R.2 (CRITICAL) Integration test "Skipped hover as last step": `::warn` then `::done`, exit 0, no `::error`.
+- [x] R.3 (WARNING) `run-replay-command` test with a hover-shaped warning (stderr only, step line and success line unchanged, exit 0) and a TUI replay-screen test listing it.
+- [x] R.4 (WARNING) Integration test: skipped hover then a click on a missing element never reports success. The runtime has no click timeout override, so it relies on the harness 20 s kill (about 20 s, inside the 30 s integration timeout).
+- [x] R.5 (SUGGESTION) Comment in `hover-prelude.ts` (outside the generated string, so goldens are unchanged) on 1-based warning step vs 0-based markers.

@@ -125,6 +125,22 @@ describe('src/recording-capture/in-page/hover-tracker.ts', () => {
     ]);
   });
 
+  it('records no hover for the element a key press uncovers while the modal that key opens appears', async () => {
+    const harness = await site.open('key-opens-modal.html');
+    await harness.page.mouse.move(10, 10);
+    await harness.page.locator('#trigger').focus();
+    await harness.page.keyboard.press('Enter');
+    await harness.waitForDom('key');
+    await harness.page.getByRole('button', { name: 'Confirmar' }).click();
+    await harness.waitForDom('click');
+    const hovered = harness
+      .domMessages('hover')
+      .map(({ message }) => message.candidates[0]);
+    expect(hovered).toEqual([
+      { kind: 'role', role: 'dialog', name: 'Registrar' },
+    ]);
+  });
+
   it('still records the CSS menu hover right after a key press', async () => {
     const harness = await site.open('hover-menu.html');
     await harness.page.keyboard.press('Escape');

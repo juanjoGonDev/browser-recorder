@@ -594,6 +594,43 @@ await browser.close();
       expect(run.stdout.match(/^::warn .*$/gmu)).toHaveLength(1);
       expect(run.stdout).toMatch(/^::done \d+$/mu);
     });
+    it('warns about a skipped hover that is the last step, then finishes', async () => {
+      const run = await execute([
+        FIRST_PAGE,
+        goto(0, server.urlFor('modal-over-hover.html')),
+        openModal,
+        step('hover', 109, {
+          kind: 'role',
+          role: 'columnheader',
+          name: 'Fecha',
+        }),
+      ]);
+
+      const output = run.stdout.split('\n');
+      const warnIndex = output.findIndex((line) => line.startsWith('::warn '));
+      const doneIndex = output.findIndex((line) => /^::done \d+$/u.test(line));
+      expect(warnIndex).toBeGreaterThanOrEqual(0);
+      expect(doneIndex).toBeGreaterThan(warnIndex);
+      expect(run.stdout).not.toContain('::error');
+      expect(run.exitCode).toBe(0);
+    });
+
+    // The click keeps the default Patchright timeout (30 s): the runtime has
+    // no override for it, so the harness kill at 20 s is what proves the
+    // click is still strict and the replay never reports a success.
+    it('keeps a click on a missing element strict after a skipped hover', async () => {
+      const run = await execute([
+        FIRST_PAGE,
+        goto(0, server.urlFor('modal-over-hover.html')),
+        step('hover', 100, { kind: 'css', selector: '#not-there' }),
+        step('click', 150, { kind: 'css', selector: '#also-not-there' }),
+      ]);
+
+      expect(run.stdout.match(/^::warn .*$/gmu)).toHaveLength(1);
+      expect(run.stdout).not.toMatch(/^::done \d+$/mu);
+      expect(run.exitCode).not.toBe(0);
+    });
+
     it('still performs the hover of a CSS menu without a warning', async () => {
       const run = await execute([
         FIRST_PAGE,

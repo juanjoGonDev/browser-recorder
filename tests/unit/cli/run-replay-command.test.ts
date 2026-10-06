@@ -265,6 +265,28 @@ describe('src/cli/application/run-replay-command.ts', () => {
     expect(output.stdout()).not.toContain('Stopped waiting');
   });
 
+  it('prints the warning of a skipped hover on stderr and keeps the step line', async () => {
+    const hoverWarning =
+      'Skipped the hover of step 4: locator.hover: Timeout 2000ms exceeded.';
+    const { run, output, execute } = rig();
+    const done = execute();
+    await tick();
+    run.emit({
+      ...stepView(['done', 'running', 'pending']),
+      warnings: [hoverWarning],
+    });
+    run.finish({
+      ...stepView(['done', 'done', 'done']),
+      status: 'succeeded',
+      warnings: [hoverWarning],
+    });
+    run.release();
+    expect(await done).toBe(0);
+    expect(output.stderr()).toBe(`! ${hoverWarning}\n`);
+    expect(output.stdout()).not.toContain('Skipped the hover');
+    expect(output.stdout()).toContain('✔ Demo replayed');
+  });
+
   it('prints each script warning once, in order, after the launch warnings', async () => {
     const { run, output, execute } = rig({ warnings: ['launch note'] });
     const done = execute();

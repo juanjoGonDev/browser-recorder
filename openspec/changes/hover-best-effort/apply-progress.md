@@ -43,3 +43,15 @@ Mutation checks for the regressions that passed immediately:
 ## Final gates
 
 `pnpm quality` exit 0 (195 files passed, 2270 tests passed, 6 skipped), `pnpm test:coverage` passed (lines 98.38%), `pnpm build` exit 0, `pnpm audit` no known vulnerabilities. No headed browser, nothing under `recordings/` read or changed, no version bump, no new dependency.
+
+## Verify remediation (R)
+
+| Task | Test / change | RED | GREEN | Notes |
+|---|---|---|---|---|
+| R.1 | `hover-tracker.test.ts > records no hover for the element a key press uncovers...` + `tests/fixtures/site/key-opens-modal.html` | Mutation: `'key'` removed from `ACTIVATING_KINDS` -> this test fails (1 of 12), restored -> 12 pass | passed | Production code was already correct; the test closes the gap |
+| R.2 | `generated-script.test.ts > warns about a skipped hover that is the last step, then finishes` | n/a (behavior already implemented, regression test) | passed | `::warn` before `::done`, exit 0 |
+| R.3 | `run-replay-command.test.ts` and `timeline-replay-screens.test.ts` hover-shaped warning tests | n/a (surfacing already generic) | passed | stderr only; step and success lines unchanged |
+| R.4 | `generated-script.test.ts > keeps a click on a missing element strict after a skipped hover` | n/a | passed | No click timeout override exists; relies on the 20 s harness kill (test takes ~20 s of the 30 s budget) |
+| R.5 | comment in `hover-prelude.ts` | n/a | goldens unchanged | `script-prelude.ts` untouched (299/300) |
+
+Strict-TDD note: R.2-R.5 add coverage over behavior implemented earlier, so no RED could be observed; only R.1 was proven by mutation.
