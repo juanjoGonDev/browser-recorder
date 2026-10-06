@@ -19,6 +19,9 @@ const TIMING_TOLERANCE_MS = 100;
 const RELOAD_OFFSET_MS = 3000;
 const GO_BACK_OFFSET_MS = 3500;
 const HEADLESS = { BROWSER_RECORDER_HEADLESS: '1' };
+const REPORT_CLICK_MS = 900;
+// A loaded runner reaches the report click when every earlier step is due.
+const LATE_REPORT_CLICK_MS = 1400;
 const HUMAN_TIMING = {
   BROWSER_RECORDER_TIMING: 'human',
   BROWSER_RECORDER_HUMAN_DELAY: '10-20',
@@ -406,26 +409,30 @@ await browser.close();
       };
     }
 
-    const reportClick: RecordingEvent = {
-      kind: 'click',
-      offsetMs: 900,
-      pageId: 'page1',
-      target: css('#report'),
-      button: 'left',
-      modifiers: [],
-    };
+    function reportClick(offsetMs: number): RecordingEvent {
+      return {
+        kind: 'click',
+        offsetMs,
+        pageId: 'page1',
+        target: css('#report'),
+        button: 'left',
+        modifiers: [],
+      };
+    }
 
     async function replayScrolls(
       scrolls: readonly RecordingEvent[],
+      reportAtMs = REPORT_CLICK_MS,
     ): Promise<{ run: NodeRun; outer: Reported; inner: Reported }> {
       server.clearReports();
       const run = await execute([
         FIRST_PAGE,
         goto(0, server.urlFor('scroll-replay.html')),
         ...scrolls,
-        reportClick,
-        // Keeps the browser open until the page's report request has gone out.
-        scrollTo(1400, null, { x: 0, y: 0 }),
+        // The last step: the runtime settles the network after it, so the
+        // browser stays open until the page's report request is done. Nothing
+        // after it may touch the positions the report reads.
+        reportClick(reportAtMs),
       ]);
       const [report] = server.reports();
       const state = JSON.parse(report) as {
@@ -447,6 +454,16 @@ await browser.close();
       expect(outer.window).toStrictEqual([0, 713]);
       expect(outer.panel).toStrictEqual([0, 333]);
       expect(inner.panel).toStrictEqual([0, 222]);
+    });
+
+    it('reports the replayed window position even when the report click runs late', async () => {
+      const { run, outer } = await replayScrolls(
+        [scrollTo(200, null, { x: 0, y: 713 })],
+        LATE_REPORT_CLICK_MS,
+      );
+
+      expect(run.exitCode).toBe(0);
+      expect(outer.window).toStrictEqual([0, 713]);
     });
 
     it('is exact for other positions too, despite smooth scrolling in the page', async () => {
@@ -494,8 +511,7 @@ await browser.close();
           FIRST_PAGE,
           goto(0, server.urlFor('scroll-shadow.html')),
           ...scrolls,
-          reportClick,
-          scrollTo(1400, null, { x: 0, y: 0 }),
+          reportClick(REPORT_CLICK_MS),
         ]);
         const [text] = server.reports();
         return { run, report: JSON.parse(text) as ShadowReport };
