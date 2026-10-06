@@ -60,6 +60,25 @@ The system MUST record reload, go-back and go-forward as distinct events and MUS
 - WHEN the main frame navigates
 - THEN a `wait-for-url` event follows the click; a navigation with no preceding action yields `goto`
 
+### Requirement: Coalescing
+
+Consecutive fills on the same locator MUST merge into one event keeping the last value and the offset of the last input; consecutive selects likewise; consecutive `wait-for-url` events on the same page likewise, while a `goto` followed by its redirect `wait-for-url` keeps both.
+
+#### Scenario: Typing
+- GIVEN the user types "h", "he", "hey" into one input
+- WHEN capture finishes
+- THEN one fill event with value `hey` and the offset of the last input exists
+
+#### Scenario: Interleaved target
+- GIVEN fill on input A, fill on input B, fill on input A
+- WHEN capture finishes
+- THEN three fill events exist
+
+#### Scenario: Hover on the acted-on element
+- GIVEN a hover on target T immediately followed by a click, dblclick, check, fill or select on T (the label of a control counts as the control)
+- WHEN capture finishes
+- THEN only the action is stored, no hover
+
 ### Requirement: Locator selection
 
 The system MUST choose the first unique locator in order: testid, role+name, label, placeholder, non-dynamic `#id`, exact text, stable CSS path. Uniqueness MUST be verified in-page at capture time.
