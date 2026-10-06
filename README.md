@@ -115,7 +115,7 @@ looking delay needs the equals form: `--delay=-5-10` (it is refused anyway).
 **Output.** Each step prints one line on stdout (`[3/12] click Save button
 (1.2s)`) and the run ends with `✔ <name> replayed in <s>`. Warnings, such as
 falling back to the bundled Chromium or the network never going quiet before
-the browser closed, errors and the usage after a mistake go
+the browser closed or a hover that could not be performed, errors and the usage after a mistake go
 to stderr. A failure prints `✖ <name> failed at step <n> (<kind>): <message>`
 and the last stderr lines of the script, also on stderr. Typed values, passwords
 included, are never printed: a step shows what it acts on, not what it types.
@@ -217,7 +217,12 @@ older version is regenerated before every replay. It prints
 `::error ...` on failure. Before closing the browser on success it waits until
 the network is quiet (no request in flight for 500 ms, at most 5 s) and prints
 `::warn "..."` when it gave up at the cap; the warning counts the requests
-still in flight and never lists URLs. A step that follows a click waiting for a
+still in flight and never lists URLs. Hovers are best effort: one that cannot be
+performed within 2 s (covered by a modal, missing, hidden) prints
+`::warn "Skipped the hover of step <n>: ..."` with the first line of the reason
+only, and the replay goes on; every other step stays strict. While recording, a
+page change caused by a click or key press in the 400 ms before is not blamed on
+the element under the pointer. A step that follows a click waiting for a
 page change waits for a NEW navigation, even to the same URL. All of it is
 tracked from Node through Patchright events, never with code in the page. In the default recorded mode it sleeps until each
 step's recorded offset, so a slow step does not shift the ones after it; see
