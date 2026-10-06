@@ -2,6 +2,7 @@
 // string because the script must run with `node` alone and import nothing from
 // this project. Keep it free of backticks and `${`: it is a raw template.
 import { launchPrelude } from './launch-prelude.ts';
+import { scrollPrelude } from './scroll-prelude.ts';
 import { timingPrelude } from './timing-prelude.ts';
 
 const imports = String.raw`import { existsSync, mkdtempSync, rmSync } from 'node:fs';
@@ -17,42 +18,7 @@ const DEFAULT_WAIT_MS = 10000;
 const SCROLL_WORLD = '__browser_recorder_replay';
 `;
 
-const runtime = String.raw`// The three functions below run inside an isolated world through the
-// DevTools protocol, never in the page's own: they are serialized with
-// toString(), so they may not use this file's bindings.
-function scrollWindowInIsolatedWorld(left, top) {
-  window.scrollTo({ left, top, behavior: 'instant' });
-}
-
-// Waits, on the window, for one event that Patchright dispatches at the
-// element to scroll. A composed event reaches the window from inside any open
-// shadow root, and its path names the real element, so no path of child
-// indexes, which cannot cross a shadow boundary, is needed.
-function armScrollProbe(type, left, top) {
-  const state = { scrolled: false, error: '' };
-  const handler = (event) => {
-    window.removeEventListener(type, handler, true);
-    const [target] = event.composedPath();
-    if (!(target instanceof Element)) {
-      state.error = 'The element to scroll is not reachable';
-      return;
-    }
-    target.scrollTo({ left, top, behavior: 'instant' });
-    state.scrolled = true;
-  };
-  window.addEventListener(type, handler, true);
-  window[Symbol.for(type)] = { state, handler };
-}
-
-function readScrollProbe(type) {
-  const probe = window[Symbol.for(type)];
-  if (!probe) return { scrolled: false, error: '' };
-  window.removeEventListener(type, probe.handler, true);
-  delete window[Symbol.for(type)];
-  return probe.state;
-}
-
-function createDeferred() {
+const runtime = String.raw`function createDeferred() {
   const deferred = {};
   deferred.promise = new Promise((resolve, reject) => {
     deferred.resolve = resolve;
@@ -312,4 +278,5 @@ function createRuntime(context, options = {}) {
 
 export const scriptPrelude = `${imports}${constants}${launchPrelude}
 ${timingPrelude}
+${scrollPrelude}
 ${runtime}`;
