@@ -367,6 +367,30 @@ function createSettling(context, options) {
   };
 }
 
+const HOVER_TIMEOUT_MS = 2000;
+const MISSING_HOVER_TARGET = 'the target was not found';
+
+// The first line only: the rest of a Patchright error is a call log that
+// quotes the page's markup.
+function describeSkippedHover(step, error) {
+  const reason = error instanceof Error ? error.message : String(error);
+  const position = step === null ? '-' : step + 1;
+  return 'Skipped the hover of step ' + position + ': ' + reason.split('\n')[0];
+}
+
+function createHovering({ timeoutMs, print, describeStep }) {
+  return {
+    async hover(locator) {
+      try {
+        if (!locator) throw new Error(MISSING_HOVER_TARGET);
+        await locator.hover({ timeout: timeoutMs });
+      } catch (error) {
+        print('::warn ' + JSON.stringify(describeSkippedHover(describeStep(), error)));
+      }
+    },
+  };
+}
+
 function createDeferred() {
   const deferred = {};
   deferred.promise = new Promise((resolve, reject) => {
@@ -389,6 +413,11 @@ function createRuntime(context, options = {}) {
     sleep,
     print: (line) => process.stdout.write(line + '\n'),
     describeStep: () => currentStep ?? '-',
+  });
+  const hovering = createHovering({
+    timeoutMs: options.hoverTimeoutMs ?? HOVER_TIMEOUT_MS,
+    print: (line) => process.stdout.write(line + '\n'),
+    describeStep: () => currentStep,
   });
   const filesDir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'files');
   const openedPages = [];
@@ -574,6 +603,7 @@ function createRuntime(context, options = {}) {
       // The wait for the navigation an action causes starts from here.
       if (!isFollowUp) settling.arm();
     },
+    hover: hovering.hover,
     fill: (locator, value) => fillField(locator, value, timing),
     mark(index) {
       currentStep = index;

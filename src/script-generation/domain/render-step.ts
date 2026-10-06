@@ -110,7 +110,7 @@ const RENDERERS: { readonly [K in RecordingEventKind]: Renderer<K> } = {
   dblclick: (event, context) => [
     `await ${on(context, event.target)}.dblclick(${renderOptions(modifierOption(event.modifiers))});`,
   ],
-  hover: (event, context) => [`await ${on(context, event.target)}.hover();`],
+  hover: (event, context) => [`await rt.hover(${on(context, event.target)});`],
   check: (event, context) => [
     `await ${on(context, event.target)}.setChecked(${String(event.checked)});`,
   ],

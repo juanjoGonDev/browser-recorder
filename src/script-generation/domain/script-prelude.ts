@@ -1,6 +1,7 @@
 // The runtime every generated script carries. It is plain JavaScript inside a
 // string because the script must run with `node` alone and import nothing from
 // this project. Keep it free of backticks and `${`: it is a raw template.
+import { hoverPrelude } from './hover-prelude.ts';
 import { launchPrelude } from './launch-prelude.ts';
 import { scrollPrelude } from './scroll-prelude.ts';
 import { settlePrelude } from './settle-prelude.ts';
@@ -41,6 +42,11 @@ function createRuntime(context, options = {}) {
     sleep,
     print: (line) => process.stdout.write(line + '\n'),
     describeStep: () => currentStep ?? '-',
+  });
+  const hovering = createHovering({
+    timeoutMs: options.hoverTimeoutMs ?? HOVER_TIMEOUT_MS,
+    print: (line) => process.stdout.write(line + '\n'),
+    describeStep: () => currentStep,
   });
   const filesDir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'files');
   const openedPages = [];
@@ -226,6 +232,7 @@ function createRuntime(context, options = {}) {
       // The wait for the navigation an action causes starts from here.
       if (!isFollowUp) settling.arm();
     },
+    hover: hovering.hover,
     fill: (locator, value) => fillField(locator, value, timing),
     mark(index) {
       currentStep = index;
@@ -288,4 +295,5 @@ export const scriptPrelude = `${imports}${constants}${launchPrelude}
 ${timingPrelude}
 ${scrollPrelude}
 ${settlePrelude}
+${hoverPrelude}
 ${runtime}`;

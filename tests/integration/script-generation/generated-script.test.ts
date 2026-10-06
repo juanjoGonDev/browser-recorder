@@ -525,4 +525,105 @@ await browser.close();
       });
     });
   });
+
+  describe('best-effort hovers', () => {
+    function on(locator: Target['locator']): Target {
+      return { locator, nth: null, framePath: [], description: 'subject' };
+    }
+
+    function step(
+      kind: 'click' | 'hover',
+      offsetMs: number,
+      locator: Target['locator'],
+    ): RecordingEvent {
+      const target = on(locator);
+      return kind === 'click'
+        ? {
+            kind,
+            offsetMs,
+            pageId: 'page1',
+            target,
+            button: 'left',
+            modifiers: [],
+          }
+        : { kind, offsetMs, pageId: 'page1', target };
+    }
+
+    const openModal = step('click', 100, {
+      kind: 'role',
+      role: 'menuitem',
+      name: 'Registrar horario',
+    });
+    const confirmInModal = step('click', 300, {
+      kind: 'role',
+      role: 'button',
+      name: 'Confirmar',
+    });
+
+    it('skips a hover that a modal covers, warns once and runs the click inside the modal', async () => {
+      const run = await execute([
+        FIRST_PAGE,
+        goto(0, server.urlFor('modal-over-hover.html')),
+        openModal,
+        step('hover', 109, {
+          kind: 'role',
+          role: 'columnheader',
+          name: 'Fecha',
+        }),
+        confirmInModal,
+      ]);
+
+      expect(run.stdout).not.toContain('::error');
+      expect(run.exitCode).toBe(0);
+      const warnings = run.stdout.match(/^::warn .*$/gmu) ?? [];
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toMatch(/step 4\b/u);
+      expect(run.stdout).toMatch(/^::step 4 \d+$/mu);
+      expect(run.stdout).toMatch(/^::done \d+$/mu);
+    });
+
+    it('warns and continues when the hover target does not exist', async () => {
+      const run = await execute([
+        FIRST_PAGE,
+        goto(0, server.urlFor('modal-over-hover.html')),
+        step('hover', 100, { kind: 'css', selector: '#not-there' }),
+        openModal,
+      ]);
+
+      expect(run.exitCode).toBe(0);
+      expect(run.stdout.match(/^::warn .*$/gmu)).toHaveLength(1);
+      expect(run.stdout).toMatch(/^::done \d+$/mu);
+    });
+    it('still performs the hover of a CSS menu without a warning', async () => {
+      const run = await execute([
+        FIRST_PAGE,
+        goto(0, server.urlFor('hover-menu.html')),
+        step('hover', 100, { kind: 'css', selector: '#products-menu' }),
+        step('click', 200, { kind: 'css', selector: '#reports-link' }),
+      ]);
+
+      expect(run.exitCode).toBe(0);
+      expect(run.stdout).not.toContain('::warn');
+      expect(run.stdout).toMatch(/^::done \d+$/mu);
+    });
+
+    it('keeps a later strict failure fatal while the skipped hover stays reported', async () => {
+      const run = await execute([
+        FIRST_PAGE,
+        goto(0, server.urlFor('file-input.html')),
+        step('hover', 100, { kind: 'css', selector: '#not-there' }),
+        step('click', 150, { kind: 'label', text: 'Avatar' }),
+        {
+          kind: 'set-input-files',
+          offsetMs: 200,
+          pageId: 'page1',
+          fileNames: ['not-there.txt'],
+        },
+      ]);
+
+      expect(run.stdout.match(/^::warn .*$/gmu)).toHaveLength(1);
+      expect(run.stdout).toMatch(/^::error 4 ".*not-there\.txt.*"$/mu);
+      expect(run.exitCode).toBe(1);
+    });
+  });
 });

@@ -87,7 +87,12 @@ describe('src/script-generation/domain/render-step.ts', () => {
     [
       'hover',
       at({ kind: 'hover', target: SAVE }),
-      [`await ${SAVE_EXPR}.hover();`],
+      [`await rt.hover(${SAVE_EXPR});`],
+    ],
+    [
+      'hover inside a frame on another page',
+      at({ kind: 'hover', target: FIELD }, 'page2'),
+      [`await rt.hover(${FIELD_EXPR.replace('page1', 'page2')});`],
     ],
     [
       'check',
