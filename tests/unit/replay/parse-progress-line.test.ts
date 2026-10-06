@@ -63,6 +63,29 @@ describe('parseProgressLine', () => {
     });
   });
 
+  it('parses a warning with a JSON string message', () => {
+    expect(
+      parseProgressLine('::warn "Stopped waiting \\"now\\" for 2 requests"'),
+    ).toEqual({
+      kind: 'warning',
+      message: 'Stopped waiting "now" for 2 requests',
+    });
+  });
+
+  it('falls back to the raw text when the warning is not JSON', () => {
+    expect(parseProgressLine('::warn plain words')).toEqual({
+      kind: 'warning',
+      message: 'plain words',
+    });
+  });
+
+  it('keeps a bare warn marker without text as a log line', () => {
+    expect(parseProgressLine('::warn')).toEqual({
+      kind: 'log',
+      text: '::warn',
+    });
+  });
+
   it('reports ordinary output as a log line', () => {
     expect(parseProgressLine('hello world')).toEqual({
       kind: 'log',

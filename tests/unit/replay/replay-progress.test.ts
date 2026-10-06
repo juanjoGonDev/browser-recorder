@@ -28,6 +28,26 @@ describe('replay-progress', () => {
     });
   });
 
+  it('starts without warnings and keeps them in the order they arrive', () => {
+    let progress = createReplayProgress(OFFSETS);
+    expect(progress.warnings).toEqual([]);
+
+    progress = applyMessage(progress, { kind: 'warning', message: 'first' });
+    progress = applyMessage(progress, { kind: 'warning', message: 'second' });
+
+    expect(progress.warnings).toEqual(['first', 'second']);
+    expect(progress.status).toBe('running');
+  });
+
+  it('keeps the warnings when the replay still succeeds', () => {
+    let progress = createReplayProgress(OFFSETS);
+    progress = applyMessage(progress, { kind: 'warning', message: 'slow' });
+    progress = applyExit(progress, 0, false);
+
+    expect(progress.status).toBe('succeeded');
+    expect(progress.warnings).toEqual(['slow']);
+  });
+
   it('marks earlier steps done and computes drift for the running one', () => {
     let progress = createReplayProgress(OFFSETS);
     progress = applyMessage(progress, {

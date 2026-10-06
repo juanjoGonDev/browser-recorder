@@ -24,6 +24,8 @@ export interface ReplayProgress {
   readonly lastStepIndex: number | null;
   readonly exitCode: number | null;
   readonly errorMessage: string | null;
+  /** Non-fatal notes the script reported, such as a network settle cap. */
+  readonly warnings: readonly string[];
   readonly stderrTail: readonly string[];
 }
 
@@ -51,6 +53,7 @@ export function createReplayProgress(
     lastStepIndex: null,
     exitCode: null,
     errorMessage: null,
+    warnings: [],
     stderrTail: [],
   };
 }
@@ -95,6 +98,8 @@ export function applyMessage(
       };
     case 'error':
       return { ...progress, errorMessage: message.message };
+    case 'warning':
+      return { ...progress, warnings: [...progress.warnings, message.message] };
     case 'log':
       return progress;
   }
