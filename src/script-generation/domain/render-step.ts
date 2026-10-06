@@ -43,7 +43,7 @@ function modifierOption(modifiers: readonly Modifier[]): string[] {
     : [`modifiers: ${jsStringArray(modifiers)}`];
 }
 
-/** `waitForURL` matches origin and pathname only, as the recording does. */
+/** The wait matches origin and pathname only, as the recording does. */
 function originAndPath(url: string): string {
   try {
     const parsed = new URL(url);
@@ -97,8 +97,10 @@ function renderPageOpened(
 
 const RENDERERS: { readonly [K in RecordingEventKind]: Renderer<K> } = {
   goto: (event, { page }) => [`await ${page}.goto(${jsString(event.url)});`],
+  // Waits for a NEW navigation armed before the triggering action: waitForURL
+  // would resolve at once when the page already shows that URL.
   'wait-for-url': (event, { page }) => [
-    `await ${page}.waitForURL((url) => url.origin + url.pathname === ${jsString(originAndPath(event.url))});`,
+    `await rt.waitForNavigation(${page}, ${jsString(originAndPath(event.url))});`,
   ],
   reload: (_event, { page }) => [`await ${page}.reload();`],
   'go-back': (_event, { page }) => [`await ${page}.goBack();`],
@@ -108,7 +110,7 @@ const RENDERERS: { readonly [K in RecordingEventKind]: Renderer<K> } = {
   dblclick: (event, context) => [
     `await ${on(context, event.target)}.dblclick(${renderOptions(modifierOption(event.modifiers))});`,
   ],
-  hover: (event, context) => [`await ${on(context, event.target)}.hover();`],
+  hover: (event, context) => [`await rt.hover(${on(context, event.target)});`],
   check: (event, context) => [
     `await ${on(context, event.target)}.setChecked(${String(event.checked)});`,
   ],

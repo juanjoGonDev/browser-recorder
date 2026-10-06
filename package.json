@@ -1,6 +1,6 @@
 {
   "name": "browser-recorder",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Record a real browser session into a faithful, plain Patchright script, managed from a terminal UI",
   "license": "PolyForm-Noncommercial-1.0.0",

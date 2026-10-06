@@ -33,6 +33,7 @@ function toRunView(progress: ReplayProgress): RunView {
     })),
     lastStepIndex: progress.lastStepIndex,
     errorMessage: progress.errorMessage,
+    warnings: progress.warnings,
     stderrTail: progress.stderrTail,
   };
 }

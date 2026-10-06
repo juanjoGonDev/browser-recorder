@@ -118,6 +118,7 @@ describe('src/tui (session over a fake terminal)', () => {
     app.fake.replay.emit({
       status: 'running',
       errorMessage: null,
+      warnings: [],
       steps: [
         { index: 0, status: 'done', driftMs: 4 },
         { index: 1, status: 'done', driftMs: -2 },

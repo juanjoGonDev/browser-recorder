@@ -127,9 +127,26 @@ describe('src/composition/create-replay-command-services.ts', () => {
       ],
       lastStepIndex: 1,
       errorMessage: 'locator gone',
+      warnings: [],
       stderrTail: ['boom'],
     });
     expect(seen.at(-1)).toStrictEqual(final);
+  });
+
+  it('carries the warnings the script printed into the view', async () => {
+    const { services, spawner } = setup();
+    const run = await services.startReplay('demo', {
+      timing: RECORDED_TIMING,
+      isHeadless: false,
+    });
+    spawner.children[0]?.stdout('::step 0 5\n');
+    spawner.children[0]?.stdout('::warn "Stopped waiting for the network"\n');
+    spawner.children[0]?.stdout('::done 6000\n');
+    spawner.children[0]?.exit(0);
+    await expect(run.finished).resolves.toMatchObject({
+      status: 'succeeded',
+      warnings: ['Stopped waiting for the network'],
+    });
   });
 
   it('settles released once the profile copy was deleted', async () => {

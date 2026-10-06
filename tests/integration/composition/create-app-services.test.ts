@@ -670,6 +670,7 @@ describe('src/composition/create-app-services.ts', () => {
           { index: 1, status: 'running', driftMs: 90 },
         ],
         errorMessage: null,
+        warnings: [],
       });
     });
 
@@ -697,12 +698,13 @@ describe('src/composition/create-app-services.ts', () => {
       const { services, spawner } = await recorded();
       const live = await services.replay.start('replayed', RECORDED_TIMING);
       spawner.children[0]?.stdout(
-        '::step 0 1000\n::step 1 2000\n::done 2001\n',
+        '::step 0 1000\n::step 1 2000\n::warn "Stopped waiting"\n::done 2001\n',
       );
       spawner.children[0]?.exit(0);
       await expect(live.finished).resolves.toMatchObject({
         status: 'succeeded',
         errorMessage: null,
+        warnings: ['Stopped waiting'],
       });
     });
 

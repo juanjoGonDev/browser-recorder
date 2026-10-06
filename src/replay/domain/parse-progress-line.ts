@@ -10,11 +10,13 @@ export type ProgressMessage =
       readonly index: number | null;
       readonly message: string;
     }
+  | { readonly kind: 'warning'; readonly message: string }
   | { readonly kind: 'log'; readonly text: string };
 
 const STEP_MARKER = /^::step (\d+)(?: (\d+))?$/;
 const DONE_MARKER = /^::done(?: (\d+))?$/;
 const ERROR_MARKER = /^::error (\d+|-) (.*)$/;
+const WARN_MARKER = /^::warn (.*)$/;
 
 function toNumberOrNull(digits: string | undefined): number | null {
   return digits === undefined ? null : Number(digits);
@@ -50,6 +52,10 @@ export function parseProgressLine(line: string): ProgressMessage {
       index: error[1] === '-' ? null : Number(error[1]),
       message: decodeMessage(error[2]),
     };
+  }
+  const warning = WARN_MARKER.exec(line);
+  if (warning?.[1] !== undefined) {
+    return { kind: 'warning', message: decodeMessage(warning[1]) };
   }
   return { kind: 'log', text: line };
 }

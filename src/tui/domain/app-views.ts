@@ -87,6 +87,8 @@ export interface ReplayView {
   readonly status: 'running' | 'succeeded' | 'failed' | 'cancelled';
   readonly steps: readonly ReplayStepView[];
   readonly errorMessage: string | null;
+  /** Non-fatal notes the script printed, such as a network settle cap. */
+  readonly warnings: readonly string[];
 }
 
 export interface LiveReplayView {

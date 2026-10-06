@@ -1,3 +1,4 @@
+import { isCausedByActivation } from '../domain/is-caused-by-activation.ts';
 import { selectHoverTargets } from '../domain/select-hover-targets.ts';
 import type { HoverEntry } from '../domain/select-hover-targets.ts';
 import { deepContains, originOf, parentOf } from './deep-query.ts';
@@ -14,6 +15,15 @@ interface TracedElement {
 // A page left hovering for hours must not grow the trace without bound.
 const MAX_TRACE_LENGTH = 200;
 const ROOT_TAGS = new Set(['HTML', 'BODY']);
+// The actions that change the page themselves; scroll and fill emit
+// continuously and would silence every genuine hover-driven change.
+const ACTIVATING_KINDS: ReadonlySet<string> = new Set([
+  'click',
+  'dblclick',
+  'check',
+  'key',
+]);
+let lastActivationAtMs: number | null = null;
 let trace: TracedElement[] = [];
 let hovered = new Set<Element>();
 
@@ -45,6 +55,8 @@ function onPointerOver(event: PointerEvent): void {
 }
 
 function onMutation(): void {
+  // The click or key press changed the page, not the element under the pointer.
+  if (isCausedByActivation(performance.now(), lastActivationAtMs)) return;
   for (const entry of trace) {
     if (hovered.has(entry.element)) entry.didMutate = true;
   }
@@ -99,6 +111,10 @@ export function installHoverTracker(): void {
   });
   // Any other recorded action ends the window the hovers belong to.
   afterEmit((message) => {
-    if (message.payload.kind !== 'hover') trace = [];
+    if (message.payload.kind === 'hover') return;
+    trace = [];
+    if (ACTIVATING_KINDS.has(message.payload.kind)) {
+      lastActivationAtMs = performance.now();
+    }
   });
 }

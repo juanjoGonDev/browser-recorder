@@ -17,6 +17,8 @@ export interface RunView {
   /** Highest step the script reported, `null` before the first. */
   readonly lastStepIndex: number | null;
   readonly errorMessage: string | null;
+  /** Non-fatal notes the script printed, shown after the run. */
+  readonly warnings: readonly string[];
   readonly stderrTail: readonly string[];
 }
 

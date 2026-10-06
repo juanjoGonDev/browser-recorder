@@ -12,6 +12,7 @@ export function toReplayView(progress: ReplayProgress): ReplayView {
       driftMs,
     })),
     errorMessage: progress.errorMessage,
+    warnings: progress.warnings,
   };
 }
 

@@ -1,7 +1,10 @@
 // The runtime every generated script carries. It is plain JavaScript inside a
 // string because the script must run with `node` alone and import nothing from
 // this project. Keep it free of backticks and `${`: it is a raw template.
+import { hoverPrelude } from './hover-prelude.ts';
 import { launchPrelude } from './launch-prelude.ts';
+import { scrollPrelude } from './scroll-prelude.ts';
+import { settlePrelude } from './settle-prelude.ts';
 import { timingPrelude } from './timing-prelude.ts';
 
 const imports = String.raw`import { existsSync, mkdtempSync, rmSync } from 'node:fs';
@@ -17,42 +20,7 @@ const DEFAULT_WAIT_MS = 10000;
 const SCROLL_WORLD = '__browser_recorder_replay';
 `;
 
-const runtime = String.raw`// The three functions below run inside an isolated world through the
-// DevTools protocol, never in the page's own: they are serialized with
-// toString(), so they may not use this file's bindings.
-function scrollWindowInIsolatedWorld(left, top) {
-  window.scrollTo({ left, top, behavior: 'instant' });
-}
-
-// Waits, on the window, for one event that Patchright dispatches at the
-// element to scroll. A composed event reaches the window from inside any open
-// shadow root, and its path names the real element, so no path of child
-// indexes, which cannot cross a shadow boundary, is needed.
-function armScrollProbe(type, left, top) {
-  const state = { scrolled: false, error: '' };
-  const handler = (event) => {
-    window.removeEventListener(type, handler, true);
-    const [target] = event.composedPath();
-    if (!(target instanceof Element)) {
-      state.error = 'The element to scroll is not reachable';
-      return;
-    }
-    target.scrollTo({ left, top, behavior: 'instant' });
-    state.scrolled = true;
-  };
-  window.addEventListener(type, handler, true);
-  window[Symbol.for(type)] = { state, handler };
-}
-
-function readScrollProbe(type) {
-  const probe = window[Symbol.for(type)];
-  if (!probe) return { scrolled: false, error: '' };
-  window.removeEventListener(type, probe.handler, true);
-  delete window[Symbol.for(type)];
-  return probe.state;
-}
-
-function createDeferred() {
+const runtime = String.raw`function createDeferred() {
   const deferred = {};
   deferred.promise = new Promise((resolve, reject) => {
     deferred.resolve = resolve;
@@ -63,20 +31,23 @@ function createDeferred() {
   return deferred;
 }
 
-function withTimeout(promise, ms, message) {
-  let timer;
-  const timeout = new Promise((_, reject) => {
-    timer = setTimeout(() => reject(new Error(message)), ms);
-  });
-  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
-}
-
 function createRuntime(context, options = {}) {
   const nextPageTimeoutMs = options.nextPageTimeoutMs ?? DEFAULT_WAIT_MS;
   const fileChooserTimeoutMs = options.fileChooserTimeoutMs ?? DEFAULT_WAIT_MS;
   const elementTimeoutMs = options.elementTimeoutMs ?? DEFAULT_WAIT_MS;
   const sleep = options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
   const timing = createTiming(options.env ?? process.env, sleep);
+  const settling = createSettling(context, {
+    ...options,
+    sleep,
+    print: (line) => process.stdout.write(line + '\n'),
+    describeStep: () => currentStep ?? '-',
+  });
+  const hovering = createHovering({
+    timeoutMs: options.hoverTimeoutMs ?? HOVER_TIMEOUT_MS,
+    print: (line) => process.stdout.write(line + '\n'),
+    describeStep: () => currentStep,
+  });
   const filesDir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'files');
   const openedPages = [];
   const pageWaiters = [];
@@ -95,6 +66,18 @@ function createRuntime(context, options = {}) {
     if (!fileOutcomes.has(index)) fileOutcomes.set(index, createDeferred());
     return fileOutcomes.get(index);
   };
+
+  async function pace(offsetMs, isFollowUp) {
+    // Human pacing never reads the recorded offset.
+    if (timing.isHuman) return timing.beforeStep({ isFollowUp });
+    // A timer may fire a little early: sleep again rather than run the step
+    // before its offset.
+    let remaining = startedAt + offsetMs - performance.now();
+    while (remaining > 0) {
+      await sleep(remaining);
+      remaining = startedAt + offsetMs - performance.now();
+    }
+  }
 
   function handlePage(page) {
     const waiter = pageWaiters.shift();
@@ -240,18 +223,16 @@ function createRuntime(context, options = {}) {
     start() {
       startedAt = performance.now();
       context.on('page', handlePage);
+      settling.start();
     },
+    waitForNavigation: settling.waitForNavigation,
+    settle: settling.settle,
     async at(offsetMs, { isFollowUp = false } = {}) {
-      // Human pacing never reads the recorded offset.
-      if (timing.isHuman) return timing.beforeStep({ isFollowUp });
-      // A timer may fire a little early: sleep again rather than run the step
-      // before its offset.
-      let remaining = startedAt + offsetMs - performance.now();
-      while (remaining > 0) {
-        await sleep(remaining);
-        remaining = startedAt + offsetMs - performance.now();
-      }
+      await pace(offsetMs, isFollowUp);
+      // The wait for the navigation an action causes starts from here.
+      if (!isFollowUp) settling.arm();
     },
+    hover: hovering.hover,
     fill: (locator, value) => fillField(locator, value, timing),
     mark(index) {
       currentStep = index;
@@ -312,4 +293,7 @@ function createRuntime(context, options = {}) {
 
 export const scriptPrelude = `${imports}${constants}${launchPrelude}
 ${timingPrelude}
+${scrollPrelude}
+${settlePrelude}
+${hoverPrelude}
 ${runtime}`;

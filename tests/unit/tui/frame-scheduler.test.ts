@@ -94,7 +94,7 @@ describe('src/tui/application/frame-scheduler.ts', () => {
       events: [],
       startedAtMs: 0,
       timing: RECORDED_TIMING,
-      view: { status: 'running', steps: [], errorMessage: null },
+      view: { status: 'running', steps: [], errorMessage: null, warnings: [] },
     };
     for (const screen of [replay, initialState().screen]) {
       const { clock, timers, store } = setup(screen);

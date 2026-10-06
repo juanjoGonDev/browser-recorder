@@ -41,9 +41,12 @@ describe('src/script-generation/domain/render-step.ts', () => {
     [
       'wait-for-url keeps origin and pathname only',
       at({ kind: 'wait-for-url', url: 'https://example.com/a/b?q=1#h' }),
-      [
-        'await page1.waitForURL((url) => url.origin + url.pathname === "https://example.com/a/b");',
-      ],
+      ['await rt.waitForNavigation(page1, "https://example.com/a/b");'],
+    ],
+    [
+      'wait-for-url on another page waits for a navigation of that page',
+      at({ kind: 'wait-for-url', url: 'https://other.test/' }, 'page2'),
+      ['await rt.waitForNavigation(page2, "https://other.test/");'],
     ],
     ['reload', at({ kind: 'reload' }), ['await page1.reload();']],
     ['go-back', at({ kind: 'go-back' }), ['await page1.goBack();']],
@@ -84,7 +87,12 @@ describe('src/script-generation/domain/render-step.ts', () => {
     [
       'hover',
       at({ kind: 'hover', target: SAVE }),
-      [`await ${SAVE_EXPR}.hover();`],
+      [`await rt.hover(${SAVE_EXPR});`],
+    ],
+    [
+      'hover inside a frame on another page',
+      at({ kind: 'hover', target: FIELD }, 'page2'),
+      [`await rt.hover(${FIELD_EXPR.replace('page1', 'page2')});`],
     ],
     [
       'check',

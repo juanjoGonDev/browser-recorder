@@ -61,6 +61,7 @@ describe('src/tui/application/tui-controller.ts replay timing', () => {
     harness.fake.replay.emit({
       status: 'failed',
       errorMessage: 'x',
+      warnings: [],
       steps: [],
     });
     await harness.press('escape');

@@ -390,7 +390,7 @@ describe('src/tui/domain/keymap.ts', () => {
         events: [],
         timing: RECORDED_TIMING,
         startedAtMs: 0,
-        view: { status, steps: [], errorMessage: null },
+        view: { status, steps: [], errorMessage: null, warnings: [] },
       });
 
     it('scrolls the timeline and goes back with Escape', () => {

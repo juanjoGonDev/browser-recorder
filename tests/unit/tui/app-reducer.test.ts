@@ -103,6 +103,7 @@ const idleReplay: ReplayView = {
   status: 'running',
   steps: [{ index: 0, status: 'running', driftMs: null }],
   errorMessage: null,
+  warnings: [],
 };
 
 describe('src/tui/domain/app-reducer.ts', () => {
@@ -626,6 +627,7 @@ describe('src/tui/domain/app-reducer.ts', () => {
         status: 'succeeded',
         steps: [{ index: 0, status: 'done', driftMs: 4 }],
         errorMessage: null,
+        warnings: [],
       };
       expect(
         (

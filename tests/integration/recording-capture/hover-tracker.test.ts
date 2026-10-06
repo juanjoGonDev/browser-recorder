@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { useCaptureSite } from '../../support/capture-test-site.ts';
 
+// Just past the 400 ms window, written out so a longer window is caught.
+const JUST_PAST_WINDOW_MS = 500;
+
 describe('src/recording-capture/in-page/hover-tracker.ts', () => {
   const site = useCaptureSite();
 
@@ -104,5 +107,69 @@ describe('src/recording-capture/in-page/hover-tracker.ts', () => {
       .domMessages('hover')
       .map(({ message }) => message.candidates[0]);
     expect(firstCandidates).toEqual([{ kind: 'css', selector: '#popover' }]);
+  });
+
+  it('records no hover for the element a click uncovers while the modal that click opens appears', async () => {
+    const harness = await site.open('modal-over-hover.html');
+    await harness.page.getByRole('menuitem').click();
+    await harness.waitForDom('click');
+    await harness.page.getByRole('button', { name: 'Confirmar' }).click();
+    await harness.waitForDom('click', 2);
+    const hovered = harness
+      .domMessages('hover')
+      .map(({ message }) => message.candidates[0]);
+    // Rule 1 still reports the containers of each click target, nothing else.
+    expect(hovered).toEqual([
+      { kind: 'css', selector: '#menu' },
+      { kind: 'role', role: 'dialog', name: 'Registrar' },
+    ]);
+  });
+
+  it('records no hover for the element a key press uncovers while the modal that key opens appears', async () => {
+    const harness = await site.open('key-opens-modal.html');
+    await harness.page.mouse.move(10, 10);
+    await harness.page.locator('#trigger').focus();
+    await harness.page.keyboard.press('Enter');
+    await harness.waitForDom('key');
+    await harness.page.getByRole('button', { name: 'Confirmar' }).click();
+    await harness.waitForDom('click');
+    const hovered = harness
+      .domMessages('hover')
+      .map(({ message }) => message.candidates[0]);
+    expect(hovered).toEqual([
+      { kind: 'role', role: 'dialog', name: 'Registrar' },
+    ]);
+  });
+
+  it('still records the CSS menu hover right after a key press', async () => {
+    const harness = await site.open('hover-menu.html');
+    await harness.page.keyboard.press('Escape');
+    await harness.waitForDom('key');
+    await harness.page.locator('#products-menu').hover();
+    await harness.page.locator('#reports-link').click();
+    await harness.waitForDom('click');
+    expect(harness.payloads().map((payload) => payload.kind)).toEqual([
+      'key',
+      'hover',
+      'click',
+    ]);
+  });
+
+  it('still records a popover that a hover opens after the activation window', async () => {
+    const harness = await site.open('hover-menu.html');
+    await harness.page.keyboard.press('Escape');
+    await harness.waitForDom('key');
+    await harness.page.waitForTimeout(JUST_PAST_WINDOW_MS);
+    await harness.page.locator('#popover-anchor').hover();
+    await harness.page.waitForTimeout(50);
+    await harness.page.locator('#popover-action').click();
+    await harness.waitForDom('click');
+    const firstCandidates = harness
+      .domMessages('hover')
+      .map(({ message }) => message.candidates[0]);
+    expect(firstCandidates).toEqual([
+      { kind: 'css', selector: '#popover-anchor' },
+      { kind: 'css', selector: '#popover' },
+    ]);
   });
 });

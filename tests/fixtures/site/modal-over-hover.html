@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Modal over hover</title>
+    <style>
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th {
+        height: 60px;
+        text-align: left;
+        background: #eee;
+      }
+      #menu {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 240px;
+        background: #fff;
+        border: 1px solid #ccc;
+      }
+      #menu[hidden] {
+        display: none;
+      }
+      #menu-item {
+        display: block;
+        width: 100%;
+        height: 60px;
+      }
+      #modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+      }
+      #modal[hidden] {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Horas</th>
+        </tr>
+      </thead>
+    </table>
+    <div id="menu" role="menu">
+      <button id="menu-item" role="menuitem" type="button">
+        Registrar horario
+      </button>
+    </div>
+    <div id="modal" role="dialog" aria-label="Registrar" hidden>
+      <button id="confirm" type="button">Confirmar</button>
+    </div>
+    <p id="landed"></p>
+    <script>
+      // Mirrors the real bug: the click removes the menu that was over the
+      // header and opens a modal that covers the whole page one frame later.
+      document.getElementById('menu-item').addEventListener('click', () => {
+        document.getElementById('menu').hidden = true;
+        requestAnimationFrame(() => {
+          document.getElementById('modal').hidden = false;
+        });
+      });
+      document.getElementById('confirm').addEventListener('click', () => {
+        document.getElementById('landed').textContent = 'confirmed';
+      });
+    </script>
+  </body>
+</html>

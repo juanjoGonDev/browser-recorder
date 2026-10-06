@@ -137,6 +137,7 @@ describe('src/tui/render/render-app.ts', () => {
       view: {
         status: 'running',
         errorMessage: null,
+        warnings: [],
         steps: [
           { index: 0, status: 'done', driftMs: 2 },
           { index: 1, status: 'done', driftMs: 5 },

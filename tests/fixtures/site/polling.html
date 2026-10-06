@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Polling</title>
+  </head>
+  <body>
+    <!-- Lets a test fail a step on a page that never goes quiet. -->
+    <label>Avatar <input type="file" /></label>
+    <script>
+      // Never quiet: a new request always starts before the quiet window ends.
+      const POLL_INTERVAL_MS = 100;
+      setInterval(() => {
+        fetch('/__report?state=poll', { method: 'POST' });
+      }, POLL_INTERVAL_MS);
+    </script>
+  </body>
+</html>

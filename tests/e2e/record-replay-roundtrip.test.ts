@@ -25,8 +25,12 @@ import { removeDirSync } from '../support/remove-dir.ts';
 
 /** Design: every replayed step starts within this of its recorded offset. */
 const DRIFT_TOLERANCE_MS = 100;
-/** Gaps between the user's actions: long enough that no step is late. */
-const THINK_TIME_MS = 600;
+/**
+ * Gaps between the user's actions: long enough that no step is late. A cold
+ * persistent-context page load on a Windows runner was measured near 1 s, so
+ * 600 ms let the next step start late; the drift tolerance itself is unchanged.
+ */
+const THINK_TIME_MS = 1500;
 const FINAL_STATE = 'Ada Lovelace|agreed|sent';
 const WAIT = { timeout: 10_000, interval: 50 };
 
