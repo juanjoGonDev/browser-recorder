@@ -12,11 +12,16 @@
       // Mirrors the real bug: the click sends its request after a short client
       // delay and then reloads the SAME URL; a reload reports on load.
       const CONFIRM_DELAY_MS = 300;
+      // `?reloadAfterMs=N` delays the reload past the network quiet window,
+      // so only a real wait for the navigation (not the settle) sees it.
+      const RELOAD_AFTER_MS = Number(
+        new URLSearchParams(location.search).get('reloadAfterMs') ?? 0,
+      );
       fetch('/__report?state=loaded', { method: 'POST' });
       document.getElementById('confirm').addEventListener('click', () => {
         setTimeout(async () => {
           await fetch('/__report?state=confirmed', { method: 'POST' });
-          location.reload();
+          setTimeout(() => location.reload(), RELOAD_AFTER_MS);
         }, CONFIRM_DELAY_MS);
       });
     </script>

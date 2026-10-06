@@ -253,6 +253,23 @@ describe('generated script against the fixture site', () => {
       expect(server.reports()).toContain('confirmed');
     });
 
+    it('waits for a same-URL reload that comes after the network went quiet', async () => {
+      server.clearReports();
+      const run = await execute([
+        FIRST_PAGE,
+        goto(0, `${server.urlFor('confirm-modal.html')}?reloadAfterMs=1500`),
+        confirmClick,
+        waitForSamePage(150, 'confirm-modal.html'),
+      ]);
+
+      expect(run.exitCode).toBe(0);
+      // Loaded twice: the follow-up waited for the reload itself, not just
+      // for the URL it was already on (the settle alone ends before it).
+      expect(
+        server.reports().filter((report) => report === 'loaded'),
+      ).toHaveLength(2);
+    });
+
     it('reports the request of a last click that never navigates', async () => {
       server.clearReports();
       const run = await execute([

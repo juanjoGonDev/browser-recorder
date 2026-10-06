@@ -32,3 +32,9 @@ Under Patchright 1.63.0 headless, `framenavigated` DOES fire on a same-URL `page
 ## Deviations (reconciled in design.md)
 
 Goldens regenerated with the generator changes (tasks 4-5) so every commit stays green; extra options `settlePollMs`/`describeStep`; fractional seconds in the cap warning.
+
+## Verify remediation
+
+| Task | Test file | Layer | Safety net | RED | GREEN | Triangulate | Refactor |
+|---|---|---|---|---|---|---|---|
+| R.1 | tests/integration/script-generation/generated-script.test.ts | Integration | 16/16 | Mutation: old `waitForURL` rendering restored → `expected [ 'loaded' ] to have a length of 2 but got 1` | 17/17 with `rt.waitForNavigation` | late reload (1500 ms) vs existing early reload (0 ms) | n/a |

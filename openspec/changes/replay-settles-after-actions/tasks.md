@@ -38,3 +38,7 @@ Chain strategy: size-exception
 - [x] 8. Goldens. Update `tests/unit/script-generation/goldens/*.mjs` (basic, brave-managed, legacy-emulated) byte-for-byte; review diff is limited to prelude text, `rt.settle()`, `waitForNavigation`.
 - [x] 9. Docs and version. Update README/SECURITY notes (settle, `::warn`, no page code); reconcile specs/design names if apply diverged; bump `package.json` 0.1.0 -> 0.1.1 per `scripts/release-impact-policy.ts`.
 - [x] 10. Final gates. `pnpm quality`, `pnpm test:coverage`, `pnpm build`; fix with `pnpm format`; no hook bypass.
+
+## Verify remediation (R)
+
+- [x] R.1 (WARNING W1) The confirm-modal integration tests could not detect a regression in the same-URL navigation wait, because the 500 ms settle also caught the 300 ms-delayed POST and the reload. Added `?reloadAfterMs=` to `tests/fixtures/site/confirm-modal.html` and the test "waits for a same-URL reload that comes after the network went quiet" (reload 1500 ms after the POST, past the quiet window). RED with the old `waitForURL` rendering (`expected [ 'loaded' ] to have a length of 2 but got 1`), GREEN with `rt.waitForNavigation`.
