@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Confirm modal</title>
+  </head>
+  <body>
+    <div role="dialog" aria-label="Confirm">
+      <button id="confirm" type="button">Confirmar</button>
+    </div>
+    <script>
+      // Mirrors the real bug: the click sends its request after a short client
+      // delay and then reloads the SAME URL; a reload reports on load.
+      const CONFIRM_DELAY_MS = 300;
+      fetch('/__report?state=loaded', { method: 'POST' });
+      document.getElementById('confirm').addEventListener('click', () => {
+        setTimeout(async () => {
+          await fetch('/__report?state=confirmed', { method: 'POST' });
+          location.reload();
+        }, CONFIRM_DELAY_MS);
+      });
+    </script>
+  </body>
+</html>

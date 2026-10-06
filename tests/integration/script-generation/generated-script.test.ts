@@ -193,6 +193,68 @@ describe('generated script against the fixture site', () => {
     expect(run.exitCode).toBe(0);
   });
 
+  describe('actions that settle after the last step', () => {
+    const confirmClick: RecordingEvent = {
+      kind: 'click',
+      offsetMs: 100,
+      pageId: 'page1',
+      target: {
+        locator: { kind: 'role', role: 'button', name: 'Confirmar' },
+        nth: null,
+        framePath: [],
+        description: 'Confirmar',
+      },
+      button: 'left',
+      modifiers: [],
+    };
+
+    function waitForSamePage(offsetMs: number, page: string): RecordingEvent {
+      return {
+        kind: 'wait-for-url',
+        offsetMs,
+        pageId: 'page1',
+        url: server.urlFor(page),
+      };
+    }
+
+    it('records the POST of the last click before the browser closes', async () => {
+      server.clearReports();
+      const run = await execute([
+        FIRST_PAGE,
+        goto(0, server.urlFor('confirm-modal.html')),
+        confirmClick,
+        waitForSamePage(150, 'confirm-modal.html'),
+      ]);
+
+      expect(run.stdout).not.toContain('::error');
+      expect(run.exitCode).toBe(0);
+      expect(server.reports()).toContain('confirmed');
+    });
+
+    it('emits framenavigated for a reload of the same URL in Patchright', async () => {
+      const url = server.urlFor('confirm-modal.html');
+      const probe = `import { chromium } from 'patchright';
+const browser = await chromium.launch({ headless: true });
+const page = await browser.newPage();
+await page.goto(${JSON.stringify(url)});
+const urls = [];
+page.on('framenavigated', (frame) => {
+  if (frame === page.mainFrame()) urls.push(frame.url());
+});
+await page.reload();
+console.log(JSON.stringify(urls));
+await browser.close();
+`;
+      const run = await runNodeModule(probe, {
+        directory: scratch,
+        env: HEADLESS,
+        shouldCloseStdin: false,
+      });
+
+      expect(JSON.parse(run.stdout.trim())).toStrictEqual([url]);
+    });
+  });
+
   describe('scrolling', () => {
     interface Reported {
       readonly window: readonly number[];
