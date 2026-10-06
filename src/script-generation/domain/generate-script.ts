@@ -69,6 +69,8 @@ function renderBody(recording: Recording): string[] {
     ...renderPageHooks(FIRST_PAGE, events),
     'rt.start();',
     ...events.flatMap((event, index) => renderStepBlock(event, index, events)),
+    // Only on success: a failure or an abort never reaches this line.
+    'await rt.settle();',
     'rt.done();',
   ];
 }

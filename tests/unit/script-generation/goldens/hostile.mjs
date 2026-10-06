@@ -647,5 +647,6 @@ try {
   await page1.getByText("</script>", { exact: true }).selectOption(["\"); process.exit(1); (\"", "it's"]);
   await rt.at(400); rt.mark(4);
   await rt.scrollTo(page1, [page1.locator("iframe[title=\"\\n\"]"), page1.frameLocator("iframe[title=\"\\n\"]").locator("#a\"); process.exit(2); (\"")], [1, 2]);
+  await rt.settle();
   rt.done();
 } catch (error) { rt.fail(error); } finally { await close(); }

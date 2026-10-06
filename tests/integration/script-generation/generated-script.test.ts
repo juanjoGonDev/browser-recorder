@@ -19,6 +19,14 @@ const TIMING_TOLERANCE_MS = 100;
 const RELOAD_OFFSET_MS = 3000;
 const GO_BACK_OFFSET_MS = 3500;
 const HEADLESS = { BROWSER_RECORDER_HEADLESS: '1' };
+const HUMAN_TIMING = {
+  BROWSER_RECORDER_TIMING: 'human',
+  BROWSER_RECORDER_HUMAN_DELAY: '10-20',
+  BROWSER_RECORDER_SEED: '7',
+};
+const SETTLE_CAP_MS = 5000;
+// A slow runner adds browser start-up and polling jitter on top of the cap.
+const CAP_MARGIN_MS = 4000;
 
 const FIRST_PAGE: RecordingEvent = {
   kind: 'page-opened',
@@ -208,6 +216,20 @@ describe('generated script against the fixture site', () => {
       modifiers: [],
     };
 
+    function clickOn(
+      locator: Target['locator'],
+      offsetMs: number,
+    ): RecordingEvent {
+      return {
+        kind: 'click',
+        offsetMs,
+        pageId: 'page1',
+        target: { locator, nth: null, framePath: [], description: 'subject' },
+        button: 'left',
+        modifiers: [],
+      };
+    }
+
     function waitForSamePage(offsetMs: number, page: string): RecordingEvent {
       return {
         kind: 'wait-for-url',
@@ -229,6 +251,92 @@ describe('generated script against the fixture site', () => {
       expect(run.stdout).not.toContain('::error');
       expect(run.exitCode).toBe(0);
       expect(server.reports()).toContain('confirmed');
+    });
+
+    it('reports the request of a last click that never navigates', async () => {
+      server.clearReports();
+      const run = await execute([
+        FIRST_PAGE,
+        goto(0, server.urlFor('fire-and-forget.html')),
+        clickOn({ kind: 'role', role: 'button', name: 'Send' }, 100),
+      ]);
+
+      expect(run.stdout).not.toContain('::error');
+      expect(run.exitCode).toBe(0);
+      expect(server.reports()).toContain('sent');
+    });
+
+    it('settles after the same click in human timing too', async () => {
+      server.clearReports();
+      const run = await runNodeModule(
+        generateScript(
+          recordingOf([
+            FIRST_PAGE,
+            goto(0, server.urlFor('confirm-modal.html')),
+            confirmClick,
+            waitForSamePage(150, 'confirm-modal.html'),
+          ]),
+        ),
+        {
+          directory: scratch,
+          env: { ...HEADLESS, ...HUMAN_TIMING },
+          shouldCloseStdin: false,
+        },
+      );
+
+      expect(run.stdout).not.toContain('::error');
+      expect(run.exitCode).toBe(0);
+      expect(server.reports()).toContain('confirmed');
+    });
+
+    it('finishes a page that never goes quiet at the cap, with a warning', async () => {
+      const run = await execute([
+        FIRST_PAGE,
+        goto(0, server.urlFor('polling.html')),
+      ]);
+
+      const done = /^::done (\d+)$/mu.exec(run.stdout);
+      const elapsedMs = Number(done?.[1]);
+      expect(run.exitCode).toBe(0);
+      expect(elapsedMs).toBeGreaterThanOrEqual(SETTLE_CAP_MS);
+      expect(elapsedMs).toBeLessThan(SETTLE_CAP_MS + CAP_MARGIN_MS);
+      expect(run.stdout).toMatch(
+        /^::warn "Stopped waiting for the network after 5 s; \d+ requests? w(?:as|ere) still in flight"$/mu,
+      );
+    });
+
+    it('does not settle when a step fails', async () => {
+      const run = await execute([
+        FIRST_PAGE,
+        goto(0, server.urlFor('polling.html')),
+        clickOn({ kind: 'label', text: 'Avatar' }, 100),
+        {
+          kind: 'set-input-files',
+          offsetMs: 200,
+          pageId: 'page1',
+          fileNames: ['not-there.txt'],
+        },
+      ]);
+
+      expect(run.stdout).toMatch(/^::error 3 ".*not-there\.txt.*"$/mu);
+      expect(run.stdout).not.toContain('::warn');
+      expect(run.stdout).not.toContain('::done');
+      expect(run.exitCode).toBe(1);
+    });
+
+    it('keeps the settle and navigation runtime out of the page', () => {
+      const script = generateScript(
+        recordingOf([
+          FIRST_PAGE,
+          confirmClick,
+          waitForSamePage(150, 'confirm-modal.html'),
+        ]),
+      );
+
+      expect(script).not.toMatch(/Runtime\.enable|Console\.enable/u);
+      expect(script).not.toMatch(
+        /\.(?:evaluate|addInitScript|exposeFunction)\(/u,
+      );
     });
 
     it('emits framenavigated for a reload of the same URL in Patchright', async () => {

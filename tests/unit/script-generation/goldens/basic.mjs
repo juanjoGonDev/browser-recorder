@@ -645,7 +645,7 @@ try {
   await rt.at(900); rt.mark(3);
   await page1.getByRole("button", { name: "Save", exact: true }).click();
   await rt.at(1500, { isFollowUp: true }); rt.mark(4);
-  await page1.waitForURL((url) => url.origin + url.pathname === "https://example.com/saved");
+  await rt.waitForNavigation(page1, "https://example.com/saved");
   await rt.at(2100); rt.mark(5);
   await rt.fill(page1.getByLabel("Email", { exact: true }), "ana@example.com");
   await rt.at(2600); rt.mark(6);
@@ -666,5 +666,6 @@ try {
   await page1.goBack();
   await rt.at(6100); rt.mark(14);
   await page1.goForward();
+  await rt.settle();
   rt.done();
 } catch (error) { rt.fail(error); } finally { await close(); }

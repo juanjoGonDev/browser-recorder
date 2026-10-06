@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Fire and forget</title>
+  </head>
+  <body>
+    <button id="send" type="button">Send</button>
+    <script>
+      // The request leaves after a client delay and the page never navigates:
+      // only a script that waits for the network can see it arrive.
+      const SEND_DELAY_MS = 300;
+      document.getElementById('send').addEventListener('click', () => {
+        setTimeout(() => {
+          fetch('/__report?state=sent', { method: 'POST' });
+        }, SEND_DELAY_MS);
+      });
+    </script>
+  </body>
+</html>

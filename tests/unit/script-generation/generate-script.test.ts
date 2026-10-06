@@ -221,6 +221,29 @@ describe('src/script-generation/domain/generate-script.ts', () => {
     );
   });
 
+  it('settles the network after the last step and only on the success path', () => {
+    const lines = generateScript(BASIC_RECORDING)
+      .split('\n')
+      .map((line) => line.trim());
+    const settleAt = lines.indexOf('await rt.settle();');
+    expect(settleAt).toBeGreaterThan(lines.indexOf('rt.start();'));
+    expect(lines[settleAt + 1]).toBe('rt.done();');
+    expect(lines.filter((line) => line.includes('rt.settle()'))).toHaveLength(
+      1,
+    );
+    expect(
+      lines.indexOf(
+        '} catch (error) { rt.fail(error); } finally { await close(); }',
+      ),
+    ).toBeGreaterThan(settleAt);
+  });
+
+  it('settles even when the recording has no steps', () => {
+    expect(generateScript(recordingOf([]))).toContain(
+      'await rt.settle();\n  rt.done();',
+    );
+  });
+
   it('reuses the page the persistent context opens instead of a second tab', () => {
     const script = generateScript(BASIC_RECORDING);
     expect(script).toContain('context.pages()[0] ?? (await context.newPage())');

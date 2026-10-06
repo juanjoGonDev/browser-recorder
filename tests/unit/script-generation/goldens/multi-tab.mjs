@@ -665,5 +665,6 @@ try {
   await rt.scrollTo(page3, [page3.locator("nav > .menu").nth(2)], [3, 9]);
   await rt.at(4600); rt.mark(13);
   await page3.goto("https://example.com/done");
+  await rt.settle();
   rt.done();
 } catch (error) { rt.fail(error); } finally { await close(); }
