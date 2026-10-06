@@ -25,6 +25,11 @@ const WITHIN_DOCUMENT_TYPES: Readonly<Record<string, NavigationType>> = {
 };
 
 const NOT_REPORTED = /^(?:about|chrome-error):/;
+// The renderer reports a commit before the browser makes the new document the
+// active one; until then the history read fails with "Not attached to an
+// active page". A slow machine widens that gap, so the read is retried.
+const HISTORY_READ_ATTEMPTS = 40;
+const HISTORY_READ_RETRY_MS = 25;
 
 /** The navigation type CDP announced, in the vocabulary of the signals. */
 export function navigationTypeOf(
@@ -54,15 +59,26 @@ interface WithinDocument {
 interface Deps {
   readonly now: () => number;
   readonly onNavigation: (report: NavigationReport) => void;
+  /** Waits between history reads; a real timer unless a test replaces it. */
+  readonly sleep?: (ms: number) => Promise<void>;
 }
 
-async function entryIndexOf(cdp: CDPSession): Promise<number | null> {
-  try {
-    const history = await cdp.send('Page.getNavigationHistory');
-    return history.currentIndex;
-  } catch {
-    return null;
+const realSleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+async function entryIndexOf(
+  cdp: CDPSession,
+  sleep: (ms: number) => Promise<void>,
+): Promise<number | null> {
+  for (let attempt = 1; attempt <= HISTORY_READ_ATTEMPTS; attempt += 1) {
+    try {
+      const history = await cdp.send('Page.getNavigationHistory');
+      return history.currentIndex;
+    } catch {
+      if (attempt < HISTORY_READ_ATTEMPTS) await sleep(HISTORY_READ_RETRY_MS);
+    }
   }
+  return null;
 }
 
 /**
@@ -80,14 +96,18 @@ export async function trackNavigation(
   const mainFrameId = frameTree.frame.id;
   let announced: string | undefined;
 
-  const report = async (
-    url: string,
-    navigationType: NavigationType,
-  ): Promise<void> => {
+  const sleep = deps.sleep ?? realSleep;
+  // One history read at a time: a retried read must not let a later
+  // navigation be reported before the one that committed first.
+  let previous: Promise<void> = Promise.resolve();
+  const report = (url: string, navigationType: NavigationType): void => {
     if (NOT_REPORTED.test(url)) return;
     const receivedAt = deps.now();
-    const entryIndex = await entryIndexOf(cdp);
-    deps.onNavigation({ url, navigationType, entryIndex, receivedAt });
+    const reported = previous.then(async () => {
+      const entryIndex = await entryIndexOf(cdp, sleep);
+      deps.onNavigation({ url, navigationType, entryIndex, receivedAt });
+    });
+    previous = reported.catch(() => undefined);
   };
   const takeAnnounced = (): string | undefined => {
     const type = announced;
@@ -103,13 +123,10 @@ export async function trackNavigation(
   );
   cdp.on('Page.frameNavigated', (event: Navigated) => {
     if (event.frame.parentId !== undefined) return;
-    void report(event.frame.url, navigationTypeOf(takeAnnounced()));
+    report(event.frame.url, navigationTypeOf(takeAnnounced()));
   });
   cdp.on('Page.navigatedWithinDocument', (event: WithinDocument) => {
     if (event.frameId !== mainFrameId) return;
-    void report(
-      event.url,
-      navigationTypeOf(takeAnnounced(), event.navigationType),
-    );
+    report(event.url, navigationTypeOf(takeAnnounced(), event.navigationType));
   });
 }

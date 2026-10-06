@@ -19,6 +19,16 @@ async function waitForNavigations(rig: SessionRig, count: number) {
   return navigations(rig);
 }
 
+// A loaded CI runner, made deterministic: with the renderer this slow the
+// browser still reports the commit before the new document is active.
+const SLOW_CPU_RATE = 30;
+
+/** Slows the page down from a test-only session; the recorder never does this. */
+async function slowDown(rig: SessionRig): Promise<void> {
+  const cdp = await rig.context.newCDPSession(rig.firstPage());
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: SLOW_CPU_RATE });
+}
+
 describe('src/recording-capture/adapters/patchright-browser-session.ts', () => {
   const factory = useSessionRig();
 
@@ -139,6 +149,21 @@ describe('src/recording-capture/adapters/patchright-browser-session.ts', () => {
       ]);
       expect(back.entryIndex).toBe((forward.entryIndex ?? 0) - 1);
       expect(again.entryIndex).toBe(forward.entryIndex);
+    });
+
+    it('keeps the history index of back and forward on a slow machine', async () => {
+      const rig = await factory.start('nav-a.html');
+      await waitForNavigations(rig, 1);
+      await slowDown(rig);
+      await rig.firstPage().locator('#to-b').click();
+      await waitForNavigations(rig, 2);
+      await rig.firstPage().goBack();
+      await waitForNavigations(rig, 3);
+      await rig.firstPage().goForward();
+      const all = await waitForNavigations(rig, 4);
+      expect(all.map(({ entryIndex }) => entryIndex)).toStrictEqual([
+        1, 2, 1, 2,
+      ]);
     });
 
     it('reports a same-document push as a push', async () => {
