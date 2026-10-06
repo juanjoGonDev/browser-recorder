@@ -3,6 +3,7 @@
 // this project. Keep it free of backticks and `${`: it is a raw template.
 import { launchPrelude } from './launch-prelude.ts';
 import { scrollPrelude } from './scroll-prelude.ts';
+import { settlePrelude } from './settle-prelude.ts';
 import { timingPrelude } from './timing-prelude.ts';
 
 const imports = String.raw`import { existsSync, mkdtempSync, rmSync } from 'node:fs';
@@ -29,20 +30,18 @@ const runtime = String.raw`function createDeferred() {
   return deferred;
 }
 
-function withTimeout(promise, ms, message) {
-  let timer;
-  const timeout = new Promise((_, reject) => {
-    timer = setTimeout(() => reject(new Error(message)), ms);
-  });
-  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
-}
-
 function createRuntime(context, options = {}) {
   const nextPageTimeoutMs = options.nextPageTimeoutMs ?? DEFAULT_WAIT_MS;
   const fileChooserTimeoutMs = options.fileChooserTimeoutMs ?? DEFAULT_WAIT_MS;
   const elementTimeoutMs = options.elementTimeoutMs ?? DEFAULT_WAIT_MS;
   const sleep = options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
   const timing = createTiming(options.env ?? process.env, sleep);
+  const settling = createSettling(context, {
+    ...options,
+    sleep,
+    print: (line) => process.stdout.write(line + '\n'),
+    describeStep: () => currentStep ?? '-',
+  });
   const filesDir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'files');
   const openedPages = [];
   const pageWaiters = [];
@@ -61,6 +60,18 @@ function createRuntime(context, options = {}) {
     if (!fileOutcomes.has(index)) fileOutcomes.set(index, createDeferred());
     return fileOutcomes.get(index);
   };
+
+  async function pace(offsetMs, isFollowUp) {
+    // Human pacing never reads the recorded offset.
+    if (timing.isHuman) return timing.beforeStep({ isFollowUp });
+    // A timer may fire a little early: sleep again rather than run the step
+    // before its offset.
+    let remaining = startedAt + offsetMs - performance.now();
+    while (remaining > 0) {
+      await sleep(remaining);
+      remaining = startedAt + offsetMs - performance.now();
+    }
+  }
 
   function handlePage(page) {
     const waiter = pageWaiters.shift();
@@ -206,17 +217,14 @@ function createRuntime(context, options = {}) {
     start() {
       startedAt = performance.now();
       context.on('page', handlePage);
+      settling.start();
     },
+    waitForNavigation: settling.waitForNavigation,
+    settle: settling.settle,
     async at(offsetMs, { isFollowUp = false } = {}) {
-      // Human pacing never reads the recorded offset.
-      if (timing.isHuman) return timing.beforeStep({ isFollowUp });
-      // A timer may fire a little early: sleep again rather than run the step
-      // before its offset.
-      let remaining = startedAt + offsetMs - performance.now();
-      while (remaining > 0) {
-        await sleep(remaining);
-        remaining = startedAt + offsetMs - performance.now();
-      }
+      await pace(offsetMs, isFollowUp);
+      // The wait for the navigation an action causes starts from here.
+      if (!isFollowUp) settling.arm();
     },
     fill: (locator, value) => fillField(locator, value, timing),
     mark(index) {
@@ -279,4 +287,5 @@ function createRuntime(context, options = {}) {
 export const scriptPrelude = `${imports}${constants}${launchPrelude}
 ${timingPrelude}
 ${scrollPrelude}
+${settlePrelude}
 ${runtime}`;

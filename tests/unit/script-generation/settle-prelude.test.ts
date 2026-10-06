@@ -40,7 +40,12 @@ function run(body: string) {
 
 async function outcome(body: string): Promise<string> {
   const result = await run(body);
-  return result.stdout.trim();
+  // Step markers are protocol noise here: only the script's own output counts.
+  return result.stdout
+    .split('\n')
+    .filter((line) => !line.startsWith('::step '))
+    .join('\n')
+    .trim();
 }
 
 const SITE = 'https://site.test/app';
