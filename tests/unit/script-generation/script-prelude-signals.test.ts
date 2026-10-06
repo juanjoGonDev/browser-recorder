@@ -6,7 +6,8 @@ import { runNodeModule } from '../../support/run-node-module.ts';
 const FAKES = String.raw`
 import { EventEmitter } from 'node:events';
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const rt = createRuntime(new EventEmitter());
+const context = new EventEmitter();
+const rt = createRuntime(context, { settleCapMs: 8000 });
 `;
 
 function body(extra: string): string {
@@ -28,6 +29,20 @@ describe('src/script-generation/domain/script-prelude.ts signals', () => {
       const result = await runNodeModule(body('await sleep(8000);'), {
         signal: { name, afterOutput: 'ready' },
       });
+      expect(result.stdout).toBe('ready\nclosed\n');
+      expect(result.exitCode).toBe(130);
+    },
+  );
+
+  it.skipIf(!isPosix)(
+    'stops at once on a signal without waiting for the network to settle',
+    async () => {
+      const result = await runNodeModule(
+        body(`context.emit('request', { url: () => 'https://site.test/x' });
+void rt.settle();
+await sleep(8000);`),
+        { signal: { name: 'SIGTERM', afterOutput: 'ready' } },
+      );
       expect(result.stdout).toBe('ready\nclosed\n');
       expect(result.exitCode).toBe(130);
     },

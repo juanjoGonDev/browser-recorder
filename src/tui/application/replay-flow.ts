@@ -16,6 +16,7 @@ const STARTING_VIEW: ReplayView = {
   status: 'running',
   steps: [],
   errorMessage: null,
+  warnings: [],
 };
 
 export function createReplayFlow(deps: ControllerDeps): ReplayFlow {

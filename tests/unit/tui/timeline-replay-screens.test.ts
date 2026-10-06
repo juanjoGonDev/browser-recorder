@@ -40,6 +40,7 @@ function replay(view: ReplayView, count = 5): ReplayScreen {
 const running: ReplayView = {
   status: 'running',
   errorMessage: null,
+  warnings: [],
   steps: [
     { index: 0, status: 'done', driftMs: 4 },
     { index: 1, status: 'done', driftMs: -3 },
@@ -70,6 +71,34 @@ describe('src/tui/render/screens/replay-screen.ts (browser)', () => {
       '! Brave is not installed: replaying on bundled Chromium',
     );
     expect(text).toContain('Chromium (bundled) · managed');
+  });
+
+  it('lists the warnings of the run after the launch warnings', () => {
+    const text = renderReplayScreen(
+      {
+        ...replay({
+          ...running,
+          status: 'succeeded',
+          warnings: ['Stopped waiting for the network\u001b[31m'],
+        }),
+        warnings: ['launch note'],
+      },
+      plainContext(),
+    ).body.join('\n');
+    expect(text).toContain('! launch note');
+    expect(text).toContain('! Stopped waiting for the network·[31m');
+    expect(text.indexOf('! launch note')).toBeLessThan(
+      text.indexOf('! Stopped waiting'),
+    );
+  });
+
+  it('keeps the running step visible below the run warnings too', () => {
+    const text = renderReplayScreen(
+      replay({ ...running, warnings: ['one', 'two'] }, 40),
+      plainContext({ height: 8 }),
+    ).body.join('\n');
+    expect(text).toContain('! two');
+    expect(text).toContain('Step 2');
   });
 
   it('keeps the running step visible below the warnings', () => {
@@ -178,6 +207,7 @@ describe('src/tui/render/screens/replay-screen.ts', () => {
       ...running,
       status: 'failed',
       errorMessage: 'locator not found',
+      warnings: [],
     };
     const view = renderReplayScreen(replay(failed), plainContext());
     expect(view.body.join('\n')).toContain('Failed');
@@ -189,6 +219,7 @@ describe('src/tui/render/screens/replay-screen.ts', () => {
     const done: ReplayView = {
       status: 'succeeded',
       errorMessage: null,
+      warnings: [],
       steps: running.steps.map((step) => ({
         ...step,
         status: 'done',
@@ -223,7 +254,10 @@ describe('src/tui/render/screens/replay-screen.ts', () => {
         }) as const,
     );
     const long: ReplayScreen = {
-      ...replay({ status: 'running', errorMessage: null, steps }, 60),
+      ...replay(
+        { status: 'running', errorMessage: null, warnings: [], steps },
+        60,
+      ),
     };
     const view = renderReplayScreen(long, plainContext({ height: 10 }));
     expect(view.body.join('\n')).toContain('Step 40');

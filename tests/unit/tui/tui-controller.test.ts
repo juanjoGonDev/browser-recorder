@@ -771,6 +771,7 @@ describe('src/tui/application/tui-controller.ts', () => {
       harness.fake.replay.emit({
         status: 'running',
         errorMessage: null,
+        warnings: [],
         steps: [
           { index: 0, status: 'done', driftMs: 3 },
           { index: 1, status: 'done', driftMs: -2 },
@@ -791,6 +792,7 @@ describe('src/tui/application/tui-controller.ts', () => {
       harness.fake.replay.resolveFinished({
         status: 'succeeded',
         errorMessage: null,
+        warnings: [],
         steps: [{ index: 0, status: 'done', driftMs: 1 }],
       });
       await Promise.resolve();
@@ -813,6 +815,7 @@ describe('src/tui/application/tui-controller.ts', () => {
       harness.fake.replay.emit({
         status: 'failed',
         errorMessage: 'boom',
+        warnings: [],
         steps: [],
       });
       await harness.press(named('escape'));

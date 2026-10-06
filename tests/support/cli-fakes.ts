@@ -79,6 +79,7 @@ export function stepView(
     })),
     lastStepIndex: reached === 0 ? null : reached - 1,
     errorMessage: null,
+    warnings: [],
     stderrTail: [],
     ...extra,
   };

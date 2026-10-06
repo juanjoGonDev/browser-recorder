@@ -245,6 +245,44 @@ describe('src/cli/application/run-replay-command.ts', () => {
     expect(output.stdout()).not.toContain('Brave');
   });
 
+  it('prints the warnings of the script on stderr and still succeeds', async () => {
+    const { run, output, execute } = rig();
+    const done = execute();
+    await tick();
+    run.finish({
+      ...stepView(['done', 'done', 'done']),
+      status: 'succeeded',
+      warnings: [
+        'Stopped waiting for the network after 5 s; 2 requests were still in flight',
+      ],
+    });
+    run.release();
+    expect(await done).toBe(0);
+    expect(output.stderr()).toBe(
+      '! Stopped waiting for the network after 5 s; 2 requests were still in flight\n',
+    );
+    expect(output.stdout()).toContain('✔ Demo replayed');
+    expect(output.stdout()).not.toContain('Stopped waiting');
+  });
+
+  it('prints each script warning once, in order, after the launch warnings', async () => {
+    const { run, output, execute } = rig({ warnings: ['launch note'] });
+    const done = execute();
+    await tick();
+    run.emit({
+      ...stepView(['done', 'running', 'pending']),
+      warnings: ['early'],
+    });
+    run.finish({
+      ...stepView(['done', 'done', 'done']),
+      status: 'succeeded',
+      warnings: ['early', 'late\u001b[31m'],
+    });
+    run.release();
+    expect(await done).toBe(0);
+    expect(output.stderr()).toBe('! launch note\n! early\n! late·[31m\n');
+  });
+
   it('starts the replay with the timing and headless flag of the command', async () => {
     const { run, services, execute } = rig();
     const done = execute(

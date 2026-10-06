@@ -175,6 +175,9 @@ function conclude(
   const { output } = context.deps;
   const outPainter = createPainter(output.hasOutColor);
   const errPainter = createPainter(output.hasErrColor);
+  view.warnings.forEach((warning) => {
+    output.err(`${formatWarning(warning)}\n`);
+  });
   if (view.status === 'succeeded') {
     output.out(`${formatSuccess(run.name, context.elapsedMs, outPainter)}\n`);
     return EXIT_SUCCESS;

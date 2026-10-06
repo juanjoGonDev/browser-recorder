@@ -65,6 +65,11 @@ function progress(screen: ReplayScreen): string {
   return status === 'running' ? label : label.replace('step ', 'steps ');
 }
 
+/** Launch notes first, then what the script itself reported. */
+function allWarnings(screen: ReplayScreen): readonly string[] {
+  return [...screen.warnings, ...screen.view.warnings];
+}
+
 function header(screen: ReplayScreen, context: RenderContext): string[] {
   const { style, width, nowMs } = context;
   const { view } = screen;
@@ -82,7 +87,7 @@ function header(screen: ReplayScreen, context: RenderContext): string[] {
     style.muted(
       `${sanitize(describeBrowser(screen.browser))} · ${formatTiming(screen.timing)}`,
     ),
-    ...warningLines(screen.warnings, context),
+    ...warningLines(allWarnings(screen), context),
     closing,
   ];
 }
@@ -94,7 +99,7 @@ export function renderReplayScreen(
   const { events, view } = screen;
   const rows = Math.max(
     1,
-    context.height - HEADER_ROWS - screen.warnings.length,
+    context.height - HEADER_ROWS - allWarnings(screen).length,
   );
   const range = followRange(focusIndex(view.steps), {
     count: events.length,
