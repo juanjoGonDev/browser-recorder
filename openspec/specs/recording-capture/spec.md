@@ -60,25 +60,6 @@ The system MUST record reload, go-back and go-forward as distinct events and MUS
 - WHEN the main frame navigates
 - THEN a `wait-for-url` event follows the click; a navigation with no preceding action yields `goto`
 
-### Requirement: Coalescing
-
-Consecutive fills on the same locator MUST merge into one event keeping the last value and the offset of the last input; consecutive selects likewise; consecutive `wait-for-url` events on the same page likewise, while a `goto` followed by its redirect `wait-for-url` keeps both.
-
-#### Scenario: Typing
-- GIVEN the user types "h", "he", "hey" into one input
-- WHEN capture finishes
-- THEN one fill event with value `hey` and the offset of the last input exists
-
-#### Scenario: Interleaved target
-- GIVEN fill on input A, fill on input B, fill on input A
-- WHEN capture finishes
-- THEN three fill events exist
-
-#### Scenario: Hover on the acted-on element
-- GIVEN a hover on target T immediately followed by a click, dblclick, check, fill or select on T (the label of a control counts as the control)
-- WHEN capture finishes
-- THEN only the action is stored, no hover
-
 ### Requirement: Locator selection
 
 The system MUST choose the first unique locator in order: testid, role+name, label, placeholder, non-dynamic `#id`, exact text, stable CSS path. Uniqueness MUST be verified in-page at capture time.
@@ -104,7 +85,7 @@ Every event MUST carry `offsetMs` from session start, measured with a monotonic 
 
 ### Requirement: Deterministic hover
 
-Before a click on target T the system MUST emit `hover` only for (1) the outermost ancestor of T (excluding html/body) entered since the previous action, and (2) the last entered non-ancestor element during whose hover a DOM mutation occurred.
+Before a click on target T the system MUST emit `hover` only for (1) the outermost ancestor of T (excluding html/body) entered since the previous action, and (2) the last entered non-ancestor element during whose hover a DOM mutation occurred. A DOM mutation within the activation window (named constant, 300-500 ms) after a click or keyboard activation MUST be attributed to that action and MUST NOT count for rule 2. Rule 1 is unchanged.
 
 #### Scenario: CSS menu
 - GIVEN a hidden item inside a menu revealed by `:hover`
@@ -115,6 +96,26 @@ Before a click on target T the system MUST emit `hover` only for (1) the outermo
 - GIVEN the pointer crosses unrelated elements without DOM mutation
 - WHEN the user clicks T
 - THEN no hover is stored for them
+
+#### Scenario: Click opens a modal under a resting pointer
+- GIVEN the pointer rests over element H and a click opens a modal within the activation window
+- WHEN the user then clicks a control inside the modal
+- THEN no hover on H is stored
+
+#### Scenario: Keyboard activation opens a modal
+- GIVEN the pointer rests over H and a key press (Enter) opens a modal within the window
+- WHEN the user then clicks inside the modal
+- THEN no hover on H is stored
+
+#### Scenario: Legitimate popover outside the window
+- GIVEN the user enters element P and a JS handler opens a popover after the activation window has elapsed
+- WHEN the user clicks an item in the popover
+- THEN a hover on P is stored before the click
+
+#### Scenario: Rule 1 unchanged
+- GIVEN the user enters a container C then clicks a descendant T of C within the activation window of a previous click
+- WHEN capture finishes
+- THEN a hover on C (outermost ancestor of T) is still stored
 
 ### Requirement: Interrupted recording safety
 
