@@ -78,6 +78,7 @@ The CI workflow MUST also satisfy CI gate parity:
 - The `Test — linux`, `Test — macos` and `Test — win` matrix MUST run only dependency install, Chromium install, tests with coverage and build. It MUST NOT run any static gate.
 - A separate `Package — clean npm install` job MUST run once on Linux using Node 22.13.0, build and pack the package, inspect its contents, install globally from a fresh temporary prefix outside the checkout with lifecycle scripts enabled, and run the installed CLI's version command without opening a browser.
 - The protected npm publish job MUST use Node 22.14.0 or later and npm CLI 11.5.1 or later, with `id-token: write` limited to that job and the `admin` environment.
+- After `release.yml` creates and verifies a stable GitHub Release, it MUST dispatch the existing `publish-npm.workflow.yml` through `workflow_dispatch` with the release tag and successful release run ID. The npm workflow MUST validate that source run and release, build and verify the immutable release-tag package, and publish through the existing OIDC trusted publisher without adding a long-lived token. Re-running publication for a version already on npm MUST be an idempotent no-op.
 - `Quality`, the `Test` matrix and the package job MUST start in parallel (none `needs` another).
 - The separate `pr-title` workflow (`Commitlint — PR title`) MUST always check the PR title with the repository commitlint config. The `Commitlint — commits` step in `Quality` MUST check the PR commits (`base..head`) only when the PR author is not a bot (author type `Bot`).
 - A PR title edit MUST re-check only the title and MUST NOT re-run the OS matrix; the title check MUST run on every `edited` event, because a skipped run on the same head SHA could hide an earlier failure.
@@ -89,6 +90,13 @@ The CI workflow MUST also satisfy CI gate parity:
 - WHEN secret references are listed
 - THEN they include the original automation secrets and no npm publish token
 - AND the real publish job uses OIDC from the protected `admin` environment
+
+#### Scenario: Automatic npm publication
+- GIVEN `release.yml` successfully creates and verifies a stable GitHub Release
+- WHEN the release job dispatches `publish-npm.workflow.yml`
+- THEN the npm workflow validates the successful release run and exact release tag
+- AND it verifies and publishes the package from that tag using the existing OIDC trusted publisher
+- AND an already published package version is skipped safely
 
 #### Scenario: Release
 - GIVEN a release workflow
