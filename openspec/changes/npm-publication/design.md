@@ -20,8 +20,8 @@ cross-platform test matrix or the static Quality job. It builds, packs,
 inspects, and globally installs the tarball in an external temporary prefix.
 The manual npm workflow repeats that verification; a dry run is the default,
 and the publish job is owner/default-branch guarded and protected by the
-existing `admin` environment. The npm token is mapped only into the publish
-step, and duplicate versions are rejected before the publish command.
+existing `admin` environment. The publish job uses npm Trusted Publishing via
+GitHub OIDC, and duplicate versions are rejected before the publish command.
 
 Adapt the manual Patchright recovery hint to use `npm exec -y -p patchright@<pinned>
 -- patchright ...`. This avoids claiming a `patchright` shim exists in an npm
@@ -48,8 +48,8 @@ impact policy. The separate replay-alias requirement is not changed.
 | Trigger | Manual `workflow_dispatch` | Makes the first release an explicit maintainer action; existing GitHub Release flow is left unchanged |
 | Dry run | Boolean, default true | Default behavior cannot publish |
 | Trust | Repository owner, default branch, protected `admin` environment | Keeps publishing from untrusted refs and centralizes npm credential protection |
-| Credential | `NPM_AUTH_TOKEN` environment secret, injected only at publish | Adapt Fastypest's existing token contract without exposing it to install/build steps |
-| Provenance | `npm publish --provenance`; `id-token: write` exists only in the gated publish job | Publishes npm's GitHub Actions build attestation without granting OIDC access to package validation |
+| Credential | npm Trusted Publisher configured for `juanjoGonDev/browser-recorder`, `publish-npm.workflow.yml`, and `admin` | Avoid long-lived npm write tokens; `id-token: write` exists only in the gated publish job |
+| Provenance | npm OIDC trusted publishing; use Node >=22.14 and npm CLI >=11.5.1 | npm authenticates through OIDC and generates provenance automatically |
 | Consumer verification | `npm install --global --prefix <temp> <tarball>` + installed `--version` | Exercises the actual npm global-bin layout in a root with no checkout or pnpm config |
 | Package contents | `files: ["dist"]` plus npm's required metadata/readme/license | Excludes tests, source, specs, workflows, and development tool configs |
 

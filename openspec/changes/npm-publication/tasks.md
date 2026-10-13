@@ -50,8 +50,9 @@
   required/excluded tarball paths, installs globally into a fresh prefix
   outside `GITHUB_WORKSPACE` with scripts enabled, and verifies `--version`.
 - [x] Add a workflow-dispatch publish workflow with a default-true dry run,
-  repository-owner/default-branch guard, `admin` environment, npm auth only on
-  the publish step, duplicate-version rejection, and public publish command.
+  repository-owner/default-branch guard, `admin` environment, protected npm
+  authentication only on the publish step, duplicate-version rejection, and
+  public publish command.
 - [x] Keep workflow actions SHA-pinned and use Node 22.13 for package smoke
   verification.
 - [x] Run focused workflow and package tests.
@@ -62,5 +63,5 @@
 - [x] Run `pnpm quality`, `pnpm test:coverage`, `pnpm build`, and release-policy
   regression tests.
 - [x] Run the same packed-tarball external-root installation used by CI.
-- [x] Record exact commands/results, known npm environment setup
-  (`admin`/`NPM_AUTH_TOKEN`), and rollback boundary in apply progress.
+- [x] Record exact commands/results, known npm environment setup, and rollback
+  boundary in apply progress.

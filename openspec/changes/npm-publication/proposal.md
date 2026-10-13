@@ -59,4 +59,4 @@ existing release rules, Node requirement, and security practices.
   and `LICENSE`, and excludes repository source, tests, OpenSpec, and workflows.
 - A dispatch with `dry_run=true` validates and packages but cannot publish.
 - A real publish is possible only from the default branch in the protected
-  environment using `NPM_AUTH_TOKEN`.
+  environment using npm Trusted Publishing via GitHub OIDC.
