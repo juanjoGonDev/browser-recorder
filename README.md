@@ -13,13 +13,13 @@ lets you replay, rename and delete recordings from a library.
 ## Requirements
 
 - Node.js 22.13 or newer.
-- [pnpm](https://pnpm.io) 10.16 or newer.
+- [pnpm](https://pnpm.io) 10.16 or newer when running from a source checkout.
 - An interactive terminal for the UI (it refuses to start through a pipe). The
   `replay` command line below works without one.
 - Chromium: installed for you on first start (about 150 MB, one time) through
   Patchright. If that install fails (for example offline), the screen shows
   the installer's exit code and the manual command
-  (`pnpm exec patchright install chromium`). If another browser was detected
+  (`npm exec -y -p patchright@1.63.0 -- patchright install chromium`). If another browser was detected
   you can still record with it; press `l` to keep using the library (list,
   rename, delete, timeline), or `enter` to retry.
 
@@ -27,10 +27,19 @@ On Linux, Chromium also needs system libraries. If the browser fails to launch
 for missing libraries, the app prints the command and leaves running it to you:
 
 ```sh
-sudo pnpm exec patchright install-deps chromium
+sudo npm exec -y -p patchright@1.63.0 -- patchright install-deps chromium
 ```
 
 ## Install and run
+
+Install the published CLI globally with npm:
+
+```sh
+npm install --global browser-recorder
+browser-recorder
+```
+
+For development from a source checkout, use the pinned pnpm toolchain:
 
 ```sh
 pnpm install
@@ -121,7 +130,7 @@ and the last stderr lines of the script, also on stderr. Typed values, passwords
 included, are never printed: a step shows what it acts on, not what it types.
 Colors appear only when stdout is a terminal and never with `NO_COLOR`, on
 stdout and stderr alike; a pipe gets plain text. The command never installs a browser: when Chromium is missing it prints
-the manual command (`pnpm exec patchright install chromium`) and exits 1.
+the manual command (`npm exec -y -p patchright@1.63.0 -- patchright install chromium`) and exits 1.
 
 | Exit code | Meaning                                                           |
 | --------- | ----------------------------------------------------------------- |

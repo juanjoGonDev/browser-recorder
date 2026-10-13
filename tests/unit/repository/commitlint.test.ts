@@ -84,13 +84,14 @@ describe('lefthook.yml', () => {
   });
 });
 
-describe('postinstall', () => {
-  it('installs the git hooks through scripts/install-hooks.ts', () => {
+describe('prepare', () => {
+  it('installs the local git hooks through scripts/install-hooks.ts', () => {
     const manifest = JSON.parse(
       readFileSync(path.join(ROOT, 'package.json'), 'utf8'),
     ) as { scripts: Record<string, string> };
-    expect(manifest.scripts['postinstall']).toBe(
+    expect(manifest.scripts['prepare']).toBe(
       'node --experimental-strip-types scripts/install-hooks.ts',
     );
+    expect(manifest.scripts['postinstall']).toBeUndefined();
   });
 });

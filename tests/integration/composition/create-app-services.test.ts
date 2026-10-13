@@ -136,7 +136,8 @@ describe('src/composition/create-app-services.ts', () => {
         services.environment.ensureBrowser(() => undefined),
       ).resolves.toEqual({
         kind: 'failed',
-        manualCommand: 'pnpm exec patchright install chromium',
+        manualCommand:
+          'npm exec -y -p patchright@1.63.0 -- patchright install chromium',
         exitCode: 1,
       });
     });

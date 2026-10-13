@@ -1,7 +1,6 @@
 {
   "name": "browser-recorder",
-  "version": "0.1.1",
-  "private": true,
+  "version": "0.1.2",
   "description": "Record a real browser session into a faithful, plain Patchright script, managed from a terminal UI",
   "license": "PolyForm-Noncommercial-1.0.0",
   "author": "Juan José González (https://github.com/juanjoGonDev)",
@@ -17,10 +16,12 @@
   "bin": {
     "browser-recorder": "dist/main.js"
   },
+  "files": [
+    "dist"
+  ],
   "packageManager": "pnpm@10.34.4",
   "engines": {
-    "node": ">=22.13.0",
-    "pnpm": ">=10.16.0"
+    "node": ">=22.13.0"
   },
   "scripts": {
     "start": "pnpm run build && node dist/main.js",
@@ -41,7 +42,7 @@
     "typecheck:tests": "tsc -p tsconfig.tests.json --noEmit",
     "quality": "pnpm typecheck && pnpm lint:strict && pnpm format:check && pnpm deadcode && pnpm deps:check && pnpm test",
     "audit": "pnpm audit --audit-level=moderate",
-    "postinstall": "node --experimental-strip-types scripts/install-hooks.ts"
+    "prepare": "node --experimental-strip-types scripts/install-hooks.ts"
   },
   "dependencies": {
     "patchright": "1.63.0"

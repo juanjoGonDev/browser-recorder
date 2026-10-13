@@ -1,4 +1,5 @@
 import { linuxDepsGuidance } from '../domain/linux-deps-hint.ts';
+import { MANUAL_INSTALL_COMMAND } from '../../shared/domain/patchright-install-commands.ts';
 import type { BrowserInstallation } from './ports/browser-installation.ts';
 
 export type EnsureBrowserEvent =
@@ -21,7 +22,7 @@ export interface EnsureBrowserDeps {
   readonly onEvent: (event: EnsureBrowserEvent) => void;
 }
 
-export const MANUAL_INSTALL_COMMAND = 'pnpm exec patchright install chromium';
+export { MANUAL_INSTALL_COMMAND } from '../../shared/domain/patchright-install-commands.ts';
 
 function failed(exitCode: number | null): EnsureBrowserResult {
   return { kind: 'failed', manualCommand: MANUAL_INSTALL_COMMAND, exitCode };

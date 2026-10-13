@@ -82,7 +82,8 @@ describe('src/tui/application/tui-controller.ts', () => {
         onLine('Downloading Chromium');
         return Promise.resolve({
           kind: 'failed',
-          manualCommand: 'pnpm exec patchright install chromium',
+          manualCommand:
+            'npm exec -y -p patchright@1.63.0 -- patchright install chromium',
           exitCode: 2,
         });
       };
@@ -91,7 +92,8 @@ describe('src/tui/application/tui-controller.ts', () => {
         kind: 'setup',
         phase: 'failed',
         lines: ['Downloading Chromium'],
-        manualCommand: 'pnpm exec patchright install chromium',
+        manualCommand:
+          'npm exec -y -p patchright@1.63.0 -- patchright install chromium',
         exitCode: 2,
       });
     });
@@ -103,7 +105,8 @@ describe('src/tui/application/tui-controller.ts', () => {
       expect(harness.store.getState().screen).toMatchObject({
         kind: 'setup',
         phase: 'failed',
-        manualCommand: 'pnpm exec patchright install chromium',
+        manualCommand:
+          'npm exec -y -p patchright@1.63.0 -- patchright install chromium',
       });
     });
 

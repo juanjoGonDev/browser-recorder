@@ -35,7 +35,7 @@ When bundled Chromium is missing, the system MUST run `patchright install chromi
 #### Scenario: Failure
 - GIVEN the install exits non-zero or the executable is still absent
 - WHEN reported
-- THEN an error shows the exit code and a manual retry command, and recording with bundled Chromium is disabled
+- THEN an error shows the exit code and the exact pinned `npm exec -y -p patchright@1.63.0 -- patchright install chromium` retry command, and recording with bundled Chromium is disabled
 
 #### Scenario: Offline
 - GIVEN no network
@@ -44,13 +44,13 @@ When bundled Chromium is missing, the system MUST run `patchright install chromi
 
 ### Requirement: Linux system dependencies
 
-On Linux, when the browser fails to launch for missing libraries, the system MUST print the exact `sudo pnpm exec patchright install-deps chromium` command for the user to run, and MUST NOT run it or escalate privileges.
+On Linux, when the browser fails to launch for missing libraries, the system MUST print the exact `sudo npm exec -y -p patchright@1.63.0 -- patchright install-deps chromium` command and the exact pinned npm command to install the browser with system dependencies, and MUST NOT run them or escalate privileges.
 (Previously: `playwright install-deps`)
 
 #### Scenario: Missing libs
 - GIVEN a launch error naming missing shared libraries on Linux
 - WHEN handled
-- THEN the guidance includes the `patchright install-deps chromium` command and nothing is executed
+- THEN the guidance includes both exact pinned npm exec commands and nothing is executed
 ### Requirement: Cross-OS portability
 
 Executable resolution and spawns MUST work on macOS, Windows and Linux, using Node >= 22.13 and failing clearly otherwise.

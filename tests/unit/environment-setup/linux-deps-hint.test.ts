@@ -14,7 +14,9 @@ describe('linuxDepsHint', () => {
   it('prints the install-deps and with-deps commands for missing libraries on linux', () => {
     const hint = linuxDepsHint('linux', MISSING_LIBS);
 
-    expect(hint).toContain('sudo pnpm exec patchright install-deps chromium');
+    expect(hint).toContain(
+      'sudo npm exec -y -p patchright@1.63.0 -- patchright install-deps chromium',
+    );
     expect(hint).toContain('patchright install --with-deps chromium');
     expect(hint).toContain(LINUX_DEPS_COMMAND);
   });
@@ -24,7 +26,7 @@ describe('linuxDepsHint', () => {
 
     expect(hint).not.toMatch(/playwright/i);
     expect(LINUX_DEPS_COMMAND).toBe(
-      'sudo pnpm exec patchright install-deps chromium',
+      'sudo npm exec -y -p patchright@1.63.0 -- patchright install-deps chromium',
     );
   });
 

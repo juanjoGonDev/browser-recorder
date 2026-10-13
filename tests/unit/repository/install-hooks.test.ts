@@ -6,10 +6,9 @@ import {
 } from '../../../scripts/install-hooks.ts';
 
 /**
- * `postinstall` runs on every `pnpm install`, including the ones where hooks
- * must NOT be installed: CI checkouts, production installs and a consumer's
- * unpacked tarball (no .git at all). A wrong skip either breaks an install
- * or silently leaves a developer with no hooks, so every branch is pinned.
+ * `prepare` installs hooks only for a local repository checkout. A wrong skip
+ * either breaks an install or silently leaves a developer with no hooks, so
+ * every branch is pinned.
  */
 
 interface RunCall {

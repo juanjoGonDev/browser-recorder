@@ -1,7 +1,9 @@
+import {
+  LINUX_DEPS_COMMAND,
+  LINUX_INSTALL_WITH_DEPS_COMMAND,
+} from '../../shared/domain/patchright-install-commands.ts';
+
 /** Printed for the user to run; this app never runs it or escalates itself. */
-export const LINUX_DEPS_COMMAND =
-  'sudo pnpm exec patchright install-deps chromium';
-const WITH_DEPS_COMMAND = 'pnpm exec patchright install --with-deps chromium';
 const LINUX_PLATFORM = 'linux';
 const MISSING_LIBRARIES =
   /missing dependencies|error while loading shared libraries|cannot open shared object file/i;
@@ -12,9 +14,11 @@ export function linuxDepsGuidance(platform: string): string | null {
   return [
     'Chromium needs system libraries on Linux. Install them with:',
     `  ${LINUX_DEPS_COMMAND}`,
-    `or, installing the browser and libraries together: ${WITH_DEPS_COMMAND}`,
+    `or, installing the browser and libraries together: ${LINUX_INSTALL_WITH_DEPS_COMMAND}`,
   ].join('\n');
 }
+
+export { LINUX_DEPS_COMMAND };
 
 /** The guidance when a launch error names missing shared libraries. */
 export function linuxDepsHint(

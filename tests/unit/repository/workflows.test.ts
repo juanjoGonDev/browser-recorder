@@ -5,10 +5,10 @@ import { describe, expect, it } from 'vitest';
 const ROOT = path.resolve(import.meta.dirname, '..', '..', '..');
 const WORKFLOWS = path.join(ROOT, '.github', 'workflows');
 
-// The secrets and environment devbar's automation depends on. The names are
-// the contract with the repository settings, so they must not drift.
-const DEVBAR_SECRETS = [
+// Preserve existing workflow secrets and add the npm publisher credential.
+const WORKFLOW_SECRETS = [
   'GITHUB_TOKEN',
+  'NPM_AUTH_TOKEN',
   'PAT_FINE',
   'REPOSITORY_AUTOMATION_TOKEN',
 ];
@@ -20,12 +20,14 @@ function readWorkflow(name: string): string {
 
 const QUALITY_JOB = /^ {2}quality:$/m;
 const TEST_JOB = /^ {2}test:$/m;
+const PACKAGE_JOB = /^ {2}package:$/m;
 
-// ci.yml lists `quality` before `test`; the split keeps each job's own text.
-function ciJobs(): { quality: string; test: string } {
+// ci.yml lists quality, test, then package; the split keeps each job's own text.
+function ciJobs(): { quality: string; test: string; package: string } {
   const [, afterQuality = ''] = readWorkflow('ci.yml').split(QUALITY_JOB);
-  const [quality = '', test = ''] = afterQuality.split(TEST_JOB);
-  return { quality, test };
+  const [quality = '', afterTest = ''] = afterQuality.split(TEST_JOB);
+  const [test = '', packageJob = ''] = afterTest.split(PACKAGE_JOB);
+  return { quality, test, package: packageJob };
 }
 
 function stepsOf(block: string): string[] {
@@ -44,7 +46,7 @@ function sourceFiles(directory: string): string[] {
 }
 
 describe('workflow secret contract', () => {
-  it('references exactly the secret names devbar uses', () => {
+  it('references the existing automation secrets and npm publish secret', () => {
     const referenced = new Set(
       workflowNames().flatMap((name) =>
         [...readWorkflow(name).matchAll(/secrets\.([A-Za-z_]+)/g)].map(
@@ -52,7 +54,7 @@ describe('workflow secret contract', () => {
         ),
       ),
     );
-    expect([...referenced].sort()).toEqual([...DEVBAR_SECRETS].sort());
+    expect([...referenced].sort()).toEqual([...WORKFLOW_SECRETS].sort());
   });
 
   it('keeps the privileged jobs in the admin environment', () => {
@@ -62,6 +64,7 @@ describe('workflow secret contract', () => {
     expect(withAdmin.sort()).toEqual([
       'auto-merge-required-qa.workflow.yml',
       'auto-release.workflow.yml',
+      'publish-npm.workflow.yml',
       'release-auto-merge.workflow.yml',
       'release.yml',
     ]);
@@ -69,7 +72,7 @@ describe('workflow secret contract', () => {
 });
 
 describe('workflow set', () => {
-  it('contains every maintenance workflow adapted from devbar', () => {
+  it('contains the expected repository workflow set', () => {
     expect(workflowNames().sort()).toEqual([
       'auto-merge-required-qa.workflow.yml',
       'auto-release.workflow.yml',
@@ -79,6 +82,7 @@ describe('workflow set', () => {
       'dependabot-auto-merge.workflow.yml',
       'dependabot-recreate-on-conflict.workflow.yml',
       'pr-title.workflow.yml',
+      'publish-npm.workflow.yml',
       'release-auto-merge.workflow.yml',
       'release-impact-label.workflow.yml',
       'release-validation.yml',
@@ -112,6 +116,7 @@ describe('workflow set', () => {
     'auto-release.workflow.yml',
     'release-auto-merge.workflow.yml',
     'release-impact-label.workflow.yml',
+    'publish-npm.workflow.yml',
     'version-bump.yml',
   ])('guards %s to the browser-recorder repository', (name) => {
     expect(readWorkflow(name)).toContain(REPOSITORY_GUARD);
@@ -241,6 +246,122 @@ describe('ci.yml test job', () => {
     expect(ci).not.toMatch(/^\s+needs:/m);
     expect(ci).not.toContain('edited');
     expect(ci).not.toContain('pull_request.title');
+  });
+});
+
+describe('ci.yml package job', () => {
+  const packageBlock = ciJobs().package;
+
+  it('runs on Linux at the minimum supported Node version', () => {
+    expect(packageBlock).toContain('runs-on: ubuntu-latest');
+    expect(packageBlock).toContain('node-version: 22.13.0');
+    expect(packageBlock).toContain(REPOSITORY_GUARD);
+  });
+
+  it('builds and runs the shared package smoke check', () => {
+    expect(packageBlock).toContain('run: pnpm build');
+    expect(packageBlock).toContain('bash scripts/verify-npm-package.sh');
+
+    const smokeCheck = readFileSync(
+      path.join(ROOT, 'scripts', 'verify-npm-package.sh'),
+      'utf8',
+    );
+    expect(smokeCheck).toContain('mktemp -d');
+    expect(smokeCheck).toContain('GITHUB_WORKSPACE');
+    expect(smokeCheck).toContain('npm install --global --prefix');
+    expect(smokeCheck).toContain('--ignore-scripts=false');
+    expect(smokeCheck).toContain('npm publish --dry-run --access public');
+    expect(smokeCheck).toContain('$consumer_root/bin/browser-recorder');
+    expect(smokeCheck).toContain('$consumer_root/browser-recorder.cmd');
+    expect(smokeCheck).toContain(
+      '^package/(dist/.*|package\\.json|README\\.md|LICENSE)$',
+    );
+    expect(smokeCheck).toContain('--version');
+  });
+
+  it('checks required runtime files and excludes repository-only content', () => {
+    const smokeCheck = readFileSync(
+      path.join(ROOT, 'scripts', 'verify-npm-package.sh'),
+      'utf8',
+    );
+    expect(smokeCheck).toContain('package/dist/main.js');
+    expect(smokeCheck).toContain('package/dist/in-page/capture-script.js');
+    expect(smokeCheck).toContain(
+      '^package/(src|tests|openspec|\\.github|scripts)/',
+    );
+  });
+});
+
+describe('publish-npm.workflow.yml', () => {
+  it('is manually dispatched with dry-run enabled by default', () => {
+    const publish = readWorkflow('publish-npm.workflow.yml');
+    expect(publish).toContain('workflow_dispatch:');
+    expect(publish).toMatch(
+      /dry_run:[\s\S]*?default: true[\s\S]*?type: boolean/u,
+    );
+    expect(publish).toContain('if: inputs.dry_run != true');
+  });
+
+  it('guards jobs to the owner and default branch of this repository', () => {
+    const publish = readWorkflow('publish-npm.workflow.yml');
+    expect(publish).toContain(REPOSITORY_GUARD);
+    expect(publish).toContain('github.actor == github.repository_owner');
+    expect(publish).toContain('github.event.repository.fork == false');
+    expect(publish).toContain(
+      'github.ref_name == github.event.repository.default_branch',
+    );
+  });
+
+  it('publishes a validated public tarball from the protected environment', () => {
+    const publish = readWorkflow('publish-npm.workflow.yml');
+    expect(publish).toContain('environment: admin');
+    expect(publish).toContain('npm publish');
+    expect(publish).toContain('--access public');
+    expect(publish).toContain('NODE_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}');
+    expect(publish).toContain('npm view');
+  });
+
+  it('validates and publishes the exact packed tarball', () => {
+    const publish = readWorkflow('publish-npm.workflow.yml');
+    expect(publish).toContain('bash scripts/verify-npm-package.sh');
+    expect(publish).toContain('path: ${{ steps.package.outputs.tarball }}');
+    expect(publish).toContain('actions/upload-artifact@');
+    expect(publish).toContain('actions/download-artifact@');
+    expect(publish).toContain('TARBALL: ${{ runner.temp }}/npm-package/');
+    expect(publish.indexOf('npm view')).toBeLessThan(
+      publish.indexOf('npm publish'),
+    );
+    expect(publish).toContain(
+      'npm publish "$TARBALL" --access public --provenance',
+    );
+  });
+
+  it('requires the protected environment only for a real publication', () => {
+    const publish = readWorkflow('publish-npm.workflow.yml');
+    const [validation = '', publishing = ''] = publish.split('  publish:');
+    expect(validation).not.toContain('environment: admin');
+    expect(publishing).toContain('needs: validate');
+    expect(publishing).toContain('environment: admin');
+    expect(publishing).toContain('inputs.dry_run != true');
+  });
+
+  it('exposes the npm token only to the publish step', () => {
+    const publish = readWorkflow('publish-npm.workflow.yml');
+    expect(publish.match(/secrets\.NPM_AUTH_TOKEN/g)).toHaveLength(1);
+    const publishStep = publish.split(
+      '- name: Publish package with provenance',
+    )[1];
+    expect(publishStep).toContain(
+      'NODE_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}',
+    );
+  });
+
+  it('pins every action to a full SHA', () => {
+    const uses = readWorkflow('publish-npm.workflow.yml')
+      .split('\n')
+      .filter((line) => /^\s+(- )?uses:/.test(line));
+    expect(uses.length).toBeGreaterThan(0);
+    expect(uses.filter((line) => !PINNED_ACTION.test(line))).toEqual([]);
   });
 });
 

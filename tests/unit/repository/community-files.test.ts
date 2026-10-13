@@ -26,7 +26,9 @@ describe('package.json metadata', () => {
 
   it('declares the license, repository links and author', () => {
     expect(pkg['license']).toBe('PolyForm-Noncommercial-1.0.0');
-    expect(pkg['private']).toBe(true);
+    expect(pkg['private']).toBeUndefined();
+    expect(pkg['files']).toEqual(['dist']);
+    expect(pkg['engines']).toEqual({ node: '>=22.13.0' });
     expect(pkg['homepage']).toBe(`${REPO_URL}#readme`);
     expect(pkg['bugs']).toEqual({ url: `${REPO_URL}/issues` });
     expect(pkg['repository']).toEqual({
@@ -34,6 +36,17 @@ describe('package.json metadata', () => {
       url: `git+${REPO_URL}.git`,
     });
     expect(pkg['author']).toContain('juanjoGonDev');
+  });
+
+  it('keeps Patchright recovery commands pinned to the runtime dependency', () => {
+    const dependencies = pkg['dependencies'] as Record<string, string>;
+    const installCommands = read(
+      'src/shared/domain/patchright-install-commands.ts',
+    );
+
+    expect(installCommands).toContain(
+      `PATCHRIGHT_VERSION = '${dependencies['patchright']}'`,
+    );
   });
 });
 
@@ -43,6 +56,14 @@ describe('README.md', () => {
   it('has CI and license badges', () => {
     expect(readme).toContain(`${REPO_URL}/actions/workflows/ci.yml`);
     expect(readme).toContain('PolyForm Noncommercial');
+  });
+
+  it('documents npm consumer installation and source development', () => {
+    expect(readme).toContain('npm install --global browser-recorder');
+    expect(readme).toContain('pnpm install');
+    expect(readme).toContain(
+      'npm exec -y -p patchright@1.63.0 -- patchright install chromium',
+    );
   });
 
   it('states accurately that it is source-available, not open source', () => {

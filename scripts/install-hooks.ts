@@ -3,13 +3,12 @@ import { existsSync } from 'node:fs';
 import { isEntrypoint } from './lib/script-runtime.ts';
 
 /**
- * `postinstall` — hand the repository's git hooks to lefthook.
+ * `prepare` — hand the repository's git hooks to lefthook.
  *
- * Every skip below exists because `pnpm install` also runs where hooks make
- * no sense: CI checkouts, production installs, and the tarball a consumer
- * unpacks (no `.git` at all). Getting one wrong either breaks an install or
- * silently leaves a developer with no hooks, so the decision is a plain
- * function over injected inputs rather than module-scope work.
+ * Preparation runs for the repository and before packing, but can also run in
+ * CI or direct local installs where hooks make no sense. The guards keep
+ * those cases a successful no-op, and the registry tarball does not ship this
+ * repository-only script as a consumer postinstall.
  */
 
 /** The only part of a spawnSync result this script reads. */

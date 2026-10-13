@@ -181,7 +181,9 @@ describe('src/composition/create-replay-command-services.ts', () => {
         timing: RECORDED_TIMING,
         isHeadless: false,
       }),
-    ).rejects.toThrow(/pnpm exec patchright install chromium/u);
+    ).rejects.toThrow(
+      /npm exec -y -p patchright@1.63.0 -- patchright install chromium/u,
+    );
     expect(spawner.children).toHaveLength(0);
   });
 

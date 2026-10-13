@@ -13,6 +13,7 @@ import type { AppServices } from './ports/app-services.ts';
 import type { KeyPress } from './ports/terminal.ts';
 import type { Timers } from './ports/timers.ts';
 import { createRecordingFlow, type RecordingFlow } from './recording-flow.ts';
+import { MANUAL_INSTALL_COMMAND } from '../../shared/domain/patchright-install-commands.ts';
 import { createReplayFlow, type ReplayFlow } from './replay-flow.ts';
 
 export interface TuiController {
@@ -28,8 +29,6 @@ export interface TuiControllerDeps {
   readonly store: AppStore;
   readonly timers: Timers;
 }
-
-const MANUAL_INSTALL_COMMAND = 'pnpm exec patchright install chromium';
 
 type Handler<K extends Intent['kind']> = (
   intent: Extract<Intent, { kind: K }>,

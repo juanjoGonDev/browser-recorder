@@ -347,7 +347,7 @@ describe('src/cli/application/run-replay-command.ts', () => {
     const services = createFakeServices(CHOICES, () =>
       Promise.reject(
         new Error(
-          'Chromium is not installed.\nInstall it with: pnpm exec patchright install chromium',
+          'Chromium is not installed.\nInstall it with: npm exec -y -p patchright@1.63.0 -- patchright install chromium',
         ),
       ),
     );
@@ -363,7 +363,7 @@ describe('src/cli/application/run-replay-command.ts', () => {
       '✖ demo failed: Chromium is not installed.',
     );
     expect(output.stderr()).toContain(
-      'Install it with: pnpm exec patchright install chromium',
+      'Install it with: npm exec -y -p patchright@1.63.0 -- patchright install chromium',
     );
     expect(output.stdout()).toBe('');
   });

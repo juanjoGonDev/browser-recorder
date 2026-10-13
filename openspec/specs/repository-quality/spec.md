@@ -51,20 +51,21 @@ lefthook MUST run prettier, eslint, typecheck and build on pre-commit; commitlin
 - THEN commitlint rejects it
 
 #### Scenario: Hooks installed
-- GIVEN `pnpm install`
-- WHEN postinstall completes
+- GIVEN a local repository install
+- WHEN `prepare` completes during `pnpm install`
 - THEN lefthook hooks exist in `.git/hooks`
 
 ### Requirement: CI and automation
 
-Workflows adapted from devbar (CI, CodeQL, Dependabot auto-merge/recreate, cache delete, required-QA auto-merge, release-impact label, version bump, auto-release) and `dependabot.yml` MUST exist, keep the original secret/PAT names, and produce no Electron artifacts.
+Workflows adapted from devbar (CI, CodeQL, Dependabot auto-merge/recreate, cache delete, required-QA auto-merge, release-impact label, version bump, auto-release), the Fastypest npm publication flow, and `dependabot.yml` MUST exist, preserve existing secret/PAT names, add only the protected `NPM_AUTH_TOKEN` contract for npm publication, and produce no Electron artifacts.
 (Previously: only the sentence above; CI gate layout was unspecified.)
 
 The CI workflow MUST also satisfy CI gate parity:
 
 - A `Quality` job MUST run on Linux exactly once per PR revision and MUST contain one named step per static gate: Typecheck, Authored source policy, ESLint, Prettier, knip, dependency-cruiser, Audit, Commitlint — commits.
 - The `Test — linux`, `Test — macos` and `Test — win` matrix MUST run only dependency install, Chromium install, tests with coverage and build. It MUST NOT run any static gate.
-- `Quality` and the `Test` matrix MUST start in parallel (neither `needs` the other).
+- A separate `Package — clean npm install` job MUST run once on Linux using Node 22.13.0, build and pack the package, inspect its contents, install globally from a fresh temporary prefix outside the checkout with lifecycle scripts enabled, and run the installed CLI's version command without opening a browser.
+- `Quality`, the `Test` matrix and the package job MUST start in parallel (none `needs` another).
 - The separate `pr-title` workflow (`Commitlint — PR title`) MUST always check the PR title with the repository commitlint config. The `Commitlint — commits` step in `Quality` MUST check the PR commits (`base..head`) only when the PR author is not a bot (author type `Bot`).
 - A PR title edit MUST re-check only the title and MUST NOT re-run the OS matrix; the title check MUST run on every `edited` event, because a skipped run on the same head SHA could hide an earlier failure.
 - The PR title MUST NOT be interpolated into shell; it MUST be passed through an environment variable.
@@ -73,7 +74,7 @@ The CI workflow MUST also satisfy CI gate parity:
 #### Scenario: Secret contract
 - GIVEN the workflows
 - WHEN secret references are listed
-- THEN names equal those in devbar
+- THEN they include the original devbar names and the protected `NPM_AUTH_TOKEN` publish secret
 
 #### Scenario: Release
 - GIVEN a release workflow
@@ -83,7 +84,7 @@ The CI workflow MUST also satisfy CI gate parity:
 #### Scenario: Quality job layout
 - GIVEN the parsed CI workflow YAML
 - WHEN jobs are listed
-- THEN a `Quality` job exists with `runs-on` Linux and a `Test — <os>` matrix job exists with linux, macos and win entries
+- THEN a Linux `Quality` job, a `Test — <os>` matrix job with linux, macos and win entries, and a Linux `Package — clean npm install` job exist
 
 #### Scenario: One named step per static gate
 - GIVEN the `Quality` job steps
@@ -151,9 +152,12 @@ The CI workflow MUST also satisfy CI gate parity:
 - THEN neither has a `branches` or `branches-ignore` filter, both include the `synchronize` type (the title workflow also `edited`), and each concurrency group is keyed per PR or branch with `cancel-in-progress: true`, so a new push cancels the stale run and starts a fresh one
 
 #### Scenario: Version untouched
-- GIVEN the change diff
-- WHEN `package.json` is compared with main
+- GIVEN a release-neutral workflow-only change
+- WHEN `package.json` is compared with the base revision
 - THEN `version` is unchanged
+- GIVEN the published package surface or consumer install behavior changes
+- WHEN the release impact policy classifies the change
+- THEN the package version receives a semantic bump before publication
 ### Requirement: Agent documentation
 
 `AGENTS.md` MUST state: SDD always, no budget, single PR, autonomous, strict TDD, clean code/SOLID, RAM-sized parallel worktrees merged then removed, never push. `CLAUDE.md` MUST import it.
@@ -199,16 +203,19 @@ The default test suite MUST be headless and MUST NOT read a real profile; real-b
 - THEN it fails
 ### Requirement: Replay script alias
 
-`package.json` MUST define a `replay` script that runs the CLI `replay` subcommand with the arguments passed to it. The change MUST NOT alter the package `version`.
+`package.json` MUST define a `replay` script that runs the CLI `replay`
+subcommand with the arguments passed to it. Adding or changing this alias alone
+MUST NOT alter the package `version`; unrelated publish-surface changes still
+follow the release impact policy.
 
 #### Scenario: Alias
 - GIVEN `pnpm replay demo -r`
 - WHEN executed
 - THEN it is equivalent to `browser-recorder replay demo -r`
 
-#### Scenario: Version untouched
-- GIVEN the change diff
-- WHEN `package.json` is compared with main
+#### Scenario: Alias-only version untouched
+- GIVEN a change limited to the replay alias
+- WHEN `package.json` is compared with the base revision
 - THEN `version` is unchanged
 
 ### Requirement: Dependency direction for CLI

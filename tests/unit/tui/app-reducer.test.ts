@@ -155,14 +155,16 @@ describe('src/tui/domain/app-reducer.ts', () => {
     it('shows the manual command when the install failed', () => {
       const state = reduce(initialState(), {
         type: 'setup-failed',
-        manualCommand: 'pnpm exec patchright install chromium',
+        manualCommand:
+          'npm exec -y -p patchright@1.63.0 -- patchright install chromium',
         exitCode: 7,
         browsers: [],
       });
       expect(state.screen).toMatchObject({
         kind: 'setup',
         phase: 'failed',
-        manualCommand: 'pnpm exec patchright install chromium',
+        manualCommand:
+          'npm exec -y -p patchright@1.63.0 -- patchright install chromium',
         exitCode: 7,
       });
     });
