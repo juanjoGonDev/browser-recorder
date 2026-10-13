@@ -86,8 +86,18 @@ independent npm publication version bump.
 
 ## Publication setup
 
-For a real dispatch, configure `NPM_AUTH_TOKEN` as a secret in the existing
-GitHub `admin` environment. The `Publish to npm` workflow defaults to dry-run;
-only the owner can run it on the default branch, and a real publish requires
-changing `dry_run` to `false`. No token is used by validation or package
-installation.
+For a real dispatch, npm Trusted Publishing must match repository
+`juanjoGonDev/browser-recorder`, workflow `publish-npm.workflow.yml`, and GitHub
+environment `admin`. The `Publish to npm` workflow defaults to dry-run; only the
+owner can run it on the default branch, and a real publish requires changing
+`dry_run` to `false`. No long-lived token is required.
+
+## OIDC reconciliation
+
+The first real publication attempt used the configured npm Trusted Publisher
+but failed at `npm publish` with `ENEEDAUTH`: the publish job used Node 22.13.0,
+below npm Trusted Publishing's minimum supported runtime. No npm token secret
+was configured or needed. The follow-up `npm-trusted-publishing-oidc` change
+updates the publish job to Node 22.14.0 and npm CLI 11.5.1, removes token auth,
+and reconciles the original token-based spec and design. The first successful
+OIDC publish validates npm's pending trusted-publisher registration.

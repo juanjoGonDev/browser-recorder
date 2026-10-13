@@ -5,10 +5,9 @@ import { describe, expect, it } from 'vitest';
 const ROOT = path.resolve(import.meta.dirname, '..', '..', '..');
 const WORKFLOWS = path.join(ROOT, '.github', 'workflows');
 
-// Preserve existing workflow secrets and add the npm publisher credential.
+// Keep npm publishing on OIDC rather than adding a long-lived token secret.
 const WORKFLOW_SECRETS = [
   'GITHUB_TOKEN',
-  'NPM_AUTH_TOKEN',
   'PAT_FINE',
   'REPOSITORY_AUTOMATION_TOKEN',
 ];
@@ -46,7 +45,7 @@ function sourceFiles(directory: string): string[] {
 }
 
 describe('workflow secret contract', () => {
-  it('references the existing automation secrets and npm publish secret', () => {
+  it('references automation secrets without an npm publish token', () => {
     const referenced = new Set(
       workflowNames().flatMap((name) =>
         [...readWorkflow(name).matchAll(/secrets\.([A-Za-z_]+)/g)].map(
@@ -312,12 +311,16 @@ describe('publish-npm.workflow.yml', () => {
     );
   });
 
-  it('publishes a validated public tarball from the protected environment', () => {
+  it('publishes a validated public tarball through protected OIDC', () => {
     const publish = readWorkflow('publish-npm.workflow.yml');
-    expect(publish).toContain('environment: admin');
-    expect(publish).toContain('npm publish');
-    expect(publish).toContain('--access public');
-    expect(publish).toContain('NODE_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}');
+    const [, publishing = ''] = publish.split('  publish:');
+    expect(publishing).toContain('environment: admin');
+    expect(publishing).toContain('id-token: write');
+    expect(publishing).toContain('node-version: 22.14.0');
+    expect(publishing).toContain('npm install --global npm@11.5.1');
+    expect(publishing).toContain('npm publish "$TARBALL" --access public');
+    expect(publishing).not.toContain('NODE_AUTH_TOKEN');
+    expect(publishing).not.toContain('NPM_AUTH_TOKEN');
     expect(publish).toContain('npm view');
   });
 
@@ -331,9 +334,8 @@ describe('publish-npm.workflow.yml', () => {
     expect(publish.indexOf('npm view')).toBeLessThan(
       publish.indexOf('npm publish'),
     );
-    expect(publish).toContain(
-      'npm publish "$TARBALL" --access public --provenance',
-    );
+    expect(publish).toContain('npm publish "$TARBALL" --access public');
+    expect(publish).not.toContain('--provenance');
   });
 
   it('requires the protected environment only for a real publication', () => {
@@ -345,15 +347,10 @@ describe('publish-npm.workflow.yml', () => {
     expect(publishing).toContain('inputs.dry_run != true');
   });
 
-  it('exposes the npm token only to the publish step', () => {
+  it('does not require a long-lived npm token', () => {
     const publish = readWorkflow('publish-npm.workflow.yml');
-    expect(publish.match(/secrets\.NPM_AUTH_TOKEN/g)).toHaveLength(1);
-    const publishStep = publish.split(
-      '- name: Publish package with provenance',
-    )[1];
-    expect(publishStep).toContain(
-      'NODE_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}',
-    );
+    expect(publish).not.toContain('NPM_AUTH_TOKEN');
+    expect(publish).not.toContain('NODE_AUTH_TOKEN');
   });
 
   it('pins every action to a full SHA', () => {
