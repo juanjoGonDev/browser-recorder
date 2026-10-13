@@ -133,6 +133,7 @@ describe('scripts/release-impact-policy.ts', () => {
       'src/main.ts',
       'src/recording-capture/in-page/capture-script.ts',
       '.npmrc',
+      'pnpm-workspace.yaml',
       'tsconfig.base.json',
       'tsconfig.node.json',
       'tsconfig.in-page.json',

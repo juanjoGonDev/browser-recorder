@@ -1,0 +1,14 @@
+# pnpm-only project policies. Keep these out of .npmrc so npm CLI commands
+# do not report them as unknown project configuration.
+
+# Refuse versions published less than three days (4320 minutes) ago.
+minimumReleaseAge: 4320
+
+# Preserve lockfile/install integrity and warn when dependencies have drifted.
+preferFrozenLockfile: true
+verifyStoreIntegrity: true
+verifyDepsBeforeRun: warn
+
+# Keep existing peer dependency resolution behavior.
+autoInstallPeers: true
+strictPeerDependencies: false

@@ -4,7 +4,7 @@
 
 ### Requirement: Dependency hygiene
 
-All dependencies MUST use exact versions; Patchright (pinned `1.63.0`) MUST be the only runtime dependency and `playwright` MUST NOT appear; `pnpm audit` MUST report zero findings; `.npmrc` MUST enable save-exact, minimum-release-age, engine-strict and frozen lockfile.
+All dependencies MUST use exact versions; Patchright (pinned `1.63.0`) MUST be the only runtime dependency and `playwright` MUST NOT appear; `pnpm audit` MUST report zero findings. `.npmrc` MUST contain only npm-compatible settings, while pnpm-specific install policies MUST be configured in `pnpm-workspace.yaml`. The repository MUST preserve `save-exact`, `minimumReleaseAge: 4320`, `engine-strict`, and frozen-lockfile behavior.
 (Previously: Playwright was the only runtime dependency)
 
 #### Scenario: Audit

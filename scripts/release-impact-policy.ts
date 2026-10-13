@@ -20,6 +20,7 @@ const RELEASE_PREFIXES = ['src/'];
 
 const RELEASE_EXACT_PATHS = new Set([
   '.npmrc',
+  'pnpm-workspace.yaml',
   'scripts/build.ts',
   // Shared by build.ts and the release tooling; a change to it changes
   // whether those scripts run at all.

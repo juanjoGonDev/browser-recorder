@@ -45,6 +45,16 @@ function readNpmrc(): Map<string, string> {
   return entries;
 }
 
+function readPnpmWorkspaceConfig(): Map<string, string> {
+  const entries = new Map<string, string>();
+  const text = readFileSync(path.join(ROOT, 'pnpm-workspace.yaml'), 'utf8');
+  for (const line of text.split(/\r?\n/)) {
+    const match = /^(\w+):\s*(.*)$/.exec(line);
+    if (match) entries.set(match[1], match[2]);
+  }
+  return entries;
+}
+
 describe('findInexactVersions', () => {
   it('reports caret, tilde and range specifiers with their section', () => {
     const offenders = findInexactVersions({
@@ -102,14 +112,31 @@ describe('package.json dependency hygiene', () => {
   });
 });
 
-describe('.npmrc supply-chain settings', () => {
+describe('pnpm workspace security settings', () => {
   it.each([
-    ['save-exact', 'true'],
-    ['minimum-release-age', '4320'],
-    ['engine-strict', 'true'],
-    ['prefer-frozen-lockfile', 'true'],
+    ['minimumReleaseAge', '4320'],
+    ['preferFrozenLockfile', 'true'],
+    ['verifyStoreIntegrity', 'true'],
+    ['verifyDepsBeforeRun', 'warn'],
+    ['autoInstallPeers', 'true'],
+    ['strictPeerDependencies', 'false'],
   ])('sets %s=%s', (key, value) => {
-    expect(readNpmrc().get(key)).toBe(value);
+    expect(readPnpmWorkspaceConfig().get(key)).toBe(value);
+  });
+
+  it('keeps npm-compatible settings in .npmrc', () => {
+    expect(readNpmrc().get('save-exact')).toBe('true');
+    expect(readNpmrc().get('engine-strict')).toBe('true');
+  });
+
+  it('keeps pnpm-only keys out of .npmrc', () => {
+    const npmrc = readNpmrc();
+    expect(npmrc.has('minimum-release-age')).toBe(false);
+    expect(npmrc.has('prefer-frozen-lockfile')).toBe(false);
+    expect(npmrc.has('verify-store-integrity')).toBe(false);
+    expect(npmrc.has('verify-deps-before-run')).toBe(false);
+    expect(npmrc.has('auto-install-peers')).toBe(false);
+    expect(npmrc.has('strict-peer-dependencies')).toBe(false);
   });
 
   it('does not use the hoisted linker (only Electron packaging needed it)', () => {
