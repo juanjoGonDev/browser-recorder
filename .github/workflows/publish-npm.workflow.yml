@@ -8,8 +8,16 @@ on:
         required: true
         default: true
         type: boolean
+      release_tag:
+        description: Release tag supplied by the successful release workflow
+        required: false
+        type: string
+      release_workflow_run_id:
+        description: Successful release workflow run that authorized publication
+        required: false
+        type: string
 
-run-name: Publish browser-recorder to npm${{ inputs.dry_run && ' (dry run)' || '' }}
+run-name: Publish browser-recorder to npm${{ inputs.release_tag && format(' ({0})', inputs.release_tag) || inputs.dry_run && ' (dry run)' || '' }}
 
 permissions: read-all
 
@@ -23,19 +31,115 @@ jobs:
     if: >-
       github.repository == 'juanjoGonDev/browser-recorder' &&
       github.event.repository.fork == false &&
-      github.actor == github.repository_owner &&
-      github.ref_name == github.event.repository.default_branch
+      github.ref_name == github.event.repository.default_branch &&
+      (
+        (github.actor == github.repository_owner &&
+          inputs.release_tag == '' &&
+          inputs.release_workflow_run_id == '') ||
+        ((github.actor == github.repository_owner || github.actor == 'github-actions[bot]') &&
+          inputs.dry_run == false &&
+          inputs.release_tag != '' &&
+          inputs.release_workflow_run_id != '')
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
+      actions: read
       contents: read
     outputs:
       version: ${{ steps.manifest.outputs.version }}
+      already_published: ${{ steps.registry.outputs.already_published }}
     steps:
-      - name: Checkout trusted default branch
+      - name: Checkout trusted source commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ inputs.release_tag || github.sha }}
+          fetch-depth: 0
           persist-credentials: false
+
+      - name: Validate automated release dispatch
+        if: inputs.release_workflow_run_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_WORKFLOW_RUN_ID: ${{ inputs.release_workflow_run_id }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$RELEASE_WORKFLOW_RUN_ID" =~ ^[0-9]+$ ]]; then
+            echo '::error title=Invalid release run::The source workflow run ID must be numeric.'
+            exit 1
+          fi
+          if ! [[ "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo '::error title=Invalid release tag::Only stable SemVer tags can publish to npm.'
+            exit 1
+          fi
+
+          run_json=
+          run_status=
+          for attempt in $(seq 1 12); do
+            run_json=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RELEASE_WORKFLOW_RUN_ID}")
+            run_status=$(jq -r '.status // ""' <<<"$run_json")
+            if [[ "$run_status" == 'completed' ]]; then
+              break
+            fi
+            sleep 5
+          done
+          run_path=$(jq -r '(.path // "") | split("@")[0]' <<<"$run_json")
+          run_conclusion=$(jq -r '.conclusion // ""' <<<"$run_json")
+          run_event=$(jq -r '.event // ""' <<<"$run_json")
+          run_branch=$(jq -r '.head_branch // ""' <<<"$run_json")
+          run_repository=$(jq -r '.head_repository.full_name // ""' <<<"$run_json")
+          run_sha=$(jq -r '.head_sha // ""' <<<"$run_json")
+          if [[ "$run_path" != '.github/workflows/release.yml' ||
+                "$run_status" != 'completed' || "$run_conclusion" != 'success' ||
+                ("$run_event" != 'push' && "$run_event" != 'workflow_dispatch') ||
+                "$run_branch" != "$DEFAULT_BRANCH" ||
+                "$run_repository" != "$GITHUB_REPOSITORY" ]]; then
+            echo '::error title=Untrusted release run::The source must be a successful release.yml run on this repository default branch.'
+            exit 1
+          fi
+          if ! [[ "$run_sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo '::error title=Invalid release commit::The source run has no valid commit SHA.'
+            exit 1
+          fi
+
+          release_json=$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}")
+          release_author=$(jq -r '.author.login // ""' <<<"$release_json")
+          release_is_draft=$(jq -r '.draft' <<<"$release_json")
+          release_is_prerelease=$(jq -r '.prerelease' <<<"$release_json")
+          release_assets=$(jq -r '.assets | length' <<<"$release_json")
+          if [[ "$release_author" != "$GITHUB_REPOSITORY_OWNER" &&
+                "$release_author" != 'github-actions[bot]' ]]; then
+            echo '::error title=Untrusted release author::The stable release must be created by the repository owner or its release workflow.'
+            exit 1
+          fi
+          if [[ "$release_is_draft" != 'false' || "$release_is_prerelease" != 'false' ||
+                "$release_assets" != '0' ]]; then
+            echo '::error title=Invalid GitHub Release::The release must be stable, published, and have no uploaded assets.'
+            exit 1
+          fi
+
+          git fetch --no-tags origin \
+            "refs/heads/${DEFAULT_BRANCH}:refs/remotes/origin/${DEFAULT_BRANCH}"
+          release_sha=$(git rev-parse "${RELEASE_TAG}^{commit}")
+          if [[ "$(git rev-parse HEAD)" != "$release_sha" ]] ||
+             ! git merge-base --is-ancestor "$release_sha" "$run_sha" ||
+             ! git merge-base --is-ancestor "$run_sha" "refs/remotes/origin/${DEFAULT_BRANCH}"; then
+            echo '::error title=Untrusted release commit::The release tag must match the checkout and be reachable from the successful source run and default branch.'
+            exit 1
+          fi
+
+          run_package_json=$(git show "${run_sha}:package.json")
+          run_package_name=$(jq -r '.name' <<<"$run_package_json")
+          run_package_version=$(jq -r '.version' <<<"$run_package_json")
+          tag_package_version=$(node -p "require('./package.json').version")
+          if [[ "$run_package_name" != 'browser-recorder' ||
+                "$run_package_version" != "$tag_package_version" ||
+                "v${tag_package_version}" != "$RELEASE_TAG" ]]; then
+            echo '::error title=Release version mismatch::The tag, release workflow commit, and npm package version must match.'
+            exit 1
+          fi
 
       - name: Set up pnpm
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
@@ -55,6 +159,8 @@ jobs:
 
       - name: Validate package metadata
         id: manifest
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           set -euo pipefail
           package_name=$(node -p "require('./package.json').name")
@@ -65,6 +171,10 @@ jobs:
           fi
           if ! [[ "$package_version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
             echo "::error title=Invalid npm package version::$package_version is not stable SemVer"
+            exit 1
+          fi
+          if [[ -n "$RELEASE_TAG" && "$RELEASE_TAG" != "v${package_version}" ]]; then
+            echo "::error title=Release version mismatch::$RELEASE_TAG does not match package version $package_version."
             exit 1
           fi
           if [[ $(node -p "require('./package.json').private === true") == 'true' ]]; then
@@ -78,7 +188,8 @@ jobs:
         id: package
         run: bash scripts/verify-npm-package.sh
 
-      - name: Reject an already published version
+      - name: Check npm publication status
+        id: registry
         if: inputs.dry_run != true
         working-directory: ${{ runner.temp }}
         env:
@@ -86,13 +197,33 @@ jobs:
           PACKAGE_VERSION: ${{ steps.manifest.outputs.version }}
         run: |
           set -euo pipefail
-          if npm view "$PACKAGE_NAME@$PACKAGE_VERSION" version >/dev/null 2>&1; then
-            echo "::error title=Version already published::$PACKAGE_NAME@$PACKAGE_VERSION already exists; bump package.json before publishing."
-            exit 1
+          error_file=$(mktemp)
+          version_file=$(mktemp)
+          set +e
+          npm view "$PACKAGE_NAME@$PACKAGE_VERSION" version --json >"$version_file" 2>"$error_file"
+          status=$?
+          set -e
+
+          if (( status == 0 )); then
+            published_version=$(jq -r '.' "$version_file")
+            if [[ "$published_version" != "$PACKAGE_VERSION" ]]; then
+              echo "::error title=Unexpected npm version::Expected $PACKAGE_VERSION, received $published_version."
+              exit 1
+            fi
+            echo 'already_published=true' >> "$GITHUB_OUTPUT"
+            echo "$PACKAGE_NAME@$PACKAGE_VERSION is already published; skipping npm publish."
+            exit 0
           fi
 
+          if grep -Eq 'E404|404 Not Found' "$error_file"; then
+            echo 'already_published=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          cat "$error_file"
+          exit "$status"
+
       - name: Upload validated package for publication
-        if: inputs.dry_run != true
+        if: inputs.dry_run != true && steps.registry.outputs.already_published != 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: browser-recorder-${{ steps.manifest.outputs.version }}
@@ -105,9 +236,10 @@ jobs:
     needs: validate
     if: >-
       inputs.dry_run != true &&
+      needs.validate.outputs.already_published != 'true' &&
       github.repository == 'juanjoGonDev/browser-recorder' &&
       github.event.repository.fork == false &&
-      github.actor == github.repository_owner &&
+      (github.actor == github.repository_owner || github.actor == 'github-actions[bot]') &&
       github.ref_name == github.event.repository.default_branch
     runs-on: ubuntu-latest
     timeout-minutes: 10

@@ -301,6 +301,29 @@ describe('publish-npm.workflow.yml', () => {
     expect(publish).toContain('if: inputs.dry_run != true');
   });
 
+  it('accepts automatic dispatch only with verified release metadata', () => {
+    const publish = readWorkflow('publish-npm.workflow.yml');
+    expect(publish).toContain('release_tag:');
+    expect(publish).toContain('release_workflow_run_id:');
+    expect(publish).toContain("github.actor == 'github-actions[bot]'");
+    expect(publish).toContain('actions: read');
+    expect(publish).toContain('actions/runs/${RELEASE_WORKFLOW_RUN_ID}');
+    expect(publish).toContain('(.path // "") | split("@")[0]');
+    expect(publish).toContain('"$run_conclusion" != \'success\'');
+    expect(publish).toContain('refs/remotes/origin/${DEFAULT_BRANCH}');
+    expect(publish).toContain('for attempt in $(seq 1 12)');
+  });
+
+  it('builds the immutable release tag and skips registry duplicates', () => {
+    const publish = readWorkflow('publish-npm.workflow.yml');
+    expect(publish).toContain('ref: ${{ inputs.release_tag || github.sha }}');
+    expect(publish).toContain('already_published');
+    expect(publish).toContain(
+      "needs.validate.outputs.already_published != 'true'",
+    );
+    expect(publish).not.toContain('Reject an already published version');
+  });
+
   it('guards jobs to the owner and default branch of this repository', () => {
     const publish = readWorkflow('publish-npm.workflow.yml');
     expect(publish).toContain(REPOSITORY_GUARD);
@@ -480,6 +503,28 @@ describe('release.yml', () => {
     expect(release).toContain(
       `[[ "$(jq -r '.assets | length' <<<"$release_json")" == "0" ]]`,
     );
+  });
+
+  it('dispatches the existing npm workflow after release verification', () => {
+    const [, publishing = ''] = release.split(/^ {2}publish:\n/m);
+    const verifyIndex = publishing.indexOf('name: Verify published release');
+    const dispatchIndex = publishing.indexOf('name: Dispatch npm publication');
+    expect(publishing).toContain('actions: write');
+    expect(publishing).toContain('gh workflow run publish-npm.workflow.yml');
+    expect(publishing).toContain('-f release_tag="$RELEASE_TAG"');
+    expect(publishing).toContain('-f release_workflow_run_id="$GITHUB_RUN_ID"');
+    expect(verifyIndex).toBeGreaterThanOrEqual(0);
+    expect(dispatchIndex).toBeGreaterThan(verifyIndex);
+  });
+
+  it('can re-dispatch npm publication after verifying an existing release', () => {
+    const [detect = '', publishing = ''] = release.split(/^ {2}publish:\n/m);
+    expect(detect).toContain('echo "release_exists=true" >> "$GITHUB_OUTPUT"');
+    expect(detect).toContain('echo "publish=true" >> "$GITHUB_OUTPUT"');
+    expect(publishing).toContain(
+      'RELEASE_EXISTS: ${{ needs.detect.outputs.release_exists }}',
+    );
+    expect(publishing).toMatch(/RELEASE_EXISTS" != 'true'/);
   });
 
   it('has no build or assemble jobs', () => {

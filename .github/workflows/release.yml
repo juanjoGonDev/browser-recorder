@@ -36,6 +36,7 @@ jobs:
       release_sha: ${{ steps.release.outputs.release_sha }}
       release_tag: ${{ steps.release.outputs.release_tag }}
       tag_exists: ${{ steps.release.outputs.tag_exists }}
+      release_exists: ${{ steps.release.outputs.release_exists }}
     steps:
       - name: Checkout trusted default branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -140,8 +141,13 @@ jobs:
               exit 1
             fi
 
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-            echo "GitHub Release $release_tag already exists with the expected target and no assets."
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "version=$current_version" >> "$GITHUB_OUTPUT"
+            echo "release_sha=$release_sha" >> "$GITHUB_OUTPUT"
+            echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
+            echo "tag_exists=true" >> "$GITHUB_OUTPUT"
+            echo "release_exists=true" >> "$GITHUB_OUTPUT"
+            echo "GitHub Release $release_tag already exists and is valid; continuing with npm publication recovery."
             exit 0
           fi
 
@@ -183,6 +189,7 @@ jobs:
           echo "release_sha=$release_sha" >> "$GITHUB_OUTPUT"
           echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
           echo "tag_exists=$tag_exists" >> "$GITHUB_OUTPUT"
+          echo "release_exists=false" >> "$GITHUB_OUTPUT"
 
   publish:
     name: Publish release
@@ -196,6 +203,7 @@ jobs:
     timeout-minutes: 20
     environment: admin
     permissions:
+      actions: write
       contents: write
     # No checkout in this job, so `gh` has no local .git to infer the repo
     # from. GH_REPO gives every invocation — including `gh release view` in
@@ -209,6 +217,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ needs.detect.outputs.release_tag }}
           RELEASE_SHA: ${{ needs.detect.outputs.release_sha }}
+          RELEASE_EXISTS: ${{ needs.detect.outputs.release_exists }}
         run: |
           set -euo pipefail
           if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
@@ -240,7 +249,7 @@ jobs:
           fi
           # The tag targets the version-introducing commit while the workflow
           # runs at the event HEAD. When the two differ, say so in the notes.
-          if [ "$RELEASE_SHA" != "$GITHUB_SHA" ]; then
+          if [[ "$RELEASE_EXISTS" != 'true' && "$RELEASE_SHA" != "$GITHUB_SHA" ]]; then
             body=$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json body -q .body)
             gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
               --notes "$(printf '%s\n\n---\nReleased from workflow run at commit: %s (release tag targets %s, the version-introducing commit).' "$body" "$GITHUB_SHA" "$RELEASE_SHA")"
@@ -274,4 +283,24 @@ jobs:
             echo "- Tag: $RELEASE_TAG"
             echo "- Commit: $RELEASE_SHA"
             echo "- Assets: none"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Dispatch npm publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          RELEASE_TAG: ${{ needs.detect.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+          gh workflow run publish-npm.workflow.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref "$DEFAULT_BRANCH" \
+            -f dry_run=false \
+            -f release_tag="$RELEASE_TAG" \
+            -f release_workflow_run_id="$GITHUB_RUN_ID"
+          {
+            echo "### npm publication workflow dispatched"
+            echo "- Workflow: publish-npm.workflow.yml"
+            echo "- Release: $RELEASE_TAG"
+            echo "- Source run: $GITHUB_RUN_ID"
           } >> "$GITHUB_STEP_SUMMARY"
