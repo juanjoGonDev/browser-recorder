@@ -7,6 +7,18 @@
 All dependencies MUST use exact versions; Patchright (pinned `1.63.0`) MUST be the only runtime dependency and `playwright` MUST NOT appear; `pnpm audit` MUST report zero findings. `.npmrc` MUST contain only npm-compatible settings, while pnpm-specific install policies MUST be configured in `pnpm-workspace.yaml`. The repository MUST preserve `save-exact`, `minimumReleaseAge: 4320`, `engine-strict`, and frozen-lockfile behavior.
 (Previously: Playwright was the only runtime dependency)
 
+### Requirement: npm discoverability metadata
+
+The public npm package MUST declare a lowercase `keywords` array that describes
+the browser automation, recording, testing, Patchright, and CLI use cases. The
+array MUST contain the exact keyword `cli`.
+
+#### Scenario: CLI discovery
+
+- GIVEN the published package manifest
+- WHEN npm indexes its keywords
+- THEN the exact keyword `cli` MUST be present
+
 #### Scenario: Audit
 - GIVEN a fresh install
 - WHEN `pnpm audit` runs

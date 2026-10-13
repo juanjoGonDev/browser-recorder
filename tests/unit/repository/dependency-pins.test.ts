@@ -13,7 +13,7 @@ const DEPENDENCY_SECTIONS = [
 
 type Manifest = Partial<
   Record<(typeof DEPENDENCY_SECTIONS)[number], Record<string, string>>
->;
+> & { keywords?: string[] };
 
 function findInexactVersions(manifest: Manifest): string[] {
   const offenders: string[] = [];
@@ -76,6 +76,17 @@ describe('findInexactVersions', () => {
 });
 
 describe('package.json dependency hygiene', () => {
+  it('declares npm discovery keywords including cli', () => {
+    expect(readManifest().keywords).toEqual(
+      expect.arrayContaining([
+        'browser-automation',
+        'browser-recording',
+        'cli',
+        'patchright',
+      ]),
+    );
+  });
+
   it('declares every dependency with an exact version', () => {
     expect(findInexactVersions(readManifest())).toEqual([]);
   });
