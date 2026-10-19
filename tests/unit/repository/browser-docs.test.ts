@@ -49,6 +49,20 @@ describe('README.md browser and profile selection', () => {
     expect(browsers).toMatch(/Opera/);
   });
 
+  it('documents the macOS Full Disk Access message and the permission hint', () => {
+    expect(browsers).toMatch(/Full\s+Disk\s+Access/);
+    expect(browsers).toMatch(/Privacy\s+&\s+Security/);
+    expect(browsers).toMatch(/restart\s+the\s+terminal/i);
+    expect(browsers).toMatch(/permission\s+denied/i);
+  });
+
+  it('documents changing the browser in the library, and only there', () => {
+    expect(readme).toMatch(/\| Library\s+\|[^\n]*`b`[^\n]*browser/u);
+    expect(readme).toMatch(/Library\*\*:[^\n]*\n?[^\n]*change its browser/u);
+    expect(browsers).toMatch(/changed in\s+the\s+terminal\s+UI\s+only/i);
+    expect(browsers).toMatch(/no\s+command\s+line\s+option/i);
+  });
+
   it('documents the opt-in test switches', () => {
     expect(readme).toContain('BROWSER_RECORDER_REAL_BROWSER_TESTS=1');
     expect(readme).toContain('tests/fixtures/profiles');
@@ -63,6 +77,11 @@ describe('SECURITY.md profile handling', () => {
     expect(security).toMatch(/0700/);
     expect(security).toMatch(/app-data/i);
     expect(security).toMatch(/deleted/i);
+  });
+
+  it('explains that Full Disk Access is the owner decision and widens the terminal', () => {
+    expect(security).toMatch(/Full\s+Disk\s+Access/);
+    expect(security).toMatch(/never\s+(changes|asks)/i);
   });
 
   it('names Patchright as the browser engine to report upstream', () => {

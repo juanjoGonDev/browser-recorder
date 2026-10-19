@@ -61,6 +61,12 @@ compromised local machine.
   crashed run are swept at the next start. The original profile is only read,
   never modified. Managed profiles (the tool's own, kept between runs) hold the
   logins you made in them: delete the `profiles` folder there to forget them.
+- **Full Disk Access is your decision.** When macOS blocks reading a browser
+  profile, the recorder only reports it and names Full Disk Access for your
+  terminal app. It never changes system settings, never asks for elevated
+  rights and never reads around the block. Granting Full Disk Access gives that
+  terminal, and everything started from it, read access to protected data of
+  other apps, so grant it only to a terminal you trust.
 - **No network service and no telemetry.** The app listens on no port and sends
   nothing anywhere. The only network access is Patchright downloading Chromium
   on first use.
