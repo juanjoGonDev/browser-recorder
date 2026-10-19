@@ -109,6 +109,8 @@ export interface FakeServicesHandle {
   renameError: Error | null;
   removeError: Error | null;
   startError: Error | null;
+  /** Makes `replay.start` reject, as when the profile cannot be read. */
+  replayError: Error | null;
   /** Makes `browsers.list()` reject, as when detection fails. */
   browsersError: Error | null;
   /** While set, `browsers.list()` waits for it: detection in progress. */
@@ -135,6 +137,7 @@ export function createFakeServices(): FakeServicesHandle {
     renameError: null,
     removeError: null,
     startError: null,
+    replayError: null,
     browsersError: null,
     browsersGate: null,
     listCount: 0,
@@ -184,6 +187,9 @@ export function createFakeServices(): FakeServicesHandle {
       },
       replay: {
         start: (slug, timing) => {
+          if (handle.replayError !== null) {
+            return Promise.reject(handle.replayError);
+          }
           handle.replayed.push(slug);
           handle.replayTimings.push(timing);
           return Promise.resolve(replay);

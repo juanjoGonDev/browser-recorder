@@ -215,6 +215,44 @@ describe('src/tui/render/screens/library-screen.ts', () => {
     ).toContain('✖ A recording named "Beta" already exists');
   });
 
+  describe('a long error', () => {
+    const longMessage =
+      'macOS blocked reading the Brave profile. Give your terminal app Full Disk Access in System Settings › Privacy & Security, then restart the terminal and try again.';
+    const failed = (count: number): LibraryScreen => ({
+      ...screen(
+        Array.from({ length: count }, (_, index) =>
+          validEntry(`s${String(index)}`, `Rec ${String(index)}`),
+        ),
+      ),
+      error: longMessage,
+    });
+
+    it('wraps between the status line and the rows without clipping it', () => {
+      const body = renderLibraryScreen(failed(2), plainContext()).body;
+      const statusAt = body.findIndex((line) => line.includes('1/2'));
+      const firstRowAt = body.findIndex((line) => line.includes('Rec 0'));
+      const errorLines = body.slice(statusAt + 1, firstRowAt);
+      expect(errorLines.length).toBeGreaterThan(1);
+      expect(errorLines[0]).toContain('✖ macOS blocked');
+      expect(errorLines.join(' ').replace(/\s+/g, ' ')).toContain(
+        'restart the terminal and try again.',
+      );
+      expect(body.join('\n')).not.toContain('…');
+      expect(body.every((line) => cellWidth(line) <= 76)).toBe(true);
+    });
+
+    it('leaves fewer rows for the list so the body keeps its height', () => {
+      const context = plainContext();
+      const short = renderLibraryScreen(
+        { ...failed(30), error: 'short' },
+        context,
+      ).body;
+      const long = renderLibraryScreen(failed(30), context).body;
+      expect(long.length).toBeLessThanOrEqual(context.height);
+      expect(long.length).toBe(short.length);
+    });
+  });
+
   it('lists the browse keys', () => {
     const keys = renderLibraryScreen(
       screen([validEntry('a')]),

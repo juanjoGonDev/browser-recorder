@@ -60,7 +60,7 @@ function setup(overrides: Overrides = {}) {
   const profiles = createFakeProfiles();
   const catalog = createFakeCatalog(overrides.installed ?? [BUNDLED_INSTALLED]);
   const services = createAppServices({
-    planner: createLaunchPlanner({ catalog, profiles }),
+    planner: createLaunchPlanner({ catalog, profiles, platform: 'linux' }),
     browserViews: createBrowserViews({
       catalog,
       profiles,
@@ -282,7 +282,11 @@ describe('src/composition/create-app-services.ts', () => {
       const catalog = createFakeCatalog([BUNDLED_INSTALLED]);
       expect(() =>
         createAppServices({
-          planner: createLaunchPlanner({ catalog, profiles }),
+          planner: createLaunchPlanner({
+            catalog,
+            profiles,
+            platform: 'linux',
+          }),
           browserViews: createBrowserViews({
             catalog,
             profiles,

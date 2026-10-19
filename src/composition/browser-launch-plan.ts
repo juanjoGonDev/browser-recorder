@@ -29,6 +29,8 @@ export interface LaunchPlanner {
 export interface LaunchPlannerDeps {
   readonly catalog: BrowserCatalog;
   readonly profiles: ProfileStore;
+  /** `process.platform`: it words the permission hint of a blocked profile. */
+  readonly platform: string;
 }
 
 function once(action: () => Promise<void>): () => Promise<void> {
@@ -59,7 +61,7 @@ async function plan(
       realUserDataDir: installed.userDataDir,
     });
   } catch (error) {
-    throw explainProfileFailure(error, choice.browserId);
+    throw explainProfileFailure(error, choice.browserId, deps.platform);
   }
   return {
     choice,

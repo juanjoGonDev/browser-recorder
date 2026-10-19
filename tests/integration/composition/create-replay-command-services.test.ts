@@ -49,6 +49,7 @@ function setup(options: { isInstalled?: boolean } = {}) {
         options.isInstalled === false ? [] : [BUNDLED_INSTALLED],
       ),
       profiles,
+      platform: 'linux',
     }),
     installation: createFakeInstallation({
       isInstalled: options.isInstalled ?? true,

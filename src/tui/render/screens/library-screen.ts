@@ -6,11 +6,12 @@ import type { Style } from '../ansi.ts';
 import { describeBrowser } from '../browser-summary.ts';
 import { renderField } from '../field-view.ts';
 import { formatCreated, formatDuration, formatTiming } from '../format.ts';
-import { padEnd, spread } from '../layout.ts';
+import { cellWidth, padEnd, spread } from '../layout.ts';
 import { sanitize } from '../../../shared/domain/terminal-text.ts';
 import type { RenderContext, ScreenView } from '../screen-view.ts';
 import { listRowsOf } from '../screen-view.ts';
 import type { KeyHint } from '../status-bar.ts';
+import { wrappedErrorLines } from './wrapped-error.ts';
 
 const MARKER_WIDTH = 2;
 const CREATED_WIDTH = 16;
@@ -110,12 +111,26 @@ function columnHeader(context: RenderContext): string {
   );
 }
 
-function statusLine(screen: LibraryScreen, context: RenderContext): string {
-  const { style, width } = context;
-  const position = style.muted(
+function positionText(screen: LibraryScreen, context: RenderContext): string {
+  return context.style.muted(
     `${formatTiming(screen.timing)} · ${String(screen.cursor.selected + 1)}/${String(screen.entries.length)}`,
   );
-  return spread(promptOf(screen.mode, screen, context), position, width);
+}
+
+/** Browse-mode errors that do not fit beside the position are wrapped. */
+function longErrorOf(screen: LibraryScreen, context: RenderContext): string[] {
+  if (screen.mode.kind !== 'browse') return [];
+  const room = context.width - cellWidth(positionText(screen, context)) - 1;
+  return wrappedErrorLines(screen.error, room, context);
+}
+
+function statusLine(
+  screen: LibraryScreen,
+  context: RenderContext,
+  hasLongError: boolean,
+): string {
+  const prompt = hasLongError ? '' : promptOf(screen.mode, screen, context);
+  return spread(prompt, positionText(screen, context), context.width);
 }
 
 function selectedName(screen: LibraryScreen): string {
@@ -200,9 +215,10 @@ export function renderLibraryScreen(
   if (screen.entries.length === 0) {
     return { title: 'Library', body: emptyBody(screen, context), hints };
   }
+  const longError = longErrorOf(screen, context);
   const range = visibleRange(screen.cursor, {
     count: screen.entries.length,
-    rows: listRowsOf(context),
+    rows: Math.max(1, listRowsOf(context) - longError.length),
   });
   const rows = screen.entries
     .slice(range.start, range.end)
@@ -211,7 +227,12 @@ export function renderLibraryScreen(
     );
   return {
     title: 'Library',
-    body: [columnHeader(context), statusLine(screen, context), ...rows],
+    body: [
+      columnHeader(context),
+      statusLine(screen, context, longError.length > 0),
+      ...longError,
+      ...rows,
+    ],
     hints,
   };
 }

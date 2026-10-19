@@ -758,6 +758,23 @@ describe('src/tui/application/tui-controller.ts', () => {
       });
     });
 
+    it('shows the Full Disk Access message and keeps the library usable', async () => {
+      const harness = setup();
+      harness.fake.replayError = new Error(
+        'macOS blocked reading the Brave profile. Give your terminal app Full Disk Access in System Settings › Privacy & Security, then restart the terminal and try again.',
+      );
+      await startReplay(harness);
+      const screen = harness.store.getState().screen as LibraryScreen;
+      expect(screen.kind).toBe('library');
+      expect(screen.error).toMatch(/Full Disk Access/);
+      expect(screen.error).not.toMatch(/could not be found/);
+      await harness.press(char('d'));
+      expect(harness.store.getState().screen).toMatchObject({
+        kind: 'library',
+        mode: { kind: 'confirm-delete' },
+      });
+    });
+
     it('starts the replay of the selected recording', async () => {
       const harness = setup();
       await startReplay(harness);
