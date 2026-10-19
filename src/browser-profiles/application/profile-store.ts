@@ -16,7 +16,7 @@ import {
 import { copyProfile } from './copy-profile.ts';
 import type { ProcessProbe } from './ports/process-probe.ts';
 import type { ProfileFileSystem } from './ports/profile-file-system.ts';
-import { readLocalState } from './read-local-state.ts';
+import { type LocalStateRead, readLocalState } from './read-local-state.ts';
 import {
   type ReleaseDeps,
   releaseOnce,
@@ -60,6 +60,8 @@ export interface ProfileStoreDeps {
   readonly layout: ProfileLayout;
   readonly sleep: (ms: number) => Promise<void>;
 }
+
+type LocalStateFailure = Exclude<LocalStateRead, { readonly kind: 'ok' }>;
 
 const NOTHING_TO_RELEASE = (): Promise<void> => Promise.resolve();
 
@@ -132,6 +134,12 @@ async function warningsBeforeCopy(
   return warnings;
 }
 
+function copyErrorFor(state: LocalStateFailure): ProfileCopyError {
+  const code =
+    state.kind === 'missing' ? 'source-missing' : 'source-unreadable';
+  return new ProfileCopyError(code, 'Local State');
+}
+
 async function prepareCopy(
   deps: ProfileStoreDeps,
   request: PrepareProfileRequest,
@@ -143,9 +151,9 @@ async function prepareCopy(
   if (sourceProfile === null) {
     throw new ProfileCopyError('unknown-profile', 'null');
   }
-  const info = await readLocalState(deps.fs, deps.platform, realDir);
-  if (info === null)
-    throw new ProfileCopyError('source-missing', 'Local State');
+  const state = await readLocalState(deps.fs, deps.platform, realDir);
+  if (state.kind !== 'ok') throw copyErrorFor(state);
+  const info = state.info;
   const warnings = await warningsBeforeCopy(deps, realDir, info);
   const sessionsRoot = deps.layout.sessionsRoot(request.browserId);
   await deps.fs.makePrivateDir(sessionsRoot);
@@ -188,10 +196,23 @@ async function sweepBrowser(
   }
 }
 
+/** The picker must never break: any unusable `Local State` lists nothing. */
+async function listRealProfiles(
+  deps: ProfileStoreDeps,
+  realUserDataDir: string,
+): Promise<LocalStateInfo | null> {
+  try {
+    const state = await readLocalState(deps.fs, deps.platform, realUserDataDir);
+    return state.kind === 'ok' ? state.info : null;
+  } catch {
+    return null;
+  }
+}
+
 export function createProfileStore(deps: ProfileStoreDeps): ProfileStore {
   return {
     listRealProfiles: (realUserDataDir) =>
-      readLocalState(deps.fs, deps.platform, realUserDataDir),
+      listRealProfiles(deps, realUserDataDir),
     prepare(request) {
       switch (request.profileMode) {
         case 'managed':

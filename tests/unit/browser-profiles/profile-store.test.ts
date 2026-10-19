@@ -256,6 +256,28 @@ describe('createProfileStore copy-of-real profiles', () => {
     expect(error).toMatchObject({ code: 'source-missing' });
   });
 
+  it.each(['darwin', 'linux'])(
+    'reports source-unreadable when Local State is denied on %s',
+    async (platform) => {
+      const { fs, store } = rig(platform);
+      seedReal(fs);
+      fs.deniedPaths.add(`${REAL}/Local State`);
+      const error = await rejection(store.prepare(copyRequest()));
+      expect(error).toBeInstanceOf(ProfileCopyError);
+      expect(error).toMatchObject({ code: 'source-unreadable' });
+      expect(fs.pathsUnder(`${ROOT}/profiles/brave/sessions`)).toEqual([]);
+    },
+  );
+
+  it('rethrows an unrelated Local State failure unchanged', async () => {
+    const { fs, store } = rig();
+    seedReal(fs);
+    fs.readText = () => Promise.reject(errorWithCode('EIO'));
+    expect(await rejection(store.prepare(copyRequest()))).toMatchObject({
+      code: 'EIO',
+    });
+  });
+
   it('needs the real directory of the browser', async () => {
     const { store } = rig();
     const error = await rejection(
@@ -296,6 +318,24 @@ describe('createProfileStore listRealProfiles', () => {
     expect(await store.listRealProfiles(REAL)).toBeNull();
     expect(fs.removed).toEqual([]);
     expect(fs.copied).toEqual([]);
+    expect(fs.privateDirs.size).toBe(0);
+  });
+
+  it('returns null without throwing or writing when Local State is denied', async () => {
+    const { fs, store } = rig('darwin');
+    seedReal(fs);
+    fs.deniedPaths.add(`${REAL}/Local State`);
+    expect(await store.listRealProfiles(REAL)).toBeNull();
+    expect(fs.removed).toEqual([]);
+    expect(fs.copied).toEqual([]);
+    expect(fs.privateDirs.size).toBe(0);
+  });
+
+  it('returns null for an unrelated read failure so the picker never breaks', async () => {
+    const { fs, store } = rig();
+    seedReal(fs);
+    fs.readText = () => Promise.reject(errorWithCode('EIO'));
+    expect(await store.listRealProfiles(REAL)).toBeNull();
     expect(fs.privateDirs.size).toBe(0);
   });
 });

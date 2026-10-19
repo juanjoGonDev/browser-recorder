@@ -16,12 +16,13 @@ export class ProfileInUseError extends Error {
 }
 
 export type ProfileCopyErrorCode =
-  'source-in-use' | 'source-missing' | 'unknown-profile';
+  'source-in-use' | 'source-missing' | 'source-unreadable' | 'unknown-profile';
 
 const COPY_ERROR_TEXT: Readonly<Record<ProfileCopyErrorCode, string>> = {
   'source-in-use':
     'is locked by the running browser. Close the browser and try again',
   'source-missing': 'could not be found',
+  'source-unreadable': 'could not be read: permission denied',
   'unknown-profile': 'is not a profile of this browser',
 };
 

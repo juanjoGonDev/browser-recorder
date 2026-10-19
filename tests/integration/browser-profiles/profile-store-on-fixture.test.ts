@@ -148,7 +148,7 @@ describe('profile store on the brave-like fixture', () => {
       await chmod(cookies, 0o000);
       await expect(
         createStore().prepare(copyRequest('Default')),
-      ).rejects.toMatchObject({ code: 'EACCES' });
+      ).rejects.toMatchObject({ code: 'source-unreadable' });
       await chmod(cookies, 0o644);
       expect(await snapshotTree(realDir)).toEqual(before);
       const sessions = join(appRoot, 'profiles', 'brave', 'sessions');

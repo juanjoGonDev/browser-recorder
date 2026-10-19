@@ -10,6 +10,8 @@ import {
 const SOURCE = '/real/Brave';
 const SESSIONS = '/data/brave/sessions';
 const COPY = `${SESSIONS}/random1`;
+const WIN_SOURCE = 'C:\\real\\Brave';
+const WIN_SESSIONS = 'C:\\data\\brave\\sessions';
 
 interface Rig {
   readonly fs: MemoryProfileFileSystem;
@@ -20,12 +22,15 @@ interface Rig {
   ) => ReturnType<typeof copyProfile>;
 }
 
-function rig(): Rig {
+function rig(platform = 'linux'): Rig {
   const fs = new MemoryProfileFileSystem();
-  fs.addFile(`${SOURCE}/Local State`, '{"profile":{}}');
-  fs.addFile(`${SOURCE}/Default/Preferences`, 'prefs');
-  fs.addFile(`${SOURCE}/Default/Cookies`, 'cookies-db');
-  fs.addFile(`${SOURCE}/Default/Cookies-wal`, 'cookies-wal');
+  const isWindows = platform === 'win32';
+  const root = isWindows ? WIN_SOURCE : SOURCE;
+  const sep = isWindows ? '\\' : '/';
+  fs.addFile(`${root}${sep}Local State`, '{"profile":{}}');
+  fs.addFile(`${root}${sep}Default${sep}Preferences`, 'prefs');
+  fs.addFile(`${root}${sep}Default${sep}Cookies`, 'cookies-db');
+  fs.addFile(`${root}${sep}Default${sep}Cookies-wal`, 'cookies-wal');
   const sleeps: number[] = [];
   const sleep = (ms: number): Promise<void> => {
     sleeps.push(ms);
@@ -36,15 +41,21 @@ function rig(): Rig {
     sleeps,
     copy: (profile = 'Default', known = ['Default', 'Profile 2']) =>
       copyProfile(
-        { fs, platform: 'linux', sleep },
+        { fs, platform, sleep },
         {
-          sourceRoot: SOURCE,
+          sourceRoot: root,
           profile,
           knownProfiles: known,
-          sessionsRoot: SESSIONS,
+          sessionsRoot: isWindows ? WIN_SESSIONS : SESSIONS,
         },
       ),
   };
+}
+
+/** Paths still present under the sessions root once a copy failed. */
+function leftovers(fs: MemoryProfileFileSystem, platform: string): string[] {
+  const prefix = platform === 'win32' ? `${WIN_SESSIONS}\\` : `${SESSIONS}/`;
+  return [...fs.nodes.keys()].filter((path) => path.startsWith(prefix));
 }
 
 async function rejection(promise: Promise<unknown>): Promise<unknown> {
@@ -152,10 +163,15 @@ describe('copyProfile', () => {
     expect(fs.contentOf(`${COPY}/Default/Preferences`)).toBe('prefs');
   });
 
-  it.each(['EBUSY', 'EPERM'])(
-    'removes the copy and reports source-in-use when %s persists',
-    async (code) => {
-      const { fs, sleeps, copy } = rig();
+  it.each([
+    ['EBUSY', 'linux'],
+    ['EBUSY', 'darwin'],
+    ['EBUSY', 'win32'],
+    ['EPERM', 'win32'],
+  ])(
+    'removes the copy and reports source-in-use when %s persists on %s',
+    async (code, platform) => {
+      const { fs, sleeps, copy } = rig(platform);
       fs.onCopy = (from) => {
         if (from.endsWith('Cookies')) throw errorWithCode(code);
       };
@@ -163,10 +179,70 @@ describe('copyProfile', () => {
       expect(error).toBeInstanceOf(ProfileCopyError);
       expect((error as ProfileCopyError).code).toBe('source-in-use');
       expect(sleeps).toEqual([50, 100, 200]);
-      expect(fs.removed).toContain(COPY);
+      expect(fs.removed.filter((path) => /random1$/.test(path))).toHaveLength(
+        1,
+      );
+      expect(leftovers(fs, platform)).toEqual([]);
+    },
+  );
+
+  it.each([
+    ['darwin', 'EPERM'],
+    ['linux', 'EACCES'],
+    ['linux', 'EPERM'],
+  ])(
+    'removes the copy without retrying when a file is denied (%s %s)',
+    async (platform, code) => {
+      const { fs, sleeps, copy } = rig(platform);
+      fs.onCopy = (from) => {
+        if (from.endsWith('Cookies')) throw errorWithCode(code);
+      };
+      const error = await rejection(copy());
+      expect(error).toBeInstanceOf(ProfileCopyError);
+      expect((error as ProfileCopyError).code).toBe('source-unreadable');
+      expect((error as ProfileCopyError).message).not.toContain(SOURCE);
+      expect(sleeps).toEqual([]);
       expect(fs.pathsUnder(SESSIONS)).toEqual([]);
     },
   );
+
+  it.each([
+    ['Local State', `${SOURCE}/Local State`],
+    ['Default', `${SOURCE}/Default`],
+  ])(
+    'reports source-unreadable when checking %s is denied',
+    async (_name, path) => {
+      const { fs, copy } = rig('darwin');
+      fs.deniedPaths.add(path);
+      const error = await rejection(copy());
+      expect((error as ProfileCopyError).code).toBe('source-unreadable');
+      expect(fs.pathsUnder(SESSIONS)).toEqual([]);
+    },
+  );
+
+  it.each([
+    ['the profile directory', `${SOURCE}/Default`],
+    ['a nested directory', `${SOURCE}/Default/Local Storage`],
+  ])(
+    'reports source-unreadable when listing %s is denied',
+    async (_n, path) => {
+      const { fs, copy } = rig('darwin');
+      fs.addFile(`${SOURCE}/Default/Local Storage/leveldb/1.log`, 'kept');
+      const list = fs.list.bind(fs);
+      fs.list = (dir) =>
+        dir === path ? Promise.reject(errorWithCode('EPERM')) : list(dir);
+      const error = await rejection(copy());
+      expect((error as ProfileCopyError).code).toBe('source-unreadable');
+      expect(fs.pathsUnder(SESSIONS)).toEqual([]);
+    },
+  );
+
+  it('rethrows an unrelated failure when listing a directory', async () => {
+    const { fs, copy } = rig();
+    fs.list = () => Promise.reject(errorWithCode('EIO'));
+    expect(await rejection(copy())).toMatchObject({ code: 'EIO' });
+    expect(fs.pathsUnder(SESSIONS)).toEqual([]);
+  });
 
   it('removes the copy and rethrows an unexpected failure', async () => {
     const { fs, copy } = rig();

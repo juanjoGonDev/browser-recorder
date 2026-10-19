@@ -9,7 +9,13 @@ export interface FileStamp {
   readonly mtimeMs: number;
 }
 
-/** Every file operation the profile store needs; the source is read-only. */
+/**
+ * Every file operation the profile store needs; the source is read-only.
+ *
+ * A failing method rejects with the Node error unchanged, so its errno name is
+ * on `code` (`ENOENT`, `EACCES`, `EPERM`, ...). The application classifies it
+ * with `classifyFileError`; adapters never translate errors themselves.
+ */
 export interface ProfileFileSystem {
   /** `mkdir -p`, then `chmod 0o700` on POSIX. */
   makePrivateDir(path: string): Promise<void>;

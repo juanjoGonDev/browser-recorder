@@ -46,6 +46,10 @@ export function explainProfileFailure(
         return new Error(
           `The ${label} profile to copy could not be found. Is ${label} still installed?`,
         );
+      case 'source-unreadable':
+        return new Error(
+          `The ${label} profile to copy cannot be read: permission denied. Check that your user can read it and try again.`,
+        );
       case 'unknown-profile':
         return new Error(
           `That profile is not a profile of ${label}. Pick another profile.`,
