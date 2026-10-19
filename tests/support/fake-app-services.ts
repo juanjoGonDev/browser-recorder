@@ -170,6 +170,11 @@ export function createFakeServices(): FakeServicesHandle {
             return Promise.reject(handle.changeBrowserError);
           }
           handle.changedBrowsers.push({ slug, choice });
+          handle.entries = handle.entries.map((entry) =>
+            entry.kind === 'valid' && entry.slug === slug
+              ? { ...entry, browser: choice }
+              : entry,
+          );
           return Promise.resolve();
         },
         remove: (slug) => {

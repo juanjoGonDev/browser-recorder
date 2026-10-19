@@ -23,6 +23,18 @@ describe('src/tui/render/status-bar.ts', () => {
     expect(narrow.endsWith('…')).toBe(true);
   });
 
+  it('tightens the gaps to a single space before it clips', () => {
+    const style = createStyle(false);
+    expect(renderStatusBar(hints, 27, style)).toBe(
+      ' ↑↓ move enter open q quit ',
+    );
+    const exact = renderStatusBar(hints, 28, style);
+    expect(exact).toBe(' ↑↓ move  enter open  q quit');
+    const clipped = renderStatusBar(hints, 22, style);
+    expect(clipped.endsWith('…')).toBe(true);
+    expect(cellWidth(clipped)).toBe(22);
+  });
+
   it('colors keys and labels differently', () => {
     const colored = renderStatusBar(hints, 40, createStyle(true));
     expect(colored).toContain('\u001b[1m');

@@ -179,7 +179,7 @@ class IntentController implements TuiController {
   private async submit(): Promise<void> {
     const { kind } = this.deps.store.getState().screen;
     if (kind === 'new-recording') await this.recording.submitForm();
-    else if (kind === 'library') await this.library.rename();
+    else if (kind === 'library') await this.library.submit();
   }
 
   private cancel(): Promise<void> | undefined {
@@ -297,6 +297,9 @@ class IntentController implements TuiController {
       },
       'begin-delete': () => {
         store.dispatch({ type: 'begin-delete' });
+      },
+      'begin-browser-change': () => {
+        this.library.beginBrowserChange();
       },
       'cancel-replay': () => this.replay.cancel(),
     };

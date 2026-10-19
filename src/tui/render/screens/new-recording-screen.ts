@@ -56,7 +56,7 @@ export function renderNewRecordingScreen(
       label('Start URL (optional)', screen.focus === 'url', context),
       fieldLine(screen, 'url', context),
       '',
-      ...renderPickers(screen, context),
+      ...renderPickers(screen, screen.focus, context),
       '',
       `  ${message}`,
     ],

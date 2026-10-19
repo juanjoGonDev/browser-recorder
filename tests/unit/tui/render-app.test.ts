@@ -115,7 +115,7 @@ describe('src/tui/render/render-app.ts', () => {
         │                                                                              │
         │                                                                              │
         ╰──────────────────────────────────────────────────────────────────────────────╯
-         ↑↓ move  enter replay  h mode  t timeline  r rename  d delete  n new  esc back "
+         ↑↓ move enter replay h mode t steps r rename b browser d delete n new esc back "
       `);
   });
 

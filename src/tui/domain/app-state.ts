@@ -2,12 +2,8 @@ import type { ReplayTiming } from '../../shared/domain/replay-timing.ts';
 import type { BrowserChoice } from '../../shared/domain/browser-choice.ts';
 import type { Recording } from '../../shared/domain/recording.ts';
 import type { RecordingEvent } from '../../shared/domain/recording-event.ts';
-import type {
-  BrowserOptionView,
-  DialogView,
-  LibraryEntryView,
-  ReplayView,
-} from './app-views.ts';
+import type { BrowserPicker, PickerField } from './browser-picker.ts';
+import type { DialogView, LibraryEntryView, ReplayView } from './app-views.ts';
 
 /** A single-line editable field. `cursor` is an index into `value`. */
 export interface TextField {
@@ -37,16 +33,11 @@ export interface MainMenuScreen {
   readonly selected: number;
 }
 
-export interface NewRecordingScreen {
+export interface NewRecordingScreen extends BrowserPicker {
   readonly kind: 'new-recording';
   readonly name: TextField;
   readonly startUrl: TextField;
-  readonly focus: 'name' | 'url' | 'browser' | 'profile';
-  /** `null` while the browsers are still being detected. */
-  readonly browsers: readonly BrowserOptionView[] | null;
-  readonly browserIndex: number;
-  /** An index into the profiles of the chosen browser. */
-  readonly profileIndex: number;
+  readonly focus: 'name' | 'url' | PickerField;
   readonly error: string | null;
 }
 
@@ -68,7 +59,19 @@ export interface RecordingScreen {
 export type LibraryMode =
   | { readonly kind: 'browse' }
   | { readonly kind: 'rename'; readonly field: TextField }
-  | { readonly kind: 'confirm-delete' };
+  | { readonly kind: 'confirm-delete' }
+  | ChangeBrowserMode;
+
+/**
+ * Picks another browser for one recording. The slug is captured when the mode
+ * opens, so a refresh of the list can never retarget the save.
+ */
+export interface ChangeBrowserMode extends BrowserPicker {
+  readonly kind: 'change-browser';
+  readonly slug: string;
+  readonly current: BrowserChoice;
+  readonly focus: PickerField;
+}
 
 export interface LibraryScreen {
   readonly kind: 'library';

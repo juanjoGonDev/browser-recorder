@@ -9,6 +9,13 @@ import type {
 import { RECORDED_TIMING } from '../../shared/domain/replay-timing.ts';
 import { MAIN_MENU_ITEMS } from './main-menu-items.ts';
 import {
+  beginBrowserChange,
+  changeBrowsersFailed,
+  changeBrowsersLoaded,
+  cycleChange,
+  switchChangeField,
+} from './reduce-browser-change.ts';
+import {
   beginDelete,
   beginRename,
   cancelMode,
@@ -153,10 +160,16 @@ const handlers: Handlers = {
   'move-selection': (state, action) => moveSelection(state, action.delta),
   'page-selection': (state, action) =>
     pageListSelection(state, action.direction),
-  'switch-field': (state) => onForm(state, nextFocus),
-  'cycle-option': (state, action) => cycleOption(state, action.delta),
-  'browsers-loaded': (state, action) => browsersLoaded(state, action.browsers),
-  'browsers-failed': (state, action) => browsersFailed(state, action.message),
+  'switch-field': (state) => switchChangeField(onForm(state, nextFocus)),
+  'cycle-option': (state, action) =>
+    cycleChange(cycleOption(state, action.delta), action.delta),
+  'browsers-loaded': (state, action) =>
+    changeBrowsersLoaded(
+      browsersLoaded(state, action.browsers),
+      action.browsers,
+    ),
+  'browsers-failed': (state, action) =>
+    changeBrowsersFailed(browsersFailed(state, action.message), action.message),
   'edit-text': (state, action) => editText(state, action.edit),
   'form-error': (state, action) =>
     onForm(state, (screen) => ({ ...screen, error: action.message })),
@@ -169,6 +182,7 @@ const handlers: Handlers = {
   'library-loaded': (state, action) => libraryLoaded(state, action.entries),
   'begin-rename': beginRename,
   'begin-delete': beginDelete,
+  'begin-browser-change': beginBrowserChange,
   'cancel-mode': cancelMode,
   'library-error': (state, action) => libraryError(state, action.message),
   'toggle-timing': toggleReplayTiming,

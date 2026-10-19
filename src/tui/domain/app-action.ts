@@ -55,6 +55,7 @@ export type AppAction =
     }
   | { readonly type: 'begin-rename' }
   | { readonly type: 'begin-delete' }
+  | { readonly type: 'begin-browser-change' }
   | { readonly type: 'cancel-mode' }
   | { readonly type: 'library-error'; readonly message: string | null }
   | { readonly type: 'toggle-timing' }

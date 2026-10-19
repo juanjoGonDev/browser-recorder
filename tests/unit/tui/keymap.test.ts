@@ -316,6 +316,51 @@ describe('src/tui/domain/keymap.ts', () => {
       expect(press(browse, char('q'))).toEqual({ kind: 'quit' });
     });
 
+    it('starts a browser change with b while browsing only', () => {
+      expect(press(on(library), char('b'))).toEqual({
+        kind: 'begin-browser-change',
+      });
+      const rename = on({
+        ...library,
+        mode: { kind: 'rename', field: emptyField('a') },
+      });
+      expect(press(rename, char('b'))).toEqual({
+        kind: 'edit-text',
+        edit: { kind: 'insert', text: 'b' },
+      });
+      const confirm = on({ ...library, mode: { kind: 'confirm-delete' } });
+      expect(press(confirm, char('b'))).toBeNull();
+    });
+
+    it('drives the browser change with the picker keys', () => {
+      const change = on({
+        ...library,
+        mode: {
+          kind: 'change-browser',
+          slug: 'a',
+          current: BRAVE_CHOICE,
+          focus: 'browser',
+          browsers: null,
+          browserIndex: 0,
+          profileIndex: 0,
+        },
+      });
+      expect(press(change, named('tab'))).toEqual({ kind: 'switch-field' });
+      expect(press(change, named('down'))).toEqual({ kind: 'switch-field' });
+      expect(press(change, named('left'))).toEqual({
+        kind: 'cycle-option',
+        delta: -1,
+      });
+      expect(press(change, named('right'))).toEqual({
+        kind: 'cycle-option',
+        delta: 1,
+      });
+      expect(press(change, named('return'))).toEqual({ kind: 'submit' });
+      expect(press(change, named('escape'))).toEqual({ kind: 'cancel' });
+      expect(press(change, char('b'))).toBeNull();
+      expect(press(change, char('q'))).toBeNull();
+    });
+
     it('toggles the replay timing with h while browsing only', () => {
       expect(press(on(library), char('h'))).toEqual({ kind: 'toggle-timing' });
       const rename = on({
