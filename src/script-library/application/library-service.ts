@@ -1,4 +1,7 @@
-import { BUNDLED_EPHEMERAL } from '../../shared/domain/browser-choice.ts';
+import {
+  BUNDLED_EPHEMERAL,
+  type BrowserChoice,
+} from '../../shared/domain/browser-choice.ts';
 import type { Recording } from '../../shared/domain/recording.ts';
 import { allocateSlug } from '../domain/allocate-slug.ts';
 import { parseRecording } from '../domain/parse-recording.ts';
@@ -28,6 +31,11 @@ export interface LibraryService {
   /** Rewrites `script.mjs` from `recording.json`; the recording is untouched. */
   regenerateScript(slug: string): Promise<Recording>;
   rename(slug: string, name: string): Promise<Recording>;
+  /**
+   * The only operation besides `save` that changes a recording's browser; it
+   * rewrites `recording.json` and `script.mjs` and keeps everything else.
+   */
+  changeBrowser(slug: string, choice: BrowserChoice): Promise<Recording>;
   remove(slug: string): Promise<void>;
 }
 
@@ -120,6 +128,15 @@ class RepositoryLibraryService implements LibraryService {
   async rename(slug: string, name: string): Promise<Recording> {
     assertValid(validateName(name));
     return await this.serializer.run(slug, () => this.renameLocked(slug, name));
+  }
+
+  async changeBrowser(slug: string, choice: BrowserChoice): Promise<Recording> {
+    return await this.serializer.run(slug, async () => {
+      const recording = await this.load(slug);
+      const next = parseRecording({ ...recording, browser: choice });
+      await this.writeFiles(next);
+      return next;
+    });
   }
 
   remove(slug: string): Promise<void> {

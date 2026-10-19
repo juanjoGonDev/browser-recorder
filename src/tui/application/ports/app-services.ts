@@ -33,6 +33,8 @@ export interface AppServices {
     /** An error message, or `null` when the URL is empty or http/https. */
     validateStartUrl(startUrl: string): string | null;
     rename(slug: string, name: string): Promise<void>;
+    /** Sets the browser, profile mode and profile of a saved recording. */
+    changeBrowser(slug: string, choice: BrowserChoice): Promise<void>;
     remove(slug: string): Promise<void>;
   };
   readonly browsers: {

@@ -3,19 +3,13 @@ import {
   humanTiming,
 } from '../../../src/shared/domain/replay-timing.ts';
 import { describe, expect, it, vi } from 'vitest';
-import { ProfileInUseError } from '../../../src/browser-profiles/domain/profile-errors.ts';
 import { createLaunchPlanner } from '../../../src/composition/browser-launch-plan.ts';
 import { createBrowserViews } from '../../../src/composition/browser-views.ts';
 import { createAppServices } from '../../../src/composition/create-app-services.ts';
-import type { AppServicesDeps } from '../../../src/composition/create-app-services.ts';
 import { createLibraryService } from '../../../src/script-library/application/library-service.ts';
 import { generateScript } from '../../../src/script-generation/domain/generate-script.ts';
-import type {
-  LiveRecordingView,
-  RecordingUpdateView,
-  ReplayView,
-} from '../../../src/tui/domain/app-views.ts';
-import type { InstalledBrowser } from '../../../src/browser-selection/application/browser-catalog.ts';
+import { ProfileInUseError } from '../../../src/browser-profiles/domain/profile-errors.ts';
+import type { ReplayView } from '../../../src/tui/domain/app-views.ts';
 import {
   BRAVE_INSTALLED,
   BUNDLED_INSTALLED,
@@ -33,65 +27,16 @@ import { createFakeClock } from '../../support/fake-clock.ts';
 import { MemoryRecordingRepository } from '../../support/memory-recording-repository.ts';
 import { clickPayload, domSignal } from '../../support/session-signals.ts';
 
-const START_MS = 5000;
-const NOW = new Date('2026-03-04T05:06:07.000Z');
-const NODE_PATH = '/usr/bin/node';
-const PACKAGE_ROOT = '/app';
-
-interface Overrides {
-  readonly installation?: AppServicesDeps['installation'];
-  readonly platform?: string;
-  readonly isHeadless?: boolean;
-  readonly installed?: readonly InstalledBrowser[];
-}
-
-const PROFILE_DIR = '/fixture/app-data/profiles/dir';
-
-function setup(overrides: Overrides = {}) {
-  const repository = new MemoryRecordingRepository();
-  const library = createLibraryService({
-    repository,
-    renderScript: generateScript,
-    now: () => NOW,
-  });
-  const launcher = createFakeLauncher();
-  const spawner = createFakeSpawner();
-  const clock = createFakeClock(START_MS);
-  const profiles = createFakeProfiles();
-  const catalog = createFakeCatalog(overrides.installed ?? [BUNDLED_INSTALLED]);
-  const services = createAppServices({
-    planner: createLaunchPlanner({ catalog, profiles, platform: 'linux' }),
-    browserViews: createBrowserViews({
-      catalog,
-      profiles,
-      platform: overrides.platform ?? 'darwin',
-      isRunning: () => Promise.resolve(false),
-    }),
-    sweepStaleSessions: () => profiles.sweepStaleSessions(),
-    library,
-    launcher,
-    clock,
-    now: () => NOW,
-    installation:
-      overrides.installation ?? createFakeInstallation({ isInstalled: true }),
-    platform: overrides.platform ?? 'darwin',
-    isHeadless: overrides.isHeadless ?? false,
-    replay: {
-      spawner,
-      nodePath: NODE_PATH,
-      cancelGraceMs: 3000,
-      cwd: PACKAGE_ROOT,
-      scriptPathOf: (slug) => repository.scriptPath(slug),
-    },
-  });
-  return { services, repository, launcher, spawner, clock, profiles };
-}
-
-function collect(live: LiveRecordingView): RecordingUpdateView[] {
-  const updates: RecordingUpdateView[] = [];
-  live.subscribe((update) => updates.push(update));
-  return updates;
-}
+import {
+  type Overrides,
+  collect,
+  NODE_PATH,
+  NOW,
+  PACKAGE_ROOT,
+  PROFILE_DIR,
+  setup,
+  START_MS,
+} from '../../support/app-services-rig.ts';
 
 describe('src/composition/create-app-services.ts', () => {
   describe('environment', () => {
@@ -233,6 +178,20 @@ describe('src/composition/create-app-services.ts', () => {
       await expect(
         services.library.rename('renamed-flow', 'Second flow'),
       ).rejects.toThrow(/already exists/);
+    });
+
+    it('changes the browser of a recording through the library service', async () => {
+      const { services, repository } = setup();
+      await seed(services);
+      await services.library.changeBrowser('first-flow', BRAVE_CHOICE);
+      const stored = JSON.parse(
+        repository.files.get('first-flow')?.recordingJson ?? '{}',
+      ) as { browser: unknown; name: string };
+      expect(stored.browser).toEqual(BRAVE_CHOICE);
+      expect(stored.name).toBe('First flow');
+      await expect(
+        services.library.changeBrowser('missing', BRAVE_CHOICE),
+      ).rejects.toThrow();
     });
 
     it('removes a recording', async () => {

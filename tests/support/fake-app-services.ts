@@ -100,6 +100,7 @@ export interface FakeServicesHandle {
   })[];
   readonly removed: string[];
   readonly renamed: { slug: string; name: string }[];
+  readonly changedBrowsers: { slug: string; choice: BrowserChoice }[];
   readonly replayed: string[];
   /** The timing each replay was started with, in order. */
   readonly replayTimings: ReplayTiming[];
@@ -107,6 +108,7 @@ export interface FakeServicesHandle {
   browsers: readonly BrowserOptionView[];
   environment: (onLine: (line: string) => void) => Promise<EnvironmentView>;
   renameError: Error | null;
+  changeBrowserError: Error | null;
   removeError: Error | null;
   startError: Error | null;
   /** Makes `replay.start` reject, as when the profile cannot be read. */
@@ -128,6 +130,7 @@ export function createFakeServices(): FakeServicesHandle {
     startRequests: [],
     removed: [],
     renamed: [],
+    changedBrowsers: [],
     replayed: [],
     replayTimings: [],
     entries: [],
@@ -135,6 +138,7 @@ export function createFakeServices(): FakeServicesHandle {
     environment: () =>
       Promise.resolve({ kind: 'ready', linuxHint: null, browsers: [] }),
     renameError: null,
+    changeBrowserError: null,
     removeError: null,
     startError: null,
     replayError: null,
@@ -159,6 +163,13 @@ export function createFakeServices(): FakeServicesHandle {
             return Promise.reject(handle.renameError);
           }
           handle.renamed.push({ slug, name });
+          return Promise.resolve();
+        },
+        changeBrowser: (slug, choice) => {
+          if (handle.changeBrowserError !== null) {
+            return Promise.reject(handle.changeBrowserError);
+          }
+          handle.changedBrowsers.push({ slug, choice });
           return Promise.resolve();
         },
         remove: (slug) => {
