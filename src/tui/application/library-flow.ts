@@ -1,5 +1,7 @@
-import type { LibraryScreen } from '../domain/app-state.ts';
+import type { ChangeBrowserMode, LibraryScreen } from '../domain/app-state.ts';
 import type { LibraryEntryView } from '../domain/app-views.ts';
+import { isSameChoice } from '../domain/browser-picker.ts';
+import { chosenBrowser, loadBrowserOptions } from './browser-options.ts';
 import { messageOf, type ControllerDeps } from './controller-deps.ts';
 
 type ValidEntry = Extract<LibraryEntryView, { kind: 'valid' }>;
@@ -9,7 +11,10 @@ export interface LibraryFlow {
   show(): Promise<void>;
   /** Reloads the list, only while the user is just browsing. */
   refresh(): Promise<void>;
-  rename(): Promise<void>;
+  /** Saves what the open mode edits: a new name or another browser. */
+  submit(): Promise<void>;
+  /** Opens the browser picker on the selected recording; detection runs on. */
+  beginBrowserChange(): void;
   answerDelete(isYes: boolean): Promise<void>;
   showTimeline(): Promise<void>;
   /** The highlighted entry when it is a readable recording. */
@@ -36,7 +41,18 @@ class StoreLibraryFlow implements LibraryFlow {
     if (this.screen()?.mode.kind === 'browse') await this.load();
   }
 
-  async rename(): Promise<void> {
+  async submit(): Promise<void> {
+    const mode = this.screen()?.mode;
+    if (mode?.kind === 'rename') await this.rename();
+    else if (mode?.kind === 'change-browser') await this.saveBrowser(mode);
+  }
+
+  beginBrowserChange(): void {
+    this.deps.store.dispatch({ type: 'begin-browser-change' });
+    if (this.screen()?.mode.kind === 'change-browser') void this.detect();
+  }
+
+  private async rename(): Promise<void> {
     const mode = this.screen()?.mode;
     const entry = this.selectedEntry();
     if (mode?.kind !== 'rename' || entry === null) return;
@@ -52,6 +68,36 @@ class StoreLibraryFlow implements LibraryFlow {
       await this.load();
     } catch (error) {
       this.fail(messageOf(error));
+    }
+  }
+
+  /** An unchanged choice just closes; nothing is written then. */
+  private async saveBrowser(mode: ChangeBrowserMode): Promise<void> {
+    const choice = chosenBrowser(mode);
+    if (typeof choice === 'string') {
+      this.fail(choice);
+      return;
+    }
+    if (isSameChoice(choice, mode.current)) {
+      this.deps.store.dispatch({ type: 'cancel-mode' });
+      return;
+    }
+    try {
+      await this.deps.services.library.changeBrowser(mode.slug, choice);
+      this.deps.store.dispatch({ type: 'cancel-mode' });
+      await this.load();
+    } catch (error) {
+      this.fail(messageOf(error));
+    }
+  }
+
+  private async detect(): Promise<void> {
+    const { store } = this.deps;
+    try {
+      const browsers = await loadBrowserOptions(this.deps);
+      store.dispatch({ type: 'browsers-loaded', browsers });
+    } catch (error) {
+      store.dispatch({ type: 'browsers-failed', message: messageOf(error) });
     }
   }
 

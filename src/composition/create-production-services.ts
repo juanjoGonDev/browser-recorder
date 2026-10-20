@@ -84,7 +84,7 @@ function createBrowserFeatures(
     isBundledInstalled: () => installation.isInstalled(),
   });
   return {
-    planner: createLaunchPlanner({ catalog, profiles }),
+    planner: createLaunchPlanner({ catalog, profiles, platform }),
     browserViews: createBrowserViews({
       catalog,
       profiles,

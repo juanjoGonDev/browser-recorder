@@ -1,4 +1,7 @@
-import type { NewRecordingScreen } from '../../domain/app-state.ts';
+import type {
+  BrowserPicker,
+  PickerField,
+} from '../../domain/browser-picker.ts';
 import { sanitize } from '../../../shared/domain/terminal-text.ts';
 import type { RenderContext } from '../screen-view.ts';
 
@@ -24,9 +27,13 @@ function position(index: number, count: number): string {
   return `${String(index + 1)}/${String(count)}`;
 }
 
-/** The browser and profile rows of the form, then the note of the profile. */
+/** The form fields that are not pickers, for a caller sharing the focus. */
+type OtherFocus = 'name' | 'url';
+
+/** The browser and profile rows, then the note of the chosen profile. */
 export function renderPickers(
-  screen: NewRecordingScreen,
+  screen: BrowserPicker,
+  focus: PickerField | OtherFocus,
   context: RenderContext,
 ): string[] {
   const { style } = context;
@@ -42,13 +49,13 @@ export function renderPickers(
       title: 'Browser',
       value: sanitize(browser.label),
       position: position(screen.browserIndex, browsers.length),
-      isFocused: screen.focus === 'browser',
+      isFocused: focus === 'browser',
     },
     {
       title: 'Profile',
       value: sanitize(profile?.label ?? ''),
       position: position(screen.profileIndex, browser.profiles.length),
-      isFocused: screen.focus === 'profile',
+      isFocused: focus === 'profile',
     },
   ];
   const note = profile?.note ?? null;

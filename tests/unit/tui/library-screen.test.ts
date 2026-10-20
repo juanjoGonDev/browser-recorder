@@ -4,15 +4,19 @@ import {
   RECORDED_TIMING,
   humanTiming,
 } from '../../../src/shared/domain/replay-timing.ts';
-import type { LibraryScreen } from '../../../src/tui/domain/app-state.ts';
+import type {
+  ChangeBrowserMode,
+  LibraryScreen,
+} from '../../../src/tui/domain/app-state.ts';
 import type { LibraryEntryView } from '../../../src/tui/domain/app-views.ts';
 import { emptyField } from '../../../src/tui/domain/text-input.ts';
 import { createStyle } from '../../../src/tui/render/ansi.ts';
 import { cellWidth } from '../../../src/tui/render/layout.ts';
 import { renderLibraryScreen } from '../../../src/tui/render/screens/library-screen.ts';
+import type { ScreenView } from '../../../src/tui/render/screen-view.ts';
 import { plainContext } from '../../support/render-context.ts';
 import { BRAVE_CHOICE } from '../../support/browser-fixtures.ts';
-import { validEntry } from '../../support/tui-fixtures.ts';
+import { BROWSER_VIEWS, validEntry } from '../../support/tui-fixtures.ts';
 
 function screen(
   entries: readonly LibraryEntryView[],
@@ -43,8 +47,18 @@ describe('src/tui/render/screens/library-screen.ts', () => {
         screen([validEntry('a', 'Alpha')]),
         plainContext({ isBrowserAvailable }),
       ).hints.map((hint) => hint.key);
-    expect(keys(true)).toEqual(['↑↓', 'enter', 'h', 't', 'r', 'd', 'n', 'esc']);
-    expect(keys(false)).toEqual(['↑↓', 't', 'r', 'd', 'esc']);
+    expect(keys(true)).toEqual([
+      '↑↓',
+      'enter',
+      'h',
+      't',
+      'r',
+      'b',
+      'd',
+      'n',
+      'esc',
+    ]);
+    expect(keys(false)).toEqual(['↑↓', 't', 'r', 'b', 'd', 'esc']);
   });
 
   it('shows the replay timing mode next to the position', () => {
@@ -215,11 +229,128 @@ describe('src/tui/render/screens/library-screen.ts', () => {
     ).toContain('✖ A recording named "Beta" already exists');
   });
 
+  describe('a long error', () => {
+    const longMessage =
+      'macOS blocked reading the Brave profile. Give your terminal app Full Disk Access in System Settings › Privacy & Security, then restart the terminal and try again.';
+    const failed = (count: number): LibraryScreen => ({
+      ...screen(
+        Array.from({ length: count }, (_, index) =>
+          validEntry(`s${String(index)}`, `Rec ${String(index)}`),
+        ),
+      ),
+      error: longMessage,
+    });
+
+    it('wraps between the status line and the rows without clipping it', () => {
+      const body = renderLibraryScreen(failed(2), plainContext()).body;
+      const statusAt = body.findIndex((line) => line.includes('1/2'));
+      const firstRowAt = body.findIndex((line) => line.includes('Rec 0'));
+      const errorLines = body.slice(statusAt + 1, firstRowAt);
+      expect(errorLines.length).toBeGreaterThan(1);
+      expect(errorLines[0]).toContain('✖ macOS blocked');
+      expect(errorLines.join(' ').replace(/\s+/g, ' ')).toContain(
+        'restart the terminal and try again.',
+      );
+      expect(body.join('\n')).not.toContain('…');
+      expect(body.every((line) => cellWidth(line) <= 76)).toBe(true);
+    });
+
+    it('leaves fewer rows for the list so the body keeps its height', () => {
+      const context = plainContext();
+      const short = renderLibraryScreen(
+        { ...failed(30), error: 'short' },
+        context,
+      ).body;
+      const long = renderLibraryScreen(failed(30), context).body;
+      expect(long.length).toBeLessThanOrEqual(context.height);
+      expect(long.length).toBe(short.length);
+    });
+  });
+
+  describe('change browser mode', () => {
+    const changing = (
+      overrides: Partial<ChangeBrowserMode> = {},
+      error: string | null = null,
+    ): LibraryScreen => ({
+      ...screen([validEntry('a', 'Alpha', { browser: BRAVE_CHOICE })]),
+      error,
+      mode: {
+        kind: 'change-browser',
+        slug: 'a',
+        current: BRAVE_CHOICE,
+        focus: 'browser',
+        browsers: BROWSER_VIEWS,
+        browserIndex: 0,
+        profileIndex: 0,
+        ...overrides,
+      },
+    });
+    const textOf = (view: ScreenView): string => view.body.join('\n');
+
+    it('asks which browser the recording should use and shows both pickers', () => {
+      const text = textOf(renderLibraryScreen(changing(), plainContext()));
+      expect(text).toContain('Browser for "Alpha"');
+      expect(text).toContain('◂ Brave ▸ 1/2');
+      expect(text).toContain('Profile');
+      expect(text).toContain('Managed (keeps logins) 1/3');
+      expect(text).toContain('Alpha');
+    });
+
+    it('shows the current copy-of-real profile with its note', () => {
+      const view = renderLibraryScreen(
+        changing({ focus: 'profile', profileIndex: 1 }),
+        plainContext(),
+      );
+      const text = textOf(view);
+      expect(text).toContain('◂ Copy of Person 1 (Default) ▸ 2/3');
+      expect(text).toContain('! Brave is running: the copy may miss');
+    });
+
+    it('says the browsers are being detected, or that none was found', () => {
+      const detecting = changing({ browsers: null });
+      const none = changing({ browsers: [] });
+      expect(textOf(renderLibraryScreen(detecting, plainContext()))).toContain(
+        'Detecting browsers…',
+      );
+      expect(textOf(renderLibraryScreen(none, plainContext()))).toContain(
+        'No browser detected',
+      );
+    });
+
+    it('lists the keys of the mode', () => {
+      const hints = renderLibraryScreen(changing(), plainContext()).hints;
+      expect(hints).toEqual([
+        { key: 'tab', label: 'next field' },
+        { key: '←→', label: 'change' },
+        { key: 'enter', label: 'save' },
+        { key: 'esc', label: 'cancel' },
+      ]);
+    });
+
+    it('keeps the body inside the screen with a long error and many rows', () => {
+      const entries = Array.from({ length: 30 }, (_, index) =>
+        validEntry(`s${String(index)}`, `Rec ${String(index)}`),
+      );
+      const crowded: LibraryScreen = {
+        ...changing(
+          {},
+          'macOS blocked reading the Brave profile. Give your terminal app Full Disk Access in System Settings, then restart the terminal and try again.',
+        ),
+        entries,
+      };
+      const context = plainContext();
+      const body = renderLibraryScreen(crowded, context).body;
+      expect(body.length).toBeLessThanOrEqual(context.height);
+      expect(body.join(' ').replace(/\s+/g, ' ')).toContain('Full Disk Access');
+      expect(body.every((line) => cellWidth(line) <= context.width)).toBe(true);
+    });
+  });
+
   it('lists the browse keys', () => {
     const keys = renderLibraryScreen(
       screen([validEntry('a')]),
       plainContext(),
     ).hints.map((hint) => hint.key);
-    expect(keys).toEqual(['↑↓', 'enter', 'h', 't', 'r', 'd', 'n', 'esc']);
+    expect(keys).toEqual(['↑↓', 'enter', 'h', 't', 'r', 'b', 'd', 'n', 'esc']);
   });
 });

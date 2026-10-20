@@ -61,7 +61,7 @@ node dist/main.js     # the same file the `browser-recorder` bin points to
 2. The timeline fills in live. Press `s` to stop and save, or `x` to discard.
    Closing the browser window also saves and ends the recording.
 3. **Library**: pick a recording to replay, view its timeline, rename or delete
-   it.
+   it, or change its browser and profile.
 4. A replay opens a browser, runs the script and shows each step with how far
    it drifted from the recorded time. Press `h` in the library first to replay
    with human-like pauses instead (see below); the choice is for that replay
@@ -80,16 +80,16 @@ role and name, label, placeholder, a stable id, exact text, a CSS path.
 
 ### Keys
 
-| Where             | Keys                                                                                                                          |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| Everywhere        | `Ctrl+C` saves a live recording and quits                                                                                     |
-| Menus and lists   | `Up` / `Down` or `k` / `j`, `PgUp` / `PgDn`, `Enter` to open, `q` to quit                                                     |
-| New recording     | `Tab` / `Up` / `Down` switch field, `Left` / `Right` change the browser or profile, `Enter` start, `Esc` back, `Ctrl+U` clear |
-| Recording         | `s` stop and save, `x` discard (then `y` / `n`)                                                                               |
-| Recording dialogs | `a` accept, `d` dismiss; prompt: type the text, `Enter` accept, `Esc` dismiss                                                 |
-| Library           | `Enter` / `p` replay, `h` human or recorded timing, `t` timeline, `r` rename, `d` delete (`y` / `n`), `n` new                 |
-| Timeline          | `Up` / `Down`, `PgUp` / `PgDn`, `Esc` back                                                                                    |
-| Replay            | `c` or `Esc` cancel while running, `Esc` back when finished                                                                   |
+| Where             | Keys                                                                                                                              |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Everywhere        | `Ctrl+C` saves a live recording and quits                                                                                         |
+| Menus and lists   | `Up` / `Down` or `k` / `j`, `PgUp` / `PgDn`, `Enter` to open, `q` to quit                                                         |
+| New recording     | `Tab` / `Up` / `Down` switch field, `Left` / `Right` change the browser or profile, `Enter` start, `Esc` back, `Ctrl+U` clear     |
+| Recording         | `s` stop and save, `x` discard (then `y` / `n`)                                                                                   |
+| Recording dialogs | `a` accept, `d` dismiss; prompt: type the text, `Enter` accept, `Esc` dismiss                                                     |
+| Library           | `Enter` / `p` replay, `h` human or recorded timing, `t` timeline, `r` rename, `b` change browser, `d` delete (`y` / `n`), `n` new |
+| Timeline          | `Up` / `Down`, `PgUp` / `PgDn`, `Esc` back                                                                                        |
+| Replay            | `c` or `Esc` cancel while running, `Esc` back when finished                                                                       |
 
 `NO_COLOR` turns colors off.
 
@@ -175,6 +175,14 @@ Each recording remembers its browser and profile mode, and a replay uses the
 same ones. If that browser is gone, the replay runs on the bundled Chromium and
 shows a warning that names the missing browser.
 
+To move a saved recording to another browser or profile, select it in the
+library and press `b`. The same browser and profile fields as the new recording
+form appear, preselected on the current choice (on the first option when that
+browser is no longer detected); `Left` / `Right` change a field, `Enter` saves
+and `Esc` cancels. Only the browser, the profile mode and the profile change:
+the name, the start URL and the steps stay as recorded. The browser is changed in
+the terminal UI only, there is no command line option for it.
+
 | Profile           | What it is                                                                                                            |
 | ----------------- | --------------------------------------------------------------------------------------------------------------------- |
 | Managed           | One profile per browser that this tool owns and keeps between recordings and replays: log in once and stay logged in. |
@@ -188,6 +196,16 @@ or `~/.local/share/browser-recorder` on Linux), never next to your browser's
 own data.
 
 ### Copy of a real profile, explained honestly
+
+- If the operating system refuses to let the recorder read the profile, the
+  replay stops with a permission message instead of "could not be found". On
+  macOS it reads "macOS blocked reading the Brave profile. Give your terminal
+  app Full Disk Access in System Settings › Privacy & Security, then restart the
+  terminal and try again." (Brave is replaced by the browser in use.) On the
+  other systems it says the profile cannot be read: permission denied, and to
+  check that your user can read it. The message never contains a path, in the
+  terminal UI and on stderr of `browser-recorder replay` (exit code 1). The
+  recorder never changes system settings for you.
 
 - It **copies the profile on every launch** into a fresh private folder and
   deletes the copy afterwards. It never modifies the original: the copy opens

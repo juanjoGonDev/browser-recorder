@@ -35,7 +35,15 @@ export class MemoryProfileFileSystem implements ProfileFileSystem {
   onCopy: (from: string, to: string) => void = () => undefined;
   /** Runs before every `remove`; may throw to simulate a busy directory. */
   onRemove: (path: string) => void = () => undefined;
+  /** Paths whose reads fail with `EPERM`, like a macOS privacy block. */
+  readonly deniedPaths = new Set<string>();
   private counter = 0;
+
+  private denial(path: string): Promise<never> | null {
+    return this.deniedPaths.has(path)
+      ? Promise.reject(errorWithCode('EPERM'))
+      : null;
+  }
 
   addDirectory(path: string): void {
     if (path === '' || this.nodes.has(path)) return;
@@ -79,12 +87,16 @@ export class MemoryProfileFileSystem implements ProfileFileSystem {
   }
 
   readText(path: string): Promise<string> {
+    const denied = this.denial(path);
+    if (denied !== null) return denied;
     const content = this.contentOf(path);
     if (content === null) return Promise.reject(errorWithCode('ENOENT'));
     return Promise.resolve(content);
   }
 
   list(dir: string): Promise<readonly DirEntry[]> {
+    const denied = this.denial(dir);
+    if (denied !== null) return denied;
     if (this.nodes.get(dir)?.kind !== 'directory') {
       return Promise.reject(errorWithCode('ENOENT'));
     }
@@ -116,11 +128,12 @@ export class MemoryProfileFileSystem implements ProfileFileSystem {
   }
 
   exists(path: string): Promise<boolean> {
-    return Promise.resolve(this.nodes.has(path));
+    return this.denial(path) ?? Promise.resolve(this.nodes.has(path));
   }
 
   copyFile(from: string, to: string): Promise<void> {
     return Promise.resolve().then(() => {
+      if (this.deniedPaths.has(from)) throw errorWithCode('EPERM');
       this.onCopy(from, to);
       const source = this.nodes.get(from);
       if (source?.kind !== 'file') throw errorWithCode('ENOENT');

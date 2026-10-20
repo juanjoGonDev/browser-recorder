@@ -36,4 +36,5 @@ export type Intent =
   | { readonly kind: 'show-timeline' }
   | { readonly kind: 'begin-rename' }
   | { readonly kind: 'begin-delete' }
+  | { readonly kind: 'begin-browser-change' }
   | { readonly kind: 'cancel-replay' };

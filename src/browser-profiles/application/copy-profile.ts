@@ -10,6 +10,7 @@ import type {
   DirEntry,
   ProfileFileSystem,
 } from './ports/profile-file-system.ts';
+import { guardSourceRead } from './guard-source-read.ts';
 import { createSessionGuard } from './session-guard.ts';
 
 const LOCAL_STATE = 'Local State';
@@ -86,7 +87,11 @@ function groupFiles(
 }
 
 async function copyDirectory(walk: Walk, here: Location): Promise<void> {
-  const entries = await walk.ctx.fs.list(here.source);
+  const entries = await guardSourceRead(
+    walk.platform,
+    here.segments.join('/'),
+    () => walk.ctx.fs.list(here.source),
+  );
   for (const group of groupFiles(entries, here, walk.platform)) {
     const isStable = await copyFileGroup(walk.ctx, group);
     if (!isStable) walk.unstable.push(group.label);
@@ -115,10 +120,36 @@ async function assertSourcePresent(
   const at = (name: string): string =>
     joinPath(deps.platform, request.sourceRoot, name);
   for (const name of [LOCAL_STATE, request.profile]) {
-    if (!(await deps.fs.exists(at(name)))) {
+    const isPresent = await guardSourceRead(deps.platform, name, () =>
+      deps.fs.exists(at(name)),
+    );
+    if (!isPresent) {
       throw new ProfileCopyError('source-missing', name);
     }
   }
+}
+
+async function copyInto(
+  walk: Walk,
+  request: CopyProfileRequest,
+  directory: string,
+): Promise<void> {
+  const { fs } = walk.ctx;
+  const at = (root: string, name: string): string =>
+    joinPath(walk.platform, root, name);
+  await fs.makePrivateDir(directory);
+  await copyFileGroup(walk.ctx, {
+    label: LOCAL_STATE,
+    from: [at(request.sourceRoot, LOCAL_STATE)],
+    to: [at(directory, LOCAL_STATE)],
+  });
+  const destination = at(directory, request.profile);
+  await fs.makePrivateDir(destination);
+  await copyDirectory(walk, {
+    source: at(request.sourceRoot, request.profile),
+    destination,
+    segments: [request.profile],
+  });
 }
 
 /**
@@ -140,26 +171,17 @@ export async function copyProfile(
   });
   const directory = guard.newSessionDir();
   const walk: Walk = {
-    ctx: { fs, sleep: deps.sleep, remove: (path) => guard.remove(path) },
+    ctx: {
+      fs,
+      platform,
+      sleep: deps.sleep,
+      remove: (path) => guard.remove(path),
+    },
     platform,
     unstable: [],
   };
   try {
-    await fs.makePrivateDir(directory);
-    const at = (root: string, name: string): string =>
-      joinPath(platform, root, name);
-    await copyFileGroup(walk.ctx, {
-      label: LOCAL_STATE,
-      from: [at(request.sourceRoot, LOCAL_STATE)],
-      to: [at(directory, LOCAL_STATE)],
-    });
-    const destination = at(directory, request.profile);
-    await fs.makePrivateDir(destination);
-    await copyDirectory(walk, {
-      source: at(request.sourceRoot, request.profile),
-      destination,
-      segments: [request.profile],
-    });
+    await copyInto(walk, request, directory);
   } catch (error) {
     await guard.remove(directory);
     throw error;

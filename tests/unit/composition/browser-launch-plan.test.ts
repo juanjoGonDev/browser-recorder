@@ -27,11 +27,15 @@ const COPY_CHOICE: BrowserChoice = {
   sourceProfile: 'Profile 2',
 };
 
-function setup(installed = [BRAVE_INSTALLED, BUNDLED_INSTALLED]) {
+function setup(
+  installed = [BRAVE_INSTALLED, BUNDLED_INSTALLED],
+  platform = 'linux',
+) {
   const profiles = createFakeProfiles();
   const planner = createLaunchPlanner({
     catalog: createFakeCatalog(installed),
     profiles,
+    platform,
   });
   return { profiles, planner };
 }
@@ -176,6 +180,23 @@ describe('src/composition/browser-launch-plan.ts', () => {
       profiles.failNextPrepare(new ProfileCopyError(code, 'Profile 2'));
       await expect(planner.forRecording(COPY_CHOICE)).rejects.toThrow(message);
     });
+
+    it.each([
+      ['darwin', /Full Disk Access/],
+      ['linux', /permission denied/],
+    ] as const)(
+      'words an unreadable profile for %s',
+      async (platform, message) => {
+        const { planner, profiles } = setup(
+          [BRAVE_INSTALLED, BUNDLED_INSTALLED],
+          platform,
+        );
+        profiles.failNextPrepare(
+          new ProfileCopyError('source-unreadable', 'Local State'),
+        );
+        await expect(planner.forReplay(COPY_CHOICE)).rejects.toThrow(message);
+      },
+    );
 
     it('lets any other failure through unchanged', async () => {
       const { planner, profiles } = setup();

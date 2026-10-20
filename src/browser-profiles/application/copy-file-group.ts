@@ -1,3 +1,7 @@
+import {
+  classifyFileError,
+  errorCodeOf,
+} from '../domain/file-access-failure.ts';
 import { ProfileCopyError } from '../domain/profile-errors.ts';
 import type {
   FileStamp,
@@ -7,10 +11,10 @@ import type {
 /** Waits before each retry; the number of delays is the number of retries. */
 const RETRY_DELAYS_MS = [50, 100, 200] as const;
 
-const BUSY_CODES = new Set(['EBUSY', 'EPERM']);
-
 export interface CopyContext {
   readonly fs: ProfileFileSystem;
+  /** Decides whether `EPERM` is a lock (win32) or a permission block. */
+  readonly platform: string;
   readonly sleep: (ms: number) => Promise<void>;
   readonly remove: (path: string) => Promise<void>;
 }
@@ -21,11 +25,6 @@ export interface FileGroup {
   readonly label: string;
   readonly from: readonly string[];
   readonly to: readonly string[];
-}
-
-export function errorCodeOf(error: unknown): string | null {
-  const code = (error as { code?: unknown } | null)?.code;
-  return typeof code === 'string' ? code : null;
 }
 
 async function stampAll(
@@ -63,9 +62,12 @@ async function attempt(ctx: CopyContext, group: FileGroup): Promise<Attempt> {
   try {
     return (await copyOnce(ctx, group)) ? 'settled' : 'torn';
   } catch (error) {
-    const code = errorCodeOf(error);
-    if (code === 'ENOENT') return 'vanished';
-    if (code !== null && BUSY_CODES.has(code)) return 'busy';
+    const failure = classifyFileError(errorCodeOf(error), ctx.platform);
+    if (failure === 'missing') return 'vanished';
+    if (failure === 'busy') return 'busy';
+    if (failure === 'denied') {
+      throw new ProfileCopyError('source-unreadable', group.label);
+    }
     throw error;
   }
 }

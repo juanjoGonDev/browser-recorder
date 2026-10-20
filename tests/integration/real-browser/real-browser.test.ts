@@ -86,7 +86,11 @@ describe.runIf(isRealBrowserEnabled(process.env))(
         layout: createProfileLayout(platform, appData),
         sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
       });
-      planner = createLaunchPlanner({ catalog, profiles });
+      planner = createLaunchPlanner({
+        catalog,
+        profiles,
+        platform: process.platform,
+      });
       const deps = createProductionDeps({
         paths: {
           ...resolveProductionPaths(import.meta.url),

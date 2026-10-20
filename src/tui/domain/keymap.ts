@@ -58,6 +58,7 @@ const LIBRARY_KEYS: KeyTable = {
   t: { kind: 'show-timeline' },
   r: { kind: 'begin-rename' },
   d: { kind: 'begin-delete' },
+  b: { kind: 'begin-browser-change' },
   n: { kind: 'open', target: 'new-recording' },
   escape: { kind: 'open', target: 'main-menu' },
   q: QUIT,
@@ -146,6 +147,8 @@ function forLibrary(screen: Screen, key: KeyInput): Intent | null {
       return textOr(RENAME_KEYS, key);
     case 'confirm-delete':
       return lookup(CONFIRM_KEYS, key);
+    case 'change-browser':
+      return lookup(PICKER_KEYS, key);
   }
 }
 

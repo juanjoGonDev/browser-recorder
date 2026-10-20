@@ -22,13 +22,24 @@ export function describeProfileWarning(
   }
 }
 
+const MACOS = 'darwin';
+
+/** macOS blocks reads of another app's data until the terminal is allowed. */
+function unreadableMessage(label: string, platform: string): string {
+  if (platform === MACOS) {
+    return `macOS blocked reading the ${label} profile. Give your terminal app Full Disk Access in System Settings › Privacy & Security, then restart the terminal and try again.`;
+  }
+  return `The ${label} profile to copy cannot be read: permission denied. Check that your user can read it and try again.`;
+}
+
 /**
  * Failures of the profile store become messages that name the browser but
- * never a path. Anything else is not ours to reword.
+ * never a path (the platform picks the permission hint). Anything else is not ours to reword.
  */
 export function explainProfileFailure(
   error: unknown,
   browserId: BrowserId,
+  platform: string,
 ): Error {
   const label = browserLabelOf(browserId);
   if (error instanceof ProfileInUseError) {
@@ -46,6 +57,8 @@ export function explainProfileFailure(
         return new Error(
           `The ${label} profile to copy could not be found. Is ${label} still installed?`,
         );
+      case 'source-unreadable':
+        return new Error(unreadableMessage(label, platform));
       case 'unknown-profile':
         return new Error(
           `That profile is not a profile of ${label}. Pick another profile.`,

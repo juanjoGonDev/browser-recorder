@@ -6,11 +6,17 @@ import type { Style } from '../ansi.ts';
 import { describeBrowser } from '../browser-summary.ts';
 import { renderField } from '../field-view.ts';
 import { formatCreated, formatDuration, formatTiming } from '../format.ts';
-import { padEnd, spread } from '../layout.ts';
+import { cellWidth, padEnd, spread } from '../layout.ts';
 import { sanitize } from '../../../shared/domain/terminal-text.ts';
 import type { RenderContext, ScreenView } from '../screen-view.ts';
 import { listRowsOf } from '../screen-view.ts';
 import type { KeyHint } from '../status-bar.ts';
+import {
+  CHANGE_BROWSER_HINTS,
+  changeBrowserLines,
+  changeBrowserPrompt,
+} from './library-browser-change.ts';
+import { wrappedErrorLines } from './wrapped-error.ts';
 
 const MARKER_WIDTH = 2;
 const CREATED_WIDTH = 16;
@@ -110,12 +116,43 @@ function columnHeader(context: RenderContext): string {
   );
 }
 
-function statusLine(screen: LibraryScreen, context: RenderContext): string {
-  const { style, width } = context;
-  const position = style.muted(
+function positionText(screen: LibraryScreen, context: RenderContext): string {
+  return context.style.muted(
     `${formatTiming(screen.timing)} · ${String(screen.cursor.selected + 1)}/${String(screen.entries.length)}`,
   );
-  return spread(promptOf(screen.mode, screen, context), position, width);
+}
+
+/**
+ * Errors that do not fit beside the position are wrapped below the status
+ * line. While a browser is being picked the status line holds the question,
+ * so its errors always go below it.
+ */
+function longErrorOf(screen: LibraryScreen, context: RenderContext): string[] {
+  const { mode } = screen;
+  if (mode.kind !== 'browse' && mode.kind !== 'change-browser') return [];
+  const room =
+    mode.kind === 'change-browser'
+      ? 0
+      : context.width - cellWidth(positionText(screen, context)) - 1;
+  return wrappedErrorLines(screen.error, room, context);
+}
+
+function pickerLinesOf(
+  screen: LibraryScreen,
+  context: RenderContext,
+): string[] {
+  return screen.mode.kind === 'change-browser'
+    ? changeBrowserLines(screen.mode, context)
+    : [];
+}
+
+function statusLine(
+  screen: LibraryScreen,
+  context: RenderContext,
+  hasLongError: boolean,
+): string {
+  const prompt = hasLongError ? '' : promptOf(screen.mode, screen, context);
+  return spread(prompt, positionText(screen, context), context.width);
 }
 
 function selectedName(screen: LibraryScreen): string {
@@ -145,6 +182,9 @@ function promptOf(
   if (mode.kind === 'confirm-delete') {
     return style.warning(style.bold(`Delete "${selectedName(screen)}"? [y/N]`));
   }
+  if (mode.kind === 'change-browser') {
+    return changeBrowserPrompt(selectedName(screen), context);
+  }
   return screen.error === null ? '' : errorText(screen.error, style);
 }
 
@@ -165,6 +205,7 @@ function hintsFor(mode: LibraryMode, isBrowserAvailable: boolean): KeyHint[] {
       { key: 'n', label: 'keep' },
     ];
   }
+  if (mode.kind === 'change-browser') return [...CHANGE_BROWSER_HINTS];
   return [
     { key: '↑↓', label: 'move' },
     ...(isBrowserAvailable
@@ -173,8 +214,9 @@ function hintsFor(mode: LibraryMode, isBrowserAvailable: boolean): KeyHint[] {
           { key: 'h', label: 'mode' },
         ]
       : []),
-    { key: 't', label: 'timeline' },
+    { key: 't', label: 'steps' },
     { key: 'r', label: 'rename' },
+    { key: 'b', label: 'browser' },
     { key: 'd', label: 'delete' },
     ...(isBrowserAvailable ? [{ key: 'n', label: 'new' }] : []),
     { key: 'esc', label: 'back' },
@@ -200,9 +242,12 @@ export function renderLibraryScreen(
   if (screen.entries.length === 0) {
     return { title: 'Library', body: emptyBody(screen, context), hints };
   }
+  const errorLines = longErrorOf(screen, context);
+  const block = [...errorLines, ...pickerLinesOf(screen, context)];
+  const isErrorBelow = screen.mode.kind === 'browse' && errorLines.length > 0;
   const range = visibleRange(screen.cursor, {
     count: screen.entries.length,
-    rows: listRowsOf(context),
+    rows: Math.max(1, listRowsOf(context) - block.length),
   });
   const rows = screen.entries
     .slice(range.start, range.end)
@@ -211,7 +256,12 @@ export function renderLibraryScreen(
     );
   return {
     title: 'Library',
-    body: [columnHeader(context), statusLine(screen, context), ...rows],
+    body: [
+      columnHeader(context),
+      statusLine(screen, context, isErrorBelow),
+      ...block,
+      ...rows,
+    ],
     hints,
   };
 }

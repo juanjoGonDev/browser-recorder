@@ -8,7 +8,7 @@ import {
   type ControllerDeps,
 } from './controller-deps.ts';
 import type { BrowserChoice } from '../../shared/domain/browser-choice.ts';
-import type { NewRecordingScreen } from '../domain/app-state.ts';
+import { chosenBrowser, loadBrowserOptions } from './browser-options.ts';
 import type { NewRecordingRequest } from './ports/app-services.ts';
 
 export interface RecordingFlow {
@@ -31,17 +31,6 @@ export function createRecordingFlow(
   return new LiveRecordingFlow(deps, showLibrary);
 }
 
-const DETECTING_MESSAGE = 'Detecting browsers…';
-const NO_BROWSER_MESSAGE = 'No browser is available to record with.';
-
-/** The picked choice, or the reason the form cannot start yet. */
-function chosenBrowser(screen: NewRecordingScreen): BrowserChoice | string {
-  if (screen.browsers === null) return DETECTING_MESSAGE;
-  const profile =
-    screen.browsers[screen.browserIndex]?.profiles[screen.profileIndex];
-  return profile === undefined ? NO_BROWSER_MESSAGE : profile.choice;
-}
-
 class LiveRecordingFlow implements RecordingFlow {
   private live: LiveRecordingView | null = null;
   private unsubscribe: () => void = () => undefined;
@@ -60,13 +49,9 @@ class LiveRecordingFlow implements RecordingFlow {
   }
 
   async loadBrowsers(): Promise<void> {
-    const { store, services } = this.deps;
+    const { store } = this.deps;
     try {
-      const detected = await services.browsers.list();
-      const { isBundledMissing } = store.getState();
-      const browsers = detected.filter(
-        (view) => !(isBundledMissing && view.browserId === 'bundled'),
-      );
+      const browsers = await loadBrowserOptions(this.deps);
       store.dispatch({ type: 'browsers-loaded', browsers });
     } catch (error) {
       store.dispatch({ type: 'browsers-failed', message: messageOf(error) });

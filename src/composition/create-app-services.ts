@@ -118,6 +118,9 @@ class Composition {
         rename: async (slug, name) => {
           await library.rename(slug, name);
         },
+        changeBrowser: async (slug, choice) => {
+          await library.changeBrowser(slug, choice);
+        },
         remove: (slug) => library.remove(slug),
       },
       browsers: { list: () => this.deps.browserViews.options() },
