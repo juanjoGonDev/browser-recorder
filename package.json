@@ -54,7 +54,7 @@
     "prepare": "node --experimental-strip-types scripts/install-hooks.ts"
   },
   "dependencies": {
-    "patchright": "1.63.0"
+    "patchright": "1.64.1"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.3",
