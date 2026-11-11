@@ -82,7 +82,7 @@ describe('src/composition/create-app-services.ts', () => {
       ).resolves.toEqual({
         kind: 'failed',
         manualCommand:
-          'npm exec -y -p patchright@1.63.0 -- patchright install chromium',
+          'npm exec -y --package=patchright@1.63.0 -- patchright install chromium',
         exitCode: 1,
       });
     });

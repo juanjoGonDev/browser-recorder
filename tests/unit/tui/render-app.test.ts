@@ -45,7 +45,7 @@ describe('src/tui/render/render-app.ts', () => {
       phase: 'failed',
       lines: [],
       manualCommand:
-        'npm exec -y -p patchright@1.63.0 -- patchright install chromium',
+        'npm exec -y --package=patchright@1.63.0 -- patchright install chromium',
       exitCode: 1,
       browsers: [],
     };

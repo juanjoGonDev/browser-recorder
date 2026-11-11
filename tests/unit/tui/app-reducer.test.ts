@@ -156,7 +156,7 @@ describe('src/tui/domain/app-reducer.ts', () => {
       const state = reduce(initialState(), {
         type: 'setup-failed',
         manualCommand:
-          'npm exec -y -p patchright@1.63.0 -- patchright install chromium',
+          'npm exec -y --package=patchright@1.63.0 -- patchright install chromium',
         exitCode: 7,
         browsers: [],
       });
@@ -164,7 +164,7 @@ describe('src/tui/domain/app-reducer.ts', () => {
         kind: 'setup',
         phase: 'failed',
         manualCommand:
-          'npm exec -y -p patchright@1.63.0 -- patchright install chromium',
+          'npm exec -y --package=patchright@1.63.0 -- patchright install chromium',
         exitCode: 7,
       });
     });

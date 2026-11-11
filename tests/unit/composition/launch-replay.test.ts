@@ -171,7 +171,7 @@ describe('src/composition/launch-replay.ts', () => {
         isHeadless: false,
       }),
     ).rejects.toThrow(
-      /Chromium \(bundled\) is not installed on this machine\.\n.*npm exec -y -p patchright@1.63.0 -- patchright install chromium/u,
+      /Chromium \(bundled\) is not installed on this machine\.\n.*npm exec -y --package=patchright@1.63.0 -- patchright install chromium/u,
     );
     expect(spawner.children).toHaveLength(0);
   });
@@ -190,7 +190,7 @@ describe('src/composition/launch-replay.ts', () => {
           isHeadless: false,
         }),
       ).rejects.toThrow(
-        /Chromium \(bundled\) is not installed on this machine\.\n.*npm exec -y -p patchright@1.63.0 -- patchright install chromium/u,
+        /Chromium \(bundled\) is not installed on this machine\.\n.*npm exec -y --package=patchright@1.63.0 -- patchright install chromium/u,
       );
       expect(spawner.children).toHaveLength(0);
       expect(release).toHaveBeenCalledTimes(1);
@@ -208,7 +208,7 @@ describe('src/composition/launch-replay.ts', () => {
           isHeadless: false,
         }),
       ).rejects.toThrow(
-        /npm exec -y -p patchright@1.63.0 -- patchright install chromium/u,
+        /npm exec -y --package=patchright@1.63.0 -- patchright install chromium/u,
       );
     });
 

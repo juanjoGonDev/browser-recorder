@@ -62,7 +62,7 @@ describe('README.md', () => {
     expect(readme).toContain('npm install --global browser-recorder');
     expect(readme).toContain('pnpm install');
     expect(readme).toContain(
-      'npm exec -y -p patchright@1.63.0 -- patchright install chromium',
+      'npm exec -y --package=patchright@1.63.0 -- patchright install chromium',
     );
   });
 

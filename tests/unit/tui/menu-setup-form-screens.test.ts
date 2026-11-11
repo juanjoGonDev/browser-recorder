@@ -36,7 +36,7 @@ describe('src/tui/render/screens (main menu, setup, new recording)', () => {
 
     it('shows the Linux dependency hint only when there is one', () => {
       const hint =
-        'sudo npm exec -y -p patchright@1.63.0 -- patchright install-deps chromium';
+        'sudo npm exec -y --package=patchright@1.63.0 -- patchright install-deps chromium';
       const withHint = renderMainMenuScreen(
         screen(0),
         plainContext({ linuxHint: hint }),
@@ -118,7 +118,7 @@ describe('src/tui/render/screens (main menu, setup, new recording)', () => {
         ...base,
         phase: 'failed',
         manualCommand:
-          'npm exec -y -p patchright@1.63.0 -- patchright install chromium',
+          'npm exec -y --package=patchright@1.63.0 -- patchright install chromium',
         exitCode: 1,
       };
       const view = renderSetupScreen(failed, plainContext());
@@ -126,7 +126,7 @@ describe('src/tui/render/screens (main menu, setup, new recording)', () => {
         'Chromium could not be installed.',
       );
       expect(view.body.join('\n')).toContain(
-        'npm exec -y -p patchright@1.63.0 -- patchright install chromium',
+        'npm exec -y --package=patchright@1.63.0 -- patchright install chromium',
       );
       expect(view.hints.map((hint) => hint.key)).toEqual(['enter', 'l', 'q']);
     });
@@ -170,7 +170,7 @@ describe('src/tui/render/screens (main menu, setup, new recording)', () => {
             ...base,
             phase: 'failed',
             manualCommand:
-              'npm exec -y -p patchright@1.63.0 -- patchright install chromium',
+              'npm exec -y --package=patchright@1.63.0 -- patchright install chromium',
             exitCode,
           },
           plainContext(),

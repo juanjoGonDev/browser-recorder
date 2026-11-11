@@ -98,7 +98,7 @@ describe('AGENTS.md and CONTRIBUTING.md wording', () => {
     }
     expect(readDoc('AGENTS.md')).toMatch(/Patchright is the only runtime/);
     expect(readDoc('CONTRIBUTING.md')).toContain(
-      'npm exec -y -p patchright@1.63.0 -- patchright install-deps chromium',
+      'npm exec -y --package=patchright@1.63.0 -- patchright install-deps chromium',
     );
   });
 

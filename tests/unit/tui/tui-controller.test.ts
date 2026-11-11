@@ -83,7 +83,7 @@ describe('src/tui/application/tui-controller.ts', () => {
         return Promise.resolve({
           kind: 'failed',
           manualCommand:
-            'npm exec -y -p patchright@1.63.0 -- patchright install chromium',
+            'npm exec -y --package=patchright@1.63.0 -- patchright install chromium',
           exitCode: 2,
         });
       };
@@ -93,7 +93,7 @@ describe('src/tui/application/tui-controller.ts', () => {
         phase: 'failed',
         lines: ['Downloading Chromium'],
         manualCommand:
-          'npm exec -y -p patchright@1.63.0 -- patchright install chromium',
+          'npm exec -y --package=patchright@1.63.0 -- patchright install chromium',
         exitCode: 2,
       });
     });
@@ -106,7 +106,7 @@ describe('src/tui/application/tui-controller.ts', () => {
         kind: 'setup',
         phase: 'failed',
         manualCommand:
-          'npm exec -y -p patchright@1.63.0 -- patchright install chromium',
+          'npm exec -y --package=patchright@1.63.0 -- patchright install chromium',
       });
     });
 

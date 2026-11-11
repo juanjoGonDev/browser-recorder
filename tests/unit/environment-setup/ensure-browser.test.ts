@@ -93,7 +93,7 @@ describe('ensureBrowser', () => {
       exitCode: 1,
     });
     expect(MANUAL_INSTALL_COMMAND).toBe(
-      'npm exec -y -p patchright@1.63.0 -- patchright install chromium',
+      'npm exec -y --package=patchright@1.63.0 -- patchright install chromium',
     );
   });
 
