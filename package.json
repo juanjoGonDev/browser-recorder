@@ -60,11 +60,11 @@
     "@commitlint/cli": "21.2.3",
     "@commitlint/config-conventional": "21.2.3",
     "@types/node": "26.6.4",
-    "@vitest/coverage-v8": "5.0.3",
+    "@vitest/coverage-v8": "5.1.0",
     "@vitest/eslint-plugin": "1.6.27",
     "dependency-cruiser": "18.5.0",
     "esbuild": "0.28.2",
-    "eslint": "10.12.0",
+    "eslint": "10.15.0",
     "eslint-plugin-unicorn": "77.0.0",
     "jiti": "2.7.0",
     "knip": "6.40.0",
@@ -72,12 +72,15 @@
     "prettier": "3.9.9",
     "typescript": "6.0.3",
     "typescript-eslint": "8.71.1",
-    "vitest": "5.0.3"
+    "vitest": "5.1.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
       "lefthook"
-    ]
+    ],
+    "overrides": {
+      "@typescript-eslint/typescript-estree>minimatch": "11.0.8"
+    }
   },
   "commitlint": {
     "extends": [
